@@ -1,0 +1,27 @@
+CRITICAL
+========
+
+NOT SO CRITICAL
+===============
+
+- IPv6 support
+- "make install" should install man pages
+
+ON THE BACK BURNER
+==================
+
+- "Minimal" build support
+- Small race: signal might come in just before we start a blocking call
+- Support for "welcome.msg" on initial connection
+- wtmp support
+- OpenSSL support
+- transparent compression support
+- transparent tar support
+
+NOT PLANNED
+===========
+
+- syslog() support - I don't want to encourage the broken beast
+- telnet strings (no demand)
+- better pattern matching in "ls" (no demand)
+- standalone support (no demand, connections not a bottleneck)

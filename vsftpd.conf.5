@@ -1,0 +1,439 @@
+.TH VSFTPD.CONF 5
+.SH NAME
+vsftpd.conf, the config file for vsftpd
+.SH DESCRIPTION
+vsftpd.conf may be used to control various aspects of vsftpd's behaviour. By
+default, vsftpd looks for this file at the location
+.BR /etc/vsftpd.conf .
+However, you may override this by specifying a command line argument to
+vsftpd. The command line argument is the pathname of the configuration file
+for vsftpd. This behaviour is useful because you may wish to use an advanced
+inetd such as
+.BR xinetd
+to launch vsftpd with different configuration files on a per virtual host
+basis.
+
+.SH FORMAT
+The format of vsftpd.conf is very simple. Each line is either a comment or
+a directive. Comment lines start with a # and are ignored. A directive line
+has the format:
+
+option=value
+
+It is important to note that it is an error to put any space between the
+option, = and value.
+
+Each setting has a compiled in default which may be modified in the
+configuration file.
+
+.SH BOOLEAN OPTIONS
+Below is a list of boolean options. The value for a boolean option may be set
+to
+.BR YES
+or
+.BR NO .
+
+.TP
+.B anon_mkdir_write_enable
+If set to YES, anonymous users will be permitted to create new directories
+under certain conditions. For this to work, the option
+.BR write_enable
+must be activated, and the anonymous ftp user must have write permission on
+the parent directory.
+
+Default: NO
+.TP
+.B anon_other_write_enable
+If set to YES, anonymous users will be permitted to perform write operations
+other than upload and create directory, such as deletion and renaming. This
+is generally not recommended but included for completeness.
+
+Default: NO
+.TP
+.B anon_upload_enable
+If set to YES, anonymous users will be permitted to upload files under certain
+conditions. For this to work, the option
+.BR write_enable
+must be activated, and the anonymous ftp user must have write permission on
+desired upload locations.
+
+Default: NO
+.TP
+.B anon_world_readable_only
+When enabled, anonymous users will only be allowed to download files which
+are world readable. This is recognising that the ftp user may own files,
+especially in the presence of uploads.
+
+Default: YES
+.TP
+.B anonymous_enable
+Controls whether anonymous logins are permitted or not. If enabled,
+both the usernames
+.BR ftp
+and
+.BR anonymous
+are recognised as anonymous logins.
+
+Default: YES
+.TP
+.B ascii_download_enable
+When enabled, ASCII mode data transfers will be honoured on downloads.
+
+Default: NO
+.TP
+.B ascii_upload_enable
+When enabled, ASCII mode data transfers will be honoured on uploads.
+
+Default: NO
+.TP
+.B async_abor_enable
+When enabled, a special FTP command known as "async ABOR" will be enabled.
+Only ill advised FTP clients will use this feature. Addtionally, this feature
+is awkward to handle, so it is disabled by default. Unfortunately, some FTP
+clients will hang when cancelling a transfer unless this feature is available,
+so you may wish to enable it.
+
+Default: NO
+.TP
+.B chown_uploads
+If enabled, all anonymously uploaded files will have the ownership changed
+to the user specified in the setting
+.BR chown_username .
+This is useful from an administrative, and perhaps security, standpoint.
+
+Default: NO
+.TP
+.B chroot_list_enable
+If activated, you may provide a list of local users who are placed in a
+chroot() jail in their home directory upon login. The meaning is slightly
+different if chroot_local_user is set to YES. In this case, the list becomes
+a list of users which are NOT to be placed in a chroot() jail.
+By default, the file containing this list is
+/etc/vsftpd.chroot_list, but you may override this with the
+.BR chroot_list_file
+setting.
+
+Default: NO
+.TP
+.B chroot_local_user
+If set to YES, local users will be placed in a chroot() jail in their home
+directory after login.
+.BR Warning:
+This option has security implications, especially if the users also have
+shell access. Only enable if you know what you are doing.
+
+Default: NO
+.TP
+.B connect_from_port_20
+This controls whether PORT style data connections use port 20 (ftp-data) on
+the server machine. For security reasons, some clients may insist that this
+is the case. Conversely, disabling this option enables vsftpd to run with
+slightly less privilege.
+
+Default: NO (but the sample config file enables it)
+.TP
+.B deny_email_enable
+If activated, you may provide a list of anonymous password e-mail responses
+which cause login to be denied. By default, the file containing this list is
+/etc/vsftpd.banned_emails, but you may override this with the
+.BR banned_email_file
+setting.
+
+Default: NO
+.TP
+.B dirmessage_enable
+If enabled, users of the FTP server can be shown messages when they first
+enter a new directory. By default, a directory is scanned for the
+file .message, but that may be overridden with the configuration setting
+.BR message_file .
+
+Default: NO (but the sample config file enables it)
+.TP
+.B guest_enable
+If enabled, all non-anonymous logins are classed as "guest" logins. A guest
+login is remapped to the user specified in the
+.BR guest_username
+setting.
+
+Default: NO
+.TP
+.B local_enable
+Controls whether local logins are permitted or not. If enabled, normal
+user accounts in /etc/passwd may be used to log in.
+
+Default: NO
+.TP
+.B log_ftp_protocol
+When enabled, all FTP requests and responses are logged, providing the option
+xferlog_std_format is not enabled. Useful for debugging.
+
+Default: NO
+.TP
+.B ls_recurse_enable
+When enabled, this setting will allow the use of "ls -R". This is a minor
+security risk, because a ls -R at the top level of a large site may consume
+a lot of resources.
+
+Default: NO
+.TP
+.B one_process_model
+If you have a Linux 2.4 kernel, it is possible to use a different security
+model which only uses one process per connection. It is a less pure security
+model, but gains you performance. You really don't want to enable this unless
+you know what you are doing, and your site supports huge numbers of
+simultaneously connected users.
+
+Default: NO
+.TP
+.B pasv_enable
+Set to NO if you want to disallow the PASV method of obtaining a data
+connection.
+
+Default: YES
+.TP
+.B pasv_promiscuous
+Set to YES if you want to disable the PASV security check that ensures the
+data connection originates from the same IP address as the control connection.
+Only enable if you know what you are doing! The only legitimate use for this
+is in some form of secure tunnelling scheme.
+
+Default: NO
+.TP
+.B port_enable
+Set to NO if you want to disallow the PORT method of obtaining a data
+connection.
+
+Default: YES
+.TP
+.B setproctitle_enable
+If enabled, vsftpd will try and show session status information in the system
+process listing. In other words, the reported name of the process will change
+to reflect what a vsftpd session is doing (idle, downloading etc). You
+probably want to leave this off for security purposes.
+
+Default: NO
+.TP
+.B text_userdb_names
+By default, numeric IDs are shown in the user and group fields of directory
+listings. You can get textual names by enabling this parameter. It is off
+by default for performance reasons.
+
+Default: NO
+.TP
+.B userlist_deny
+This option is examined if
+.B userlist_enable
+is activated. If you set this setting to NO, then users will be denied login
+unless they are explicitly listed in the file specified by
+.BR userlist_file .
+When login is denied, the denial is issued before the user is asked for a
+password.
+
+Default: YES
+.TP
+.B userlist_enable
+If enabled, vsftpd will load a list of usernames, from the filename given by
+.BR userlist_file .
+If a user tries to log in using a name in this file, they will be denied
+before they are asked for a password. This may be useful in preventing
+cleartext passwords being transmitted. See also
+.BR userlist_deny .
+
+Default: NO
+.TP
+.B write_enable
+This controls whether any FTP commands which change the filesystem are allowed
+or not. These commands are: STOR, DELE, RNFR, RNTO, MKD, RMD, APPE and SITE.
+
+Default: NO
+.TP
+.B xferlog_enable
+If enabled, a log file will be maintained detailling uploads and downloads.
+By default, this file will be placed at /var/log/vsftpd.log, but this location
+may be overridden using the configuration setting
+.BR xferlog_file .
+
+Default: NO (but the sample config file enables it)
+.TP
+.B xferlog_std_format
+If enabled, the transfer log file will be written in standard xferlog format,
+as used by wu-ftpd. This is useful because you can reuse existing transfer
+statistics generators. The default format is more readable, however.
+
+Default: NO
+
+.SH NUMERIC OPTIONS
+Below is a list of numeric options. A numeric option must be set to a non
+negative integer. Octal numbers are supported, for convenience of the umask
+options. To specify an octal number, use 0 as the first digit of the number.
+
+.TP
+.B accept_timeout
+The timeout, in seconds, for a remote client to establish connection with
+a PASV style data connection.
+
+Default: 60
+.TP
+.B anon_max_rate
+The maximum data transfer rate permitted, in bytes per second, for anonymous
+clients.
+
+Default: 0 (unlimited)
+.TP
+.B anon_umask
+The value that the umask for file creation is set to for anonymous users. NOTE! If you want to specify octal values, remember the "0" prefix otherwise the
+value will be treated as a base 10 integer!
+
+Default: 077
+.TP
+.B connect_timeout
+The timeout, in seconds, for a remote client to respond to our PORT style
+data connection.
+
+Default: 60
+.TP
+.B data_connection_timeout
+The timeout, in seconds, which is roughly the maximum time we permit data
+transfers to stall for with no progress. If the timeout triggers, the remote
+client is kicked off.
+
+Default: 300
+.TP
+.B ftp_data_port
+The port from which PORT style connections originate (as long as the poorly
+named
+.BR connect_from_port_20
+is enabled).
+
+Default: 20
+.TP
+.B idle_session_timeout
+The timeout, in seconds, which is the maximum time a remote client may spend
+between FTP commands. If the timeout triggers, the remote client is kicked
+off.
+
+Default: 300
+.TP
+.B local_max_rate
+The maximum data transfer rate permitted, in bytes per second, for local
+authenticated users.
+
+Default: 0 (unlimited)
+.TP
+.B local_umask
+The value that the umask for file creation is set to for local users. NOTE! If
+you want to specify octal values, remember the "0" prefix otherwise the value
+will be treated as a base 10 integer!
+
+Default: 077
+.TP
+.B pasv_max_port
+The maximum port to allocate for PASV style data connections. Can be used to
+specify a narrow port range to assist firewalling.
+
+Default: 0 (use any port)
+.TP
+.B pasv_min_port
+The minimum port to allocate for PASV style data connections. Can be used to
+specify a narrow port range to assist firewalling.
+
+Default: 0 (use any port)
+
+.SH STRING OPTIONS
+Below is a list of string options.
+
+.TP
+.B banned_email_file
+This option is the name of a file containing a list of anonymous e-mail
+passwords which are not permitted. This file is consulted if the option
+.BR deny_email_enable
+is enabled.
+
+Default: /etc/vsftpd.banned_emails
+.TP
+.B chown_username
+This is the name of the user who is given ownership of anonymously uploaded
+files. This option is only relevant if another option,
+.BR chown_uploads ,
+is set.
+
+Default: root
+.TP
+.B chroot_list_file
+The option is the name of a file containing a list of local users which
+will be placed in a chroot() jail in their home directory. This option is
+only relevant if the option
+.BR chroot_list_enable
+is enabled, and the option
+.BR chroot_local_user
+is disabled.
+
+Default: /etc/vsftpd.chroot_list
+.TP
+.B guest_username
+See the boolean setting
+.BR guest_enable
+for a description of what constitutes a guest login. This setting is the
+real username which guest users are mapped to.
+
+Default: ftp
+.TP
+.B ftp_username
+This is the name of the user we use for handling anonymous FTP. The home
+directory of this user is the root of the anonymous FTP area.
+
+Default: ftp
+.TP
+.B ftpd_banner
+This string option allows you to override the greeting banner displayed
+by vsftpd when a connection first comes in.
+
+Default: (none - default vsftpd banner is displayed)
+.TP
+.B message_file
+This option is the name of the file we look for when a new directory is
+entered. The contents are displayed to the remote user. This option is
+only relevant if the option
+.BR dirmessage_enable
+is enabled.
+
+Default: .message
+.TP
+.B nopriv_user
+This is the name of the user that is used by vsftpd when it want to be
+totally unprivileged. Note that this should be a dedicated user, rather
+than nobody. The user nobody tends to be used for rather a lot of important
+things on most machines.
+
+Default: nobody
+.TP
+.B pam_service_name
+This string is the name of the PAM service vsftpd will use.
+
+Default: ftp
+.TP
+.B secure_chroot_dir
+This option should be the name of a directory which is empty. Also, the
+directory should not be writable by the ftp user. This directory is used
+as a secure chroot() jail at times vsftpd does not require filesystem access.
+
+Default: /usr/share/empty
+.TP
+.B userlist_file
+This option is the name of the file loaded when the
+.BR userlist_enable
+option is active.
+
+Default: /etc/vsftpd.user_list
+.TP
+.B xferlog_file
+This option is the name of the file to which we write the transfer log. The
+transfer log is only written if the option
+.BR xferlog_enable
+is set.
+
+Default: /var/log/vsftpd.log
+
+.SH AUTHOR
+chris@scary.beasts.org
+

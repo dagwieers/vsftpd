@@ -1,0 +1,30 @@
+# Makefile for SUNWspro compiler and tools
+# Contributed by Mike Batchelor <mikebat@electabuzz.tech.tmcs>
+CC 	=	cc
+INSTALL	=	/usr/ucb/install
+CFLAGS	=	-xO5
+
+LIBS	= -lsocket -lnsl -lpam
+LINK	=	-s
+
+OBJS	=	main.o utility.o prelogin.o ftpcmdio.o postlogin.o privsock.o \
+		tunables.o ftpdataio.o secbuf.o ls.o \
+		postprivparent.o logging.o str.o netstr.o sysstr.o strlist.o \
+    dirchange.o filestr.o parseconf.o secutil.o \
+    ascii.o oneprocess.o twoprocess.o privops.o \
+    sysutil.o sysdeputil.o
+
+.c.o:
+	$(CC) -c $*.c $(CFLAGS)
+
+vsftpd: $(OBJS) 
+	$(CC) -o vsftpd $(OBJS) $(LINK) $(LIBS)
+
+install:
+	$(INSTALL) -m 755 vsftpd /usr/sbin/vsftpd
+	if [ -x /etc/xinetd.d ]; then \
+		$(INSTALL) -m 644 xinetd.d/vsftpd /etc/xinetd.d/vsftpd; fi
+
+clean:
+	rm -f *.o vsftpd
+

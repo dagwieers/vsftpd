@@ -1,0 +1,46 @@
+For now, just type "make" and mail me if it doesn't build.
+
+Once built, you will need to run the binary from an inetd of some kind.
+
+The FTP server will refuse to start up unless you satisfy a few prerequisites:
+1) You will need the user "ftp" to exist and have a valid home directory.
+2) You will need the user "nobody" to exist.
+3) You will need an empty directory /usr/share/empty to exist.
+
+Note that "ftp" "nobody" and "/usr/share/empty" are not hard-coded; you may
+specify values for these in the config file.
+
+If you are running vsftpd on a PAM enabled machine, you will need to have a
+/etc/pam.d/ftp file present, otherwise non-anonymous logins will fail. [NOTE -
+if you have an older version of PAM, that file might be /etc/pam.conf]
+
+As well as the above three pre-requisites, you are recommended to install a
+config file. The default location for the config file is /etc/vsftpd.conf.
+There is a sample vsftpd.conf in the distribution tarball. You probably want
+to copy that to /etc/vsftpd.conf as a basis for modification. For example,
+the default configuration allows neither local user logins nor anonymous
+uploads. You may wish to change these defaults.
+
+If you have virtual hosting running, you may find it useful to specify the
+config file on the command line. This is accomplished by specifying a single
+command line argument which is a pathname to the config file. If using inetd
+as opposed to xinetd, be careful to specify the program name argv[0] before
+the config file location argv[1]!
+
+Tested platforms (well, it builds)
+- RedHat Linux 7.0
+- RedHat Linux 6.1
+- RedHat Linux 6.2
+- RedHat Linux 5.2
+- Solaris 8 / GNU tools (light testing)
+- SuSE 6.4
+- SuSE 6.0
+- Debian 2.2
+- OpenBSD 2.8
+- FreeBSD 4.2
+- FreeBSD 3.5
+- HP-UX 11.11 / GNU tools
+- HP-UX 10.20 / GNU tools
+- Solaris 2.6
+- IRIX 6.5.11 / GNU tools
+
