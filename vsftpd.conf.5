@@ -205,6 +205,22 @@ excludes the "." and ".." entries.
 
 Default: NO
 .TP
+.B force_anon_data_ssl
+Only applies if
+.BR ssl_enable
+is activated. If activated, all anonymous logins are forced to use a secure
+SSL connection in order to send and receive data on data connections.
+
+Default: NO
+.TP
+.B force_anon_logins_ssl
+Only applies if
+.BR ssl_enable
+is activated. If activated, all anonymous logins are forced to use a secure
+SSL connection in order to send the password.
+
+Default: NO
+.TP
 .B force_local_data_ssl
 Only applies if
 .BR ssl_enable

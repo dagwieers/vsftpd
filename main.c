@@ -207,6 +207,11 @@ main(int argc, const char* argv[])
   if (tunable_run_as_launching_user)
   {
     tunable_one_process_model = 1;
+    if (!vsf_sysutil_running_as_root())
+    {
+      tunable_connect_from_port_20 = 0;
+      tunable_chown_uploads = 0;
+    }
   }
   if (tunable_one_process_model)
   {
@@ -226,7 +231,7 @@ die_unless_privileged(void)
 {
   if (!vsf_sysutil_running_as_root())
   {
-    die("vsftpd: must be started as root");
+    die("vsftpd: must be started as root (see run_as_launching_user option)");
   }
 }
 

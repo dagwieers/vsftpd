@@ -1760,8 +1760,9 @@ data_transfer_checks_ok(struct vsf_session* p_sess)
     vsf_cmdio_write(p_sess, FTP_BADSENDCONN, "Use PORT or PASV first.");
     return 0;
   }
-  if (!p_sess->is_anonymous && tunable_ssl_enable &&
-      tunable_force_local_data_ssl && !p_sess->data_use_ssl)
+  if (tunable_ssl_enable && !p_sess->data_use_ssl &&
+      ((tunable_force_local_data_ssl && !p_sess->is_anonymous) ||
+       (tunable_force_anon_data_ssl && p_sess->is_anonymous)))
   {
     vsf_cmdio_write(
       p_sess, FTP_NEEDENCRYPT, "Data connections must be encrypted.");

@@ -876,4 +876,14 @@ by Lee Lawrence <leel@aspin.co.uk> (using CuteFTP and BackupEdge) and
 Christian DELAIR <christian@cognition.fr> (using lftp, FileZilla and
 SmartFTP). Thanks to these two people for valuable help.
 (v2.0.3pre2)
+- Implicitly disable connect_from_port_20 and chown_uploads when a non-root
+user is using run_as_launching_user.
+- Add force_anon_logins_ssl and force_anon_data_ssl for a fully SSL secure
+anonymous-only solution (useful when you don't have root access and a range
+of acceptable anonymous passwords as credentials).
+- Use SSL BIO callbacks to fix data connection timeout checks; the checks
+weren't all occurring promply.
+
+At this point: v2.0.3 released! (need to get about three imporant fixes out)
+============================================================================
 

@@ -22,17 +22,18 @@
 #include "builddefs.h"
 
 #ifdef VSF_BUILD_SSL
-  #include <openssl/ssl.h>
-#endif
 
-#ifdef VSF_BUILD_SSL
-
+#include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <openssl/rand.h>
+#include <openssl/bio.h>
 
 static char* get_ssl_error();
 static SSL* get_ssl(struct vsf_session* p_sess, int fd);
 static int ssl_session_init(struct vsf_session* p_sess);
+static void setup_bio_callbacks();
+static long bio_callback(
+  BIO* p_bio, int oper, const char* p_arg, int argi, long argl, long retval);
 
 static int ssl_inited;
 
@@ -214,12 +215,10 @@ ssl_read(void* p_ssl, char* p_buf, unsigned int len)
 {
   int retval;
   int err;
-  int fd = SSL_get_fd((SSL*) p_ssl);
   do
   {
     retval = SSL_read((SSL*) p_ssl, p_buf, len);
     err = SSL_get_error((SSL*) p_ssl, retval);
-    vsf_sysutil_check_pending_actions(kVSFSysUtilIO, retval, fd);
   }
   while (retval < 0 && (err == SSL_ERROR_WANT_READ ||
                         err == SSL_ERROR_WANT_WRITE));
@@ -231,12 +230,10 @@ ssl_write(void* p_ssl, const char* p_buf, unsigned int len)
 {
   int retval;
   int err;
-  int fd = SSL_get_fd((SSL*) p_ssl);
   do
   {
     retval = SSL_write((SSL*) p_ssl, p_buf, len);
     err = SSL_get_error((SSL*) p_ssl, retval);
-    vsf_sysutil_check_pending_actions(kVSFSysUtilIO, retval, fd);
   }
   while (retval < 0 && (err == SSL_ERROR_WANT_READ ||
                         err == SSL_ERROR_WANT_WRITE));
@@ -264,6 +261,7 @@ ssl_accept(struct vsf_session* p_sess, int fd)
     return 0;
   }
   p_sess->p_data_ssl = p_ssl;
+  setup_bio_callbacks(p_ssl);
   return 1;
 }
 
@@ -313,6 +311,7 @@ ssl_session_init(struct vsf_session* p_sess)
     return 0;
   }
   p_sess->p_control_ssl = p_ssl;
+  setup_bio_callbacks(p_ssl);
   return 1;
 }
 
@@ -321,6 +320,33 @@ get_ssl_error()
 {
   SSL_load_error_strings();
   return ERR_error_string(ERR_get_error(), NULL);
+}
+
+static void setup_bio_callbacks(SSL* p_ssl)
+{
+  BIO* p_bio = SSL_get_rbio(p_ssl);
+  BIO_set_callback(p_bio, bio_callback);
+  p_bio = SSL_get_wbio(p_ssl);
+  BIO_set_callback(p_bio, bio_callback);
+}
+
+static long
+bio_callback(
+  BIO* p_bio, int oper, const char* p_arg, int argi, long argl, long ret)
+{
+  int retval = 0;
+  int fd = 0;
+  (void) p_arg;
+  (void) argi;
+  (void) argl;
+  if (oper == (BIO_CB_READ | BIO_CB_RETURN) ||
+      oper == (BIO_CB_WRITE | BIO_CB_RETURN))
+  {
+    retval = (int) ret;
+    fd = BIO_get_fd(p_bio, NULL);
+  }
+  vsf_sysutil_check_pending_actions(kVSFSysUtilIO, retval, fd);
+  return ret;
 }
 
 #else /* VSF_BUILD_SSL */

@@ -4,14 +4,17 @@ CRITICAL
 - Improve FAQ, docs (ongoing..)
 - Integrated test suite (I'm so lazy..)
 - Sweedish, Russian etc. characters showing as ? in the log - many complaints.
-- SIGALRM at prelogin stage with SSL not safe w.r.t. re-entrancy?
 - Check re-entrancy of usage of vsf_sysutil_exit_func.
 - Fix SSL session timeout more gracefully.
-- Send until EOF is really reached (not the case with sendfile mode).
+- Use SSL_peek (surely pipelining won't work with current SSL code?)
 
 NOT SO CRITICAL
 ===============
 
+- Implict SSL support (port 990?)
+- Do something with client certs.
+- Add CHLD handler to priv parent process to take care of session crashes?
+- Send until EOF is really reached (not the case with sendfile mode).
 - lock the files being modified?
 - Still reports FlashFXP broken when trying to do FXP.
 - Add negation, other support to regex handler.

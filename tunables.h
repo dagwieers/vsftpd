@@ -62,6 +62,8 @@ extern int tunable_sslv2;                     /* Allow SSLv2 */
 extern int tunable_sslv3;                     /* Allow SSLv3 */
 extern int tunable_tlsv1;                     /* Allow TLSv1 */
 extern int tunable_tilde_user_enable;         /* Support e.g. ~chris */
+extern int tunable_force_anon_logins_ssl;     /* Require anon logins use SSL */
+extern int tunable_force_anon_data_ssl;       /* Require anon data uses SSL */
 
 /* Integer/numeric defines */
 extern unsigned int tunable_accept_timeout;

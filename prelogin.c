@@ -157,7 +157,8 @@ handle_user_command(struct vsf_session* p_sess)
     str_empty(&p_sess->user_str);
     return;
   }
-  if (is_anon && p_sess->control_use_ssl && !tunable_allow_anon_ssl)
+  if (is_anon && p_sess->control_use_ssl && !tunable_allow_anon_ssl &&
+      !tunable_force_anon_logins_ssl)
   {
     vsf_cmdio_write(
       p_sess, FTP_LOGINERR, "Anonymous sessions may not use encryption.");
@@ -169,6 +170,14 @@ handle_user_command(struct vsf_session* p_sess)
   {
     vsf_cmdio_write(
       p_sess, FTP_LOGINERR, "Non-anonymous sessions must use encryption.");
+    str_empty(&p_sess->user_str);
+    return;
+  }
+  if (tunable_ssl_enable && is_anon && !p_sess->control_use_ssl &&
+      tunable_force_anon_logins_ssl)
+  { 
+    vsf_cmdio_write(
+      p_sess, FTP_LOGINERR, "Anonymous sessions must use encryption.");
     str_empty(&p_sess->user_str);
     return;
   }
