@@ -22,6 +22,29 @@ void vsf_cmdio_sock_setup(void);
 void vsf_cmdio_write(struct vsf_session* p_sess, int status,
                      const char* p_text);
 
+/* vsf_cmdio_write_hyphen()
+ * PURPOSE
+ * Write a response to the FTP control connection, with a hyphen '-'
+ * continuation indicator.
+ * PARAMETERS
+ * p_sess       - the current session object
+ * status       - the status code to report
+ * p_text       - the text to report
+ */
+void vsf_cmdio_write_hyphen(struct vsf_session* p_sess, int status,
+                            const char* p_text);
+
+/* vsf_cmdio_write_raw()
+ * PURPOSE
+ * Write a raw response to the FTP control connection. A status code is
+ * not prepended, and it is also the client's responsibility to include
+ * newline characters if required.
+ * PARAMETERS
+ * p_sess       - the current session object
+ * p_text       - the text to report
+ */
+void vsf_cmdio_write_raw(struct vsf_session* p_sess, const char* p_text);
+
 /* vsf_cmdio_write_noblock()
  * PURPOSE
  * The same as vsf_cmdio_write(), apart from the fact we _guarantee_ not to

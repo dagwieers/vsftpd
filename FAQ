@@ -5,6 +5,11 @@ Q) Can I restrict users to their home directories?
 A) Yes. You are probably after the setting:
 chroot_local_user=YES
 
+Q) Why don't symlinks work with chroot_local_user=YES?
+A) This is a consequence of how chroot() security works. As alternatives,
+look into hard links, or if you have a modern Linux, see the powerful
+"mount --bind".
+
 Q) Does vsftpd support a limit on the number of users connected?
 A1) Yes, indirectly. vsftpd is an inetd-based service. If use the popular
 "xinetd" as your inetd, this supports per-service per-IP connection limits.
@@ -61,10 +66,12 @@ careful in this area. But, the system's libc might want to open locale
 config files or other settings...
 
 Q) Help! Uploaded files are appearing with permissions -rw-------.
-A) Depending on if this is an upload by a local user or an anonymous user,
+A1) Depending on if this is an upload by a local user or an anonymous user,
 use "local_umask" or "anon_umask" to change this. For example, use
 "anon_umask=022" to give anonymously uploaded files permissions
 -rw-r--r--. Note that the "0" before the "22" is important.
+A2) Also see the vsftpd.conf.5 man page for the new "file_open_mode"
+parameter.
 
 Q) Help! How do I integrate with LDAP users and logins?
 A) Use vsftpd's PAM integration to do this, and have PAM authenticate against
@@ -99,4 +106,48 @@ Q) Help! I'm getting the message "OOPS: chdir".
 A) If this is for an anonymous login, check that the home directory for the
 user "ftp" is correct. If you are using the config setting "anon_root", check
 that is correct too.
+
+Q) Help! vsftpd is reporting times as GMT times and not local times!
+A) This behaviour can be changed with the setting "use_localtime=YES".
+
+Q) Help! Can I disable certain FTP commands?
+A) Yes. There are some individual settings (e.g. dirlist_enable) or you can
+specify a complete set of allowed commands with "cmds_allowed".
+
+Q) Help! Can I change the port that vsftpd runs on?
+A1) Yes. If you are running vsftpd in standalone mode, use the "listen_port"
+directive in vsftpd.conf.
+A2) Yes. If you are running vsftpd from an inetd or xinetd program, this
+becomes an inetd or xinetd problem. You must change the inetd or xinetd
+configuration files (perhaps /etc/inetd.conf or /etc/xinetd.d/vsftpd)
+
+Q) Help! Will vsftpd authenticate against an LDAP server? What about a
+MySQL server?
+A) Yes. vsftpd uses PAM for authentication, so you need to configure PAM
+to use pam_ldap or pam_mysql modules. This may involve installing the PAM
+modules and then editing the PAM config file (perhaps /etc/pam.d/vsftpd).
+
+Q) Help! Does vsftpd support per-IP limits?
+A1) Yes. If you are running vsftpd standalone, there is a "max_per_ip"
+setting.
+A2) Yes. If you are running vsftpd via xinetd, there is an xinetd config
+variable "per_source".
+
+Q) Help! Does vsftpd support bandwidth limiting?
+A) Yes. See vsftpd.conf.5 man page and investigate settings such as
+"anon_max_rate" and "local_max_rate".
+
+Q) Help! Does vsftpd support IP-based access control?
+A1) Yes. vsftpd can integrate with tcp_wrappers (if built with this support).
+It is enabled with the setting "tcp_wrappers=YES".
+A2) Yes. vsftpd can be run from xinetd, which supports tcp_wrappers
+integration.
+
+Q) Help! Does vsftpd support IPv6?
+A) Yes, as of version 1.2.0. Read the vsftpd.conf.5 man page.
+
+Q) Blah.. blah..
+A) For a good idea of what vsftpd can do, read the vsftpd.conf.5 man page
+and the EXAMPLES.
+
 

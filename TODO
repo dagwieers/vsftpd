@@ -1,32 +1,38 @@
 CRITICAL
 ========
 
+- Improve FAQ, docs.
+- Integrated test suite (I'm so lazy..)
+
 NOT SO CRITICAL
 ===============
 
-- separate out xferlog and vsftpd.log
-- lock the files being modified?
+- PASV auto address guessing?
+- option to chroot to home dir and THEN apply init_dir
+- pasv_addr_file option (patch from Adam Luter)
 - Sweedish characters showing as ? in the log.
+- Limits on GIDs allowed to authenticate?
 
 - separate upload/download max rates
 - select() is assuming Linux behaviour (not threatening stability)
-- IPv6 support
 - some FTP clients are trying to use MDTM to _set_ timestamps?
-- smoother bandwidth limiter
+- add example global bandwidth limiting.
+- put anon FTP users in wtmp too?
+- switch to new signal model
 
 ON THE BACK BURNER
 ==================
 
-- pam_session - I don't think it buys me wtmp
+- lock the files being modified?
+- repeated PORT problem?
 - transfer stats
 - Small race: signal might come in just before we start a blocking call
-- wtmp support (should be done through pam_session support?)
 - OpenSSL support
+- log logout (pam session support provides this for locals)
 
 NOT PLANNED
 ===========
 
-- syslog() support - I don't want to encourage the broken beast
 - telnet strings (no demand)
 - better pattern matching in "ls" (no demand)
 - "Minimal" build support

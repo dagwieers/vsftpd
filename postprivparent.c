@@ -41,8 +41,11 @@ vsf_priv_parent_postlogin(struct vsf_session* p_sess)
 static void
 process_post_login_req(struct vsf_session* p_sess)
 {
+  char cmd;
+  vsf_sysutil_unblock_sig(kVSFSysUtilSigCHLD);
   /* Blocks */
-  char cmd = priv_sock_get_cmd(p_sess);
+  cmd = priv_sock_get_cmd(p_sess);
+  vsf_sysutil_block_sig(kVSFSysUtilSigCHLD);
   if (tunable_chown_uploads && cmd == PRIV_SOCK_CHOWN)
   {
     cmd_process_chown(p_sess);
@@ -53,7 +56,7 @@ process_post_login_req(struct vsf_session* p_sess)
   }
   else
   {
-    die("bad post login request");
+    die("bad request in process_post_login_req");
   }
 }
 
@@ -67,8 +70,14 @@ minimize_privilege(struct vsf_session* p_sess)
    * In some happy circumstances, we can exit and be done with root
    * altogether.
    */
-  if (!(tunable_chown_uploads && p_sess->is_anonymous) &&
-      !tunable_connect_from_port_20)
+  if (!p_sess->is_anonymous && tunable_session_support)
+  {
+    /* Need to hang around to update logs, utmp, wtmp etc. on logout.
+     * Need to keep privs to do this. */
+    return;
+  }
+  if (!tunable_chown_uploads && !tunable_connect_from_port_20 &&
+      !tunable_max_per_ip && !tunable_max_clients)
   {
     /* Cool. We're outta here. */
     vsf_sysutil_exit(0);
@@ -79,7 +88,7 @@ minimize_privilege(struct vsf_session* p_sess)
     struct mystr dir_str = INIT_MYSTR;
     str_alloc_text(&user_str, tunable_nopriv_user);
     str_alloc_text(&dir_str, tunable_secure_chroot_dir);
-    if (tunable_chown_uploads && p_sess->is_anonymous)
+    if (tunable_chown_uploads)
     {
       caps |= kCapabilityCAP_CHOWN;
     }

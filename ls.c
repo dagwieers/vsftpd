@@ -56,6 +56,11 @@ vsf_ls_populate_dir_list(struct mystr_list* p_list,
   {
     do_stat = 1;
   }
+  /* If the filter starts with a . then implicitly enable -a */
+  if (!str_isempty(p_filter_str) && str_get_char_at(p_filter_str, 0) == '.')
+  {
+    a_option = 1;
+  }
   /* "Normalise" the incoming base directory string by making sure it
    * ends in a '/' if it is nonempty
    */
@@ -78,6 +83,7 @@ vsf_ls_populate_dir_list(struct mystr_list* p_list,
   }
   while (1)
   {
+    int len;
     static struct mystr s_next_filename_str;
     static struct mystr s_next_path_and_filename_str;
     static struct vsf_sysutil_statbuf* s_p_statbuf;
@@ -86,10 +92,19 @@ vsf_ls_populate_dir_list(struct mystr_list* p_list,
     {
       break;
     }
-    if (!a_option && str_getlen(&s_next_filename_str) > 0 &&
-        str_get_char_at(&s_next_filename_str, 0) == '.')
+    len = str_getlen(&s_next_filename_str);
+    if (len > 0 && str_get_char_at(&s_next_filename_str, 0) == '.')
     {
-      continue;
+      if (!a_option && !tunable_force_dot_files)
+      {
+        continue;
+      }
+      if (!a_option &&
+          ((len == 2 && str_get_char_at(&s_next_filename_str, 1) == '.') ||
+           len == 1))
+      {
+        continue;
+      }
     }
     /* If we have an ls option which is a filter, apply it */
     if (!str_isempty(p_filter_str))

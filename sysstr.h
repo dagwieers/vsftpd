@@ -33,5 +33,7 @@ void str_next_dirent(struct mystr* p_filename_str,
 
 struct vsf_sysutil_user* str_getpwnam(const struct mystr* p_user_str);
 
+void str_syslog(const struct mystr* p_str, int severe);
+
 #endif /* VSF_SYSSTR_H */
 

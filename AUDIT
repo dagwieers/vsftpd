@@ -12,6 +12,7 @@ filestr.c                    3
 ftpcmdio.c                   3
 ftpdataio.c                  2
 hash.c                       1
+ipv6parse.c                  1
 logging.c                    3
 ls.c                         2
 main.c                       3

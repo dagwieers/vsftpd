@@ -28,6 +28,7 @@
 #include <sys/param.h>
 #include <sys/uio.h>
 
+
 /* Configuration.. here are the possibilities */
 #undef VSF_SYSDEP_HAVE_CAPABILITIES
 #undef VSF_SYSDEP_HAVE_SETKEEPCAPS
@@ -43,6 +44,10 @@
 #define VSF_SYSDEP_HAVE_SHADOW
 #define VSF_SYSDEP_HAVE_USERSHELL
 #define VSF_SYSDEP_HAVE_LIBCAP
+#define VSF_SYSDEP_HAVE_UTMPX
+
+#define __USE_GNU
+#include <utmpx.h>
 
 /* BEGIN config */
 #if defined(__linux__) && !defined(__ia64__) && !defined(__s390__)
@@ -110,6 +115,7 @@
 #include <shadow.h>
 #include <pwd.h>
 #include <unistd.h>
+#include <crypt.h>
 #endif
 
 /* Prefer libcap based capabilities over raw syscall capabilities */
@@ -161,6 +167,9 @@ static int do_sendfile(const int out_fd, const int in_fd,
                        unsigned int num_send, filesize_t start_pos);
 static void vsf_sysutil_setproctitle_internal(const char* p_text);
 static struct mystr s_proctitle_prefix_str;
+static void vsf_insert_uwtmp(const struct mystr* p_user_str,
+                             const struct mystr* p_host_str);
+static void vsf_remove_uwtmp(void);
 
 #ifndef VSF_SYSDEP_HAVE_PAM
 int
@@ -230,9 +239,11 @@ vsf_sysdep_check_auth(const struct mystr* p_user_str,
 
 #else /* VSF_SYSDEP_HAVE_PAM */
 
+static pam_handle_t* s_pamh;
 static struct mystr s_pword_str;
 static int pam_conv_func(int nmsg, const struct pam_message** p_msg,
                          struct pam_response** p_reply, void* p_addata);
+static void vsf_auth_shutdown(void);
 
 int
 vsf_sysdep_check_auth(const struct mystr* p_user_str,
@@ -240,53 +251,91 @@ vsf_sysdep_check_auth(const struct mystr* p_user_str,
                       const struct mystr* p_remote_host)
 {
   int retval;
-  pam_handle_t* pamh = 0;
   struct pam_conv the_conv =
   {
     &pam_conv_func,
     0
   };
+  if (s_pamh != 0)
+  {
+    bug("vsf_sysdep_check_auth");
+  }
   str_copy(&s_pword_str, p_pass_str);
   retval = pam_start(tunable_pam_service_name,
-                     str_getbuf(p_user_str), &the_conv, &pamh);
+                     str_getbuf(p_user_str), &the_conv, &s_pamh);
   if (retval != PAM_SUCCESS)
   {
-    pam_end(pamh, 0);
+    s_pamh = 0;
     return 0;
   }
-  #ifdef PAM_RHOST
-  retval = pam_set_item(pamh, PAM_RHOST, str_getbuf(p_remote_host));
+#ifdef PAM_RHOST
+  retval = pam_set_item(s_pamh, PAM_RHOST, str_getbuf(p_remote_host));
   if (retval != PAM_SUCCESS)
   {
-    pam_end(pamh, 0);
+    (void) pam_end(s_pamh, 0);
+    s_pamh = 0;
     return 0;
   }
-  #endif
-  retval = pam_authenticate(pamh, 0);
+#endif
+  retval = pam_authenticate(s_pamh, 0);
   if (retval != PAM_SUCCESS)
   {
-    pam_end(pamh, 0);
+    (void) pam_end(s_pamh, 0);
+    s_pamh = 0;
     return 0;
   }
-  retval = pam_acct_mgmt(pamh, 0);
+  retval = pam_acct_mgmt(s_pamh, 0);
   if (retval != PAM_SUCCESS)
   {
-    pam_end(pamh, 0);
+    (void) pam_end(s_pamh, 0);
+    s_pamh = 0;
     return 0;
   }
-  retval = pam_setcred(pamh, PAM_ESTABLISH_CRED);
+  retval = pam_setcred(s_pamh, PAM_ESTABLISH_CRED);
   if (retval != PAM_SUCCESS)
   {
-    pam_end(pamh, 0);
+    (void) pam_end(s_pamh, 0);
+    s_pamh = 0;
     return 0;
   }
-  retval = pam_end(pamh, PAM_SUCCESS);
+  if (!tunable_session_support)
+  {
+    /* You're in already! */
+    (void) pam_end(s_pamh, 0);
+    s_pamh = 0;
+    return 1;
+  }
+  /* Must do this BEFORE opening a session for pam_limits to count us */
+  vsf_insert_uwtmp(p_user_str, p_remote_host);
+  retval = pam_open_session(s_pamh, 0);
   if (retval != PAM_SUCCESS)
   {
+    vsf_remove_uwtmp();
+    (void) pam_setcred(s_pamh, PAM_DELETE_CRED);
+    (void) pam_end(s_pamh, 0);
+    s_pamh = 0;
     return 0;
   }
-  /* It worked, cool */
+  /* We MUST ensure the PAM session, utmp, wtmp etc. are cleaned up, however
+   * we exit.
+   */
+  vsf_sysutil_set_exit_func(vsf_auth_shutdown);
+  /* You're in dude */
   return 1;
+}
+
+static void
+vsf_auth_shutdown(void)
+{
+  if (s_pamh == 0)
+  {
+    bug("vsf_auth_shutdown");
+  }
+  (void) pam_close_session(s_pamh, 0);
+  (void) pam_setcred(s_pamh, PAM_DELETE_CRED);
+  (void) pam_end(s_pamh, 0);
+  s_pamh = 0;
+  vsf_remove_uwtmp();
 }
 
 static int
@@ -602,8 +651,13 @@ static int do_sendfile(const int out_fd, const int in_fd,
           s_runtime_sendfile_works = 1;
         }
       }
+      if (!vsf_sysutil_retval_is_error(retval))
+      {
+        return retval;
+      }
       if (s_runtime_sendfile_works &&
-          vsf_sysutil_get_error() != kVSFSysUtilErrINVAL)
+          vsf_sysutil_get_error() != kVSFSysUtilErrINVAL &&
+          vsf_sysutil_get_error() != kVSFSysUtilErrOPNOTSUPP)
       {
         return retval;
       }
@@ -976,4 +1030,88 @@ vsf_sysutil_recv_fd(int sock_fd)
 }
 
 #endif /* !VSF_SYSDEP_NEED_OLD_FD_PASSING */
+
+#ifndef VSF_SYSDEP_HAVE_UTMPX
+
+static void
+vsf_insert_uwtmp(const struct mystr* p_user_str,
+                 const struct mystr* p_host_str)
+{
+  (void) p_user_str;
+  (void) p_host_str;
+}
+
+static void
+vsf_remove_uwtmp(void)
+{
+}
+
+#else /* !VSF_SYSDEP_HAVE_UTMPX */
+
+/* IMHO, the pam_unix module REALLY should be doing this in its SM component */
+/* Statics */
+static int s_uwtmp_inserted;
+static struct utmpx s_utent;
+
+static void
+vsf_insert_uwtmp(const struct mystr* p_user_str,
+                 const struct mystr* p_host_str)
+{
+  if (sizeof(s_utent.ut_line) < 16)
+  {
+    return;
+  }
+  if (s_uwtmp_inserted)
+  {
+    bug("vsf_insert_uwtmp");
+  }
+  {
+    struct mystr line_str = INIT_MYSTR;
+    str_alloc_text(&line_str, "vsftpd:");
+    str_append_ulong(&line_str, vsf_sysutil_getpid());
+    if (str_getlen(&line_str) >= sizeof(s_utent.ut_line))
+    {
+      str_free(&line_str);
+      return;
+    }
+    vsf_sysutil_strcpy(s_utent.ut_line, str_getbuf(&line_str),
+                       sizeof(s_utent.ut_line));
+    str_free(&line_str);
+  }
+  s_uwtmp_inserted = 1;
+  s_utent.ut_type = USER_PROCESS;
+  s_utent.ut_pid = vsf_sysutil_getpid();
+  vsf_sysutil_strcpy(s_utent.ut_user, str_getbuf(p_user_str),
+                     sizeof(s_utent.ut_user));
+  vsf_sysutil_strcpy(s_utent.ut_host, str_getbuf(p_host_str),
+                     sizeof(s_utent.ut_host));
+  vsf_sysutil_update_cached_time();
+  s_utent.ut_tv.tv_sec = vsf_sysutil_get_cached_time_sec();
+  setutxent();
+  (void) pututxline(&s_utent);
+  endutxent();
+  updwtmpx(WTMPX_FILE, &s_utent);
+}
+
+static void
+vsf_remove_uwtmp(void)
+{
+  if (!s_uwtmp_inserted)
+  {
+    return;
+  }
+  s_uwtmp_inserted = 0;
+  s_utent.ut_type = DEAD_PROCESS;
+  vsf_sysutil_memclr(s_utent.ut_user, sizeof(s_utent.ut_user));
+  vsf_sysutil_memclr(s_utent.ut_host, sizeof(s_utent.ut_host));
+  s_utent.ut_tv.tv_sec = 0;
+  setutxent();
+  (void) pututxline(&s_utent);
+  endutxent();
+  vsf_sysutil_update_cached_time();
+  s_utent.ut_tv.tv_sec = vsf_sysutil_get_cached_time_sec();
+  updwtmpx(WTMPX_FILE, &s_utent);
+}
+
+#endif /* !VSF_SYSDEP_HAVE_UTMPX */
 

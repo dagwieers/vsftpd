@@ -7,6 +7,7 @@
 
 #include "utility.h"
 #include "sysutil.h"
+#include "str.h"
 #include "defs.h"
 
 #define DIE_DEBUG
@@ -18,6 +19,15 @@ die(const char* p_text)
   bug(p_text);
 #endif
   vsf_sysutil_exit(1);
+}
+
+void
+die2(const char* p_text1, const char* p_text2)
+{
+  struct mystr die_str = INIT_MYSTR;
+  str_alloc_text(&die_str, p_text1);
+  str_append_text(&die_str, p_text2);
+  die(str_getbuf(&die_str));
 }
 
 void

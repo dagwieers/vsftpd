@@ -62,8 +62,8 @@ vsf_ftpdataio_dispose_transfer_fd(struct vsf_session* p_sess)
   if (vsf_sysutil_retval_is_error(retval))
   {
     /* Do it again without blocking. */
-    vsf_sysutil_deactivate_linger(p_sess->data_fd);
-    vsf_sysutil_close(p_sess->data_fd);
+    vsf_sysutil_deactivate_linger_failok(p_sess->data_fd);
+    (void) vsf_sysutil_close_failok(p_sess->data_fd);
   }
   p_sess->data_fd = -1;
 }
@@ -72,8 +72,6 @@ int
 vsf_ftpdataio_get_pasv_fd(struct vsf_session* p_sess)
 {
   static struct vsf_sysutil_sockaddr* s_p_accept_addr = 0;
-  struct vsf_sysutil_ipv4addr cmd_conn_addr;
-  struct vsf_sysutil_ipv4addr remote_addr;
   int remote_fd = vsf_sysutil_accept_timeout(p_sess->pasv_listen_fd,
                                              &s_p_accept_addr,
                                              tunable_accept_timeout);
@@ -87,12 +85,10 @@ vsf_ftpdataio_get_pasv_fd(struct vsf_session* p_sess)
    * Reject the connection if it wasn't from the same IP as the
    * control connection.
    */
-  cmd_conn_addr = vsf_sysutil_sockaddr_get_ipaddr(p_sess->p_remote_addr);
-  remote_addr = vsf_sysutil_sockaddr_get_ipaddr(s_p_accept_addr);
   if (!tunable_pasv_promiscuous)
   {
-    if (vsf_sysutil_memcmp(cmd_conn_addr.data, remote_addr.data,
-                           sizeof(cmd_conn_addr)) != 0)
+    if (!vsf_sysutil_sockaddr_addr_equal(p_sess->p_remote_addr,
+                                         s_p_accept_addr))
     {
       vsf_cmdio_write(p_sess, FTP_BADSENDCONN, "Security: Bad IP connecting.");
       vsf_sysutil_close(remote_fd);
@@ -121,7 +117,18 @@ vsf_ftpdataio_get_port_fd(struct vsf_session* p_sess)
   }
   else
   {
-    remote_fd = vsf_sysutil_get_ipv4_sock();
+    remote_fd = vsf_sysutil_get_ipsock(p_sess->p_port_sockaddr);
+    if (vsf_sysutil_sockaddr_same_family(p_sess->p_port_sockaddr,
+                                         p_sess->p_local_addr))
+    {
+      static struct vsf_sysutil_sockaddr* s_p_addr;
+      vsf_sysutil_sockaddr_clone(&s_p_addr, p_sess->p_local_addr);
+      retval = vsf_sysutil_bind(remote_fd, s_p_addr);
+      if (retval != 0)
+      {
+        die("vsf_sysutil_bind");
+      }
+    }
   }
   retval = vsf_sysutil_connect_timeout(remote_fd, p_sess->p_port_sockaddr,
                                        tunable_connect_timeout);
@@ -406,6 +413,12 @@ do_file_send_ascii(struct vsf_session* p_sess, int net_fd, int file_fd)
   static char* p_readbuf;
   static char* p_asciibuf;
   struct vsf_transfer_ret ret_struct = { 0, 0 };
+  unsigned int chunk_size = VSFTP_DATA_BUFSIZE;
+  if (tunable_trans_chunk_size < VSFTP_DATA_BUFSIZE &&
+      tunable_trans_chunk_size >= 4096)
+  {
+    chunk_size = tunable_trans_chunk_size;
+  }
   if (p_readbuf == 0)
   {
     /* NOTE!! * 2 factor because we can double the data by doing our ASCII
@@ -417,7 +430,7 @@ do_file_send_ascii(struct vsf_session* p_sess, int net_fd, int file_fd)
   while (1)
   {
     unsigned int num_to_write;
-    int retval = vsf_sysutil_read(file_fd, p_readbuf, VSFTP_DATA_BUFSIZE);
+    int retval = vsf_sysutil_read(file_fd, p_readbuf, chunk_size);
     if (vsf_sysutil_retval_is_error(retval))
     {
       vsf_cmdio_write(p_sess, FTP_BADSENDFILE, "Failure reading local file.");
@@ -478,6 +491,11 @@ do_file_send_binary(struct vsf_session* p_sess, int net_fd, int file_fd)
   if (p_sess->bw_rate_max)
   {
     chunk_size = VSFTP_DATA_BUFSIZE;
+    if (tunable_trans_chunk_size < VSFTP_DATA_BUFSIZE &&
+        tunable_trans_chunk_size >= 4096)
+    {
+      chunk_size = tunable_trans_chunk_size;
+    }
   }
   else
   {
@@ -511,13 +529,19 @@ do_file_recv(struct vsf_session* p_sess, int net_fd, int file_fd, int is_ascii)
   static char* p_recvbuf;
   unsigned int num_to_write;
   struct vsf_transfer_ret ret_struct = { 0, 0 };
+  unsigned int chunk_size = VSFTP_DATA_BUFSIZE;
   if (p_recvbuf == 0)
   {
     vsf_secbuf_alloc(&p_recvbuf, VSFTP_DATA_BUFSIZE);
   }
+  if (tunable_trans_chunk_size < VSFTP_DATA_BUFSIZE &&
+      tunable_trans_chunk_size >= 4096)
+  {
+    chunk_size = tunable_trans_chunk_size;
+  }
   while (1)
   {
-    int retval = vsf_sysutil_read(net_fd, p_recvbuf, VSFTP_DATA_BUFSIZE);
+    int retval = vsf_sysutil_read(net_fd, p_recvbuf, chunk_size);
     if (vsf_sysutil_retval_is_error(retval))
     {
       vsf_cmdio_write(p_sess, FTP_BADSENDNET,

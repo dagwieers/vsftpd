@@ -73,6 +73,16 @@ parseconf_bool_array[] =
   { "no_anon_password", &tunable_no_anon_password },
   { "tcp_wrappers", &tunable_tcp_wrappers },
   { "use_sendfile", &tunable_use_sendfile },
+  { "force_dot_files", &tunable_force_dot_files },
+  { "listen_ipv6", &tunable_listen_ipv6 },
+  { "dual_log_enable", &tunable_dual_log_enable },
+  { "syslog_enable", &tunable_syslog_enable },
+  { "background", &tunable_background },
+  { "virtual_use_local_privs", &tunable_virtual_use_local_privs },
+  { "session_support", &tunable_session_support },
+  { "download_enable", &tunable_download_enable },
+  { "dirlist_enable", &tunable_dirlist_enable },
+  { "chmod_enable", &tunable_chmod_enable },
   { 0, 0 }
 };
 
@@ -98,6 +108,7 @@ parseconf_uint_array[] =
   { "max_clients", &tunable_max_clients },
   { "file_open_mode", &tunable_file_open_mode },
   { "max_per_ip", &tunable_max_per_ip },
+  { "trans_chunk_size", &tunable_trans_chunk_size },
   { 0, 0 }
 };
 
@@ -112,6 +123,7 @@ parseconf_str_array[] =
   { "ftp_username", &tunable_ftp_username },
   { "chown_username", &tunable_chown_username },
   { "xferlog_file", &tunable_xferlog_file },
+  { "vsftpd_log_file", &tunable_vsftpd_log_file },
   { "message_file", &tunable_message_file },
   { "nopriv_user", &tunable_nopriv_user },
   { "ftpd_banner", &tunable_ftpd_banner },
@@ -126,6 +138,8 @@ parseconf_str_array[] =
   { "pasv_address", &tunable_pasv_address },
   { "listen_address", &tunable_listen_address },
   { "user_config_dir", &tunable_user_config_dir },
+  { "listen_address6", &tunable_listen_address6 },
+  { "cmds_allowed", &tunable_cmds_allowed },
   { 0, 0 }
 };
 
@@ -167,7 +181,7 @@ vsf_parseconf_load_file(const char* p_filename, int errs_fatal)
   {
     if (errs_fatal)
     {
-      die("cannot open config file");
+      die2("cannot open config file:", p_filename);
     }
     else
     {
@@ -198,7 +212,7 @@ handle_config_setting(struct mystr* p_setting_str, struct mystr* p_value_str,
   {
     if (errs_fatal)
     {
-      die("missing value in config file");
+      die2("missing value in config file for: ", str_getbuf(p_setting_str));
     }
     else
     {
@@ -228,7 +242,8 @@ handle_config_setting(struct mystr* p_setting_str, struct mystr* p_value_str,
         }
         else if (errs_fatal)
         {
-          die("bad bool value in config file");
+          die2("bad bool value in config file for: ",
+               str_getbuf(p_setting_str));
         }
         return;
       }
@@ -279,7 +294,7 @@ handle_config_setting(struct mystr* p_setting_str, struct mystr* p_value_str,
   }
   if (errs_fatal)
   {
-    die("unrecognised variable in config file");
+    die2("unrecognised variable in config file: ", str_getbuf(p_setting_str));
   }
 }
 

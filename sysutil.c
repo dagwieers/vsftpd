@@ -47,6 +47,7 @@
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 #include <limits.h>
+#include <syslog.h>
 
 /* Private variables to this file */
 /* Current umask() */
@@ -55,6 +56,8 @@ static unsigned int s_current_umask;
 static struct timeval s_current_time;
 /* Current pid */
 static int s_current_pid = -1;
+/* Exit function */
+static exitfunc_t s_exit_func;
 
 /* Our internal signal handling implementation details */
 static struct vsf_sysutil_sig_details
@@ -69,6 +72,16 @@ static vsf_context_io_t s_io_handler;
 static void* s_p_io_handler_private;
 static int s_io_handler_running;
 
+struct vsf_sysutil_sockaddr
+{
+  union
+  {
+    struct sockaddr u_sockaddr;
+    struct sockaddr_in u_sockaddr_in;
+    struct sockaddr_in6 u_sockaddr_in6;
+  } u;
+};
+
 /* File locals */
 static void vsf_sysutil_common_sighandler(int signum);
 static int vsf_sysutil_translate_sig(const enum EVSFSysUtilSignal sig);
@@ -78,6 +91,8 @@ static int vsf_sysutil_translate_memprot(
 static int vsf_sysutil_translate_openmode(
   const enum EVSFSysUtilOpenMode mode);
 static void vsf_sysutil_alloc_statbuf(struct vsf_sysutil_statbuf** p_ptr);
+static void vsf_sysutil_sockaddr_alloc(
+  struct vsf_sysutil_sockaddr** p_sockptr);
 
 static void
 vsf_sysutil_common_sighandler(int signum)
@@ -201,6 +216,7 @@ vsf_sysutil_install_async_sighandler(const enum EVSFSysUtilSignal sig,
   int realsig = vsf_sysutil_translate_sig(sig);
   s_sig_details[realsig].p_private = NULL;
   s_sig_details[realsig].sync_sig_handler = NULL;
+  vsf_sysutil_block_sig(sig);
   vsf_sysutil_set_sighandler(realsig, handler);
 }
 
@@ -211,10 +227,10 @@ vsf_sysutil_set_sighandler(int sig, void (*p_handlefunc)(int))
   struct sigaction sigact;
   vsf_sysutil_memclr(&sigact, sizeof(sigact));
   sigact.sa_handler = p_handlefunc;
-  retval = sigemptyset(&sigact.sa_mask);
+  retval = sigfillset(&sigact.sa_mask);
   if (retval != 0)
   {
-    die("sigemptyset");
+    die("sigfillset");
   }
   retval = sigaction(sig, &sigact, NULL);
   if (retval != 0)
@@ -223,6 +239,51 @@ vsf_sysutil_set_sighandler(int sig, void (*p_handlefunc)(int))
   }
 }
 
+void
+vsf_sysutil_block_sig(const enum EVSFSysUtilSignal sig)
+{
+  sigset_t sset;
+  int retval;
+  int realsig = vsf_sysutil_translate_sig(sig);
+  retval = sigemptyset(&sset);
+  if (retval != 0)
+  {
+    die("sigemptyset");
+  }
+  retval = sigaddset(&sset, realsig);
+  if (retval != 0)
+  {
+    die("sigaddset");
+  }
+  retval = sigprocmask(SIG_BLOCK, &sset, NULL);
+  if (retval != 0)
+  {
+    die("sigprocmask");
+  }
+}
+
+void
+vsf_sysutil_unblock_sig(const enum EVSFSysUtilSignal sig)
+{
+  sigset_t sset;
+  int retval;
+  int realsig = vsf_sysutil_translate_sig(sig);
+  retval = sigemptyset(&sset);
+  if (retval != 0)
+  {
+    die("sigemptyset");
+  }
+  retval = sigaddset(&sset, realsig);
+  if (retval != 0)
+  {
+    die("sigaddset");
+  }
+  retval = sigprocmask(SIG_UNBLOCK, &sset, NULL);
+  if (retval != 0)
+  {
+    die("sigprocmask");
+  }
+}
 void
 vsf_sysutil_install_io_handler(vsf_context_io_t handler, void* p_private)
 {
@@ -440,7 +501,15 @@ vsf_sysutil_getpid(void)
 int
 vsf_sysutil_fork(void)
 {
-  int retval = vsf_sysutil_fork_failok();
+  /* Child does NOT inherit exit function */
+  exitfunc_t curr_func = s_exit_func;
+  int retval;
+  s_exit_func = 0;
+  retval = vsf_sysutil_fork_failok();
+  if (retval != 0)
+  {
+    s_exit_func = curr_func;
+  }
   if (retval < 0)
   {
     die("fork");
@@ -460,8 +529,21 @@ vsf_sysutil_fork_failok(void)
 }
 
 void
+vsf_sysutil_set_exit_func(exitfunc_t exitfunc)
+{
+  s_exit_func = exitfunc;
+}
+
+void
 vsf_sysutil_exit(int exit_code)
 {
+  if (s_exit_func)
+  {
+    exitfunc_t curr_func = s_exit_func;
+    /* Prevent recursion */
+    s_exit_func = 0;
+    (*curr_func)();
+  }
   _exit(exit_code);
 }
 
@@ -605,18 +687,13 @@ vsf_sysutil_activate_linger(int fd)
 }
 
 void
-vsf_sysutil_deactivate_linger(int fd)
+vsf_sysutil_deactivate_linger_failok(int fd)
 {
-  int retval;
   struct linger the_linger;
   the_linger.l_onoff = 0;
   the_linger.l_linger = 0;
-  retval = setsockopt(fd, SOL_SOCKET, SO_LINGER, &the_linger,
-                      sizeof(the_linger));
-  if (retval != 0)
-  {
-    die("setsockopt");
-  }
+  (void) setsockopt(fd, SOL_SOCKET, SO_LINGER, &the_linger,
+                    sizeof(the_linger));
 }
 
 void
@@ -762,18 +839,19 @@ vsf_sysutil_octal_to_uint(const char* p_str)
   int seen_non_zero_digit = 0;
   while (*p_str != '\0')
   {
-    if (!isdigit(*p_str) || *p_str > '7')
+    int digit = *p_str;
+    if (!isdigit(digit) || digit > '7')
     {
       break;
     }
-    if (*p_str != '0')
+    if (digit != '0')
     {
       seen_non_zero_digit = 1;
     }
     if (seen_non_zero_digit)
     {
       result <<= 3;
-      result += ( *p_str - '0' );
+      result += (digit - '0');
     }
     p_str++;
   }
@@ -913,6 +991,17 @@ vsf_sysutil_memcpy(void* p_dest, const void* p_src, const unsigned int size)
     return;
   }
   memcpy(p_dest, p_src, size);
+}
+
+void
+vsf_sysutil_strcpy(char* p_dest, const char* p_src, unsigned int maxsize)
+{
+  if (maxsize == 0)
+  {
+    return;
+  }
+  strncpy(p_dest, p_src, maxsize);
+  p_dest[maxsize - 1] = '\0';
 }
 
 int
@@ -1325,6 +1414,16 @@ vsf_sysutil_fchown(const int fd, const int uid, const int gid)
   }
 }
 
+void
+vsf_sysutil_fchmod(const int fd, unsigned int mode)
+{
+  mode = mode & 0777;
+  if (fchmod(fd, mode))
+  {
+    die("fchmod");
+  }
+}
+
 int
 vsf_sysutil_chmod(const char* p_filename, unsigned int mode)
 {
@@ -1410,6 +1509,9 @@ vsf_sysutil_get_error(void)
     case EINVAL:
       retval = kVSFSysUtilErrINVAL;
       break;
+    case EOPNOTSUPP:
+      retval = kVSFSysUtilErrOPNOTSUPP;
+      break;
   }
   return retval;
 }
@@ -1418,6 +1520,17 @@ int
 vsf_sysutil_get_ipv4_sock(void)
 {
   int retval = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+  if (retval < 0)
+  {
+    die("socket");
+  }
+  return retval;
+}
+
+int
+vsf_sysutil_get_ipv6_sock(void)
+{
+  int retval = socket(PF_INET6, SOCK_STREAM, IPPROTO_TCP);
   if (retval < 0)
   {
     die("socket");
@@ -1443,8 +1556,21 @@ vsf_sysutil_unix_dgram_socketpair(void)
 int
 vsf_sysutil_bind(int fd, const struct vsf_sysutil_sockaddr* p_sockptr)
 {
-  struct sockaddr* p_sockaddr = (struct sockaddr*) p_sockptr;
-  return bind(fd, p_sockaddr, sizeof(struct sockaddr_in));
+  const struct sockaddr* p_sockaddr = &p_sockptr->u.u_sockaddr;
+  int len = 0;
+  if (p_sockaddr->sa_family == AF_INET)
+  {
+    len = sizeof(struct sockaddr_in);
+  }
+  else if (p_sockaddr->sa_family == AF_INET6)
+  {
+    len = sizeof(struct sockaddr_in6);
+  }
+  else
+  {
+    die("can only support ipv4 and ipv6 currently");
+  }
+  return bind(fd, p_sockaddr, len);
 }
 
 void
@@ -1461,7 +1587,7 @@ int
 vsf_sysutil_accept_timeout(int fd, struct vsf_sysutil_sockaddr** p_sockptr,
                            unsigned int wait_seconds)
 {
-  struct sockaddr_in remote_addr;
+  struct vsf_sysutil_sockaddr remote_addr;
   int retval;
   fd_set accept_fdset;
   struct timeval timeout;
@@ -1487,7 +1613,7 @@ vsf_sysutil_accept_timeout(int fd, struct vsf_sysutil_sockaddr** p_sockptr,
       return -1;
     }
   }
-  retval = accept(fd, (struct sockaddr*) &remote_addr, &socklen);
+  retval = accept(fd, &remote_addr.u.u_sockaddr, &socklen);
   vsf_sysutil_check_pending_actions(kVSFSysUtilUnknown, 0, 0);
   if (retval < 0)
   {
@@ -1498,14 +1624,26 @@ vsf_sysutil_accept_timeout(int fd, struct vsf_sysutil_sockaddr** p_sockptr,
   {
     return -1;
   }
-  if (remote_addr.sin_family != AF_INET)
+  if (remote_addr.u.u_sockaddr.sa_family != AF_INET &&
+      remote_addr.u.u_sockaddr.sa_family != AF_INET6)
   {
-    die("can only support ipv4 currently");
+    die("can only support ipv4 and ipv6 currently");
   }
   if (p_sockptr)
   {
-    *p_sockptr = vsf_sysutil_malloc(sizeof(remote_addr));
-    vsf_sysutil_memcpy(*p_sockptr, &remote_addr, sizeof(remote_addr));
+    vsf_sysutil_sockaddr_alloc(p_sockptr);
+    if (remote_addr.u.u_sockaddr.sa_family == AF_INET)
+    {
+      vsf_sysutil_memclr(&remote_addr.u.u_sockaddr_in.sin_zero,
+                         sizeof(remote_addr.u.u_sockaddr_in.sin_zero));
+      vsf_sysutil_memcpy(*p_sockptr, &remote_addr.u.u_sockaddr_in,
+                         sizeof(remote_addr.u.u_sockaddr_in));
+    }
+    else
+    {
+      vsf_sysutil_memcpy(*p_sockptr, &remote_addr.u.u_sockaddr_in6,
+                         sizeof(remote_addr.u.u_sockaddr_in6));
+    }
   }
   return retval;
 }
@@ -1514,14 +1652,26 @@ int
 vsf_sysutil_connect_timeout(int fd, const struct vsf_sysutil_sockaddr* p_addr,
                             unsigned int wait_seconds)
 {
-  const struct sockaddr_in* p_sockaddr = (const struct sockaddr_in*) p_addr;
-  unsigned int addrlen = sizeof(*p_sockaddr);
+  const struct sockaddr* p_sockaddr = &p_addr->u.u_sockaddr;
+  unsigned int addrlen = 0;
   int retval;
+  if (p_sockaddr->sa_family == AF_INET)
+  {
+    addrlen = sizeof(p_addr->u.u_sockaddr_in);
+  }
+  else if (p_sockaddr->sa_family == AF_INET6)
+  {
+    addrlen = sizeof(p_addr->u.u_sockaddr_in6);
+  }
+  else
+  {
+    die("can only support ipv4 and ipv6 currently");
+  }
   if (wait_seconds > 0)
   {
     vsf_sysutil_activate_noblock(fd);
   }
-  retval = connect(fd, (const struct sockaddr*)p_sockaddr, addrlen);
+  retval = connect(fd, p_sockaddr, addrlen);
   if (retval < 0 && errno == EINPROGRESS)
   {
     fd_set connect_fdset;
@@ -1561,41 +1711,51 @@ vsf_sysutil_connect_timeout(int fd, const struct vsf_sysutil_sockaddr* p_addr,
 void
 vsf_sysutil_getsockname(int fd, struct vsf_sysutil_sockaddr** p_sockptr)
 {
-  struct sockaddr_in the_addr;
+  struct vsf_sysutil_sockaddr the_addr;
   int retval;
   unsigned int socklen = sizeof(the_addr);
   vsf_sysutil_sockaddr_clear(p_sockptr);
-  retval = getsockname(fd, (struct sockaddr*) &the_addr, &socklen);
+  retval = getsockname(fd, &the_addr.u.u_sockaddr, &socklen);
   if (retval != 0)
   {
     die("getsockname");
   }
-  if (the_addr.sin_family != AF_INET)
+  if (the_addr.u.u_sockaddr.sa_family != AF_INET &&
+      the_addr.u.u_sockaddr.sa_family != AF_INET6)
   {
-    die("can only support ipv4 currently");
+    die("can only support ipv4 and ipv6 currently");
   }
-  *p_sockptr = vsf_sysutil_malloc(sizeof(the_addr));
-  vsf_sysutil_memcpy(*p_sockptr, &the_addr, sizeof(the_addr));
+  vsf_sysutil_sockaddr_alloc(p_sockptr);
+  if (socklen > sizeof(the_addr))
+  {
+    socklen = sizeof(the_addr);
+  }
+  vsf_sysutil_memcpy(*p_sockptr, &the_addr, socklen);
 }
 
 void
 vsf_sysutil_getpeername(int fd, struct vsf_sysutil_sockaddr** p_sockptr)
 {
-  struct sockaddr_in the_addr;
+  struct vsf_sysutil_sockaddr the_addr;
   int retval;
   unsigned int socklen = sizeof(the_addr);
   vsf_sysutil_sockaddr_clear(p_sockptr);
-  retval = getpeername(fd, (struct sockaddr*) &the_addr, &socklen);
+  retval = getpeername(fd, &the_addr.u.u_sockaddr, &socklen);
   if (retval != 0)
   {
     die("getpeername");
   }
-  if (the_addr.sin_family != AF_INET)
+  if (the_addr.u.u_sockaddr.sa_family != AF_INET &&
+      the_addr.u.u_sockaddr.sa_family != AF_INET6)
   {
-    die("can only support ipv4 currently");
+    die("can only support ipv4 and ipv6 currently");
   }
-  *p_sockptr = vsf_sysutil_malloc(sizeof(the_addr));
-  vsf_sysutil_memcpy(*p_sockptr, &the_addr, sizeof(the_addr));
+  vsf_sysutil_sockaddr_alloc(p_sockptr);
+  if (socklen > sizeof(the_addr))
+  {
+    socklen = sizeof(the_addr);
+  }
+  vsf_sysutil_memcpy(*p_sockptr, &the_addr, socklen);
 }
 
 void
@@ -1618,77 +1778,264 @@ vsf_sysutil_sockaddr_clear(struct vsf_sysutil_sockaddr** p_sockptr)
   }
 }
 
+static void
+vsf_sysutil_sockaddr_alloc(struct vsf_sysutil_sockaddr** p_sockptr)
+{
+  vsf_sysutil_sockaddr_clear(p_sockptr);
+  *p_sockptr = vsf_sysutil_malloc(sizeof(**p_sockptr));
+  vsf_sysutil_memclr(*p_sockptr, sizeof(**p_sockptr));
+}
+
 void
 vsf_sysutil_sockaddr_alloc_ipv4(struct vsf_sysutil_sockaddr** p_sockptr)
 {
-  struct sockaddr_in new_addr;
-  vsf_sysutil_sockaddr_clear(p_sockptr);
-  *p_sockptr = vsf_sysutil_malloc(sizeof(new_addr));
-  vsf_sysutil_memclr(&new_addr, sizeof(new_addr));
-  new_addr.sin_family = AF_INET;
-  vsf_sysutil_memcpy(*p_sockptr, &new_addr, sizeof(new_addr));
+  vsf_sysutil_sockaddr_alloc(p_sockptr);
+  (*p_sockptr)->u.u_sockaddr.sa_family = AF_INET;
 }
 
 void
-vsf_sysutil_sockaddr_set_ipaddr(struct vsf_sysutil_sockaddr* p_sockptr,
-                                struct vsf_sysutil_ipv4addr the_addr)
+vsf_sysutil_sockaddr_alloc_ipv6(struct vsf_sysutil_sockaddr** p_sockptr)
 {
-  struct sockaddr_in* p_sockaddr = (struct sockaddr_in*) p_sockptr;
-  vsf_sysutil_memcpy(&p_sockaddr->sin_addr.s_addr, the_addr.data,
-                     sizeof(p_sockaddr->sin_addr.s_addr));
+  vsf_sysutil_sockaddr_alloc(p_sockptr);
+  (*p_sockptr)->u.u_sockaddr.sa_family = AF_INET6;
 }
 
-struct vsf_sysutil_ipv4addr
-vsf_sysutil_sockaddr_get_ipaddr(const struct vsf_sysutil_sockaddr* p_sockptr)
+void
+vsf_sysutil_sockaddr_clone(struct vsf_sysutil_sockaddr** p_sockptr,
+                           const struct vsf_sysutil_sockaddr* p_src)
 {
-  struct vsf_sysutil_ipv4addr retval;
-  const struct sockaddr_in* p_sockaddr = (const struct sockaddr_in*) p_sockptr;
-  vsf_sysutil_memcpy(retval.data, &p_sockaddr->sin_addr.s_addr,
-                     sizeof(retval.data));
-  return retval;
+  struct vsf_sysutil_sockaddr* p_sockaddr = 0;
+  vsf_sysutil_sockaddr_alloc(p_sockptr);
+  p_sockaddr = *p_sockptr;
+  if (p_src->u.u_sockaddr.sa_family == AF_INET)
+  {
+    p_sockaddr->u.u_sockaddr.sa_family = AF_INET;
+    vsf_sysutil_memcpy(&p_sockaddr->u.u_sockaddr_in.sin_addr,
+                       &p_src->u.u_sockaddr_in.sin_addr,
+                       sizeof(p_sockaddr->u.u_sockaddr_in.sin_addr));
+  }
+  else if (p_src->u.u_sockaddr.sa_family == AF_INET6)
+  {
+    p_sockaddr->u.u_sockaddr.sa_family = AF_INET6;
+    vsf_sysutil_memcpy(&p_sockaddr->u.u_sockaddr_in6.sin6_addr,
+                       &p_src->u.u_sockaddr_in6.sin6_addr,
+                       sizeof(p_sockaddr->u.u_sockaddr_in6.sin6_addr));
+  }
+  else
+  {
+    die("can only support ipv4 and ipv6 currently");
+  }
 }
 
-struct vsf_sysutil_ipv4addr
-vsf_sysutil_sockaddr_get_any(void)
+int
+vsf_sysutil_sockaddr_addr_equal(const struct vsf_sysutil_sockaddr* p1,
+                                const struct vsf_sysutil_sockaddr* p2)
 {
-  struct vsf_sysutil_ipv4addr retval;
-  vsf_sysutil_memclr(&retval, sizeof(retval));
-  return retval;
+  int family1 = p1->u.u_sockaddr.sa_family;
+  int family2 = p2->u.u_sockaddr.sa_family;
+  if (family1 != family2)
+  {
+    if (family1 == AF_INET && family2 == AF_INET6)
+    {
+      const void* p_ipv4_addr = vsf_sysutil_sockaddr_ipv6_v4(p2);
+      if (p_ipv4_addr &&
+          !vsf_sysutil_memcmp(p_ipv4_addr, &p1->u.u_sockaddr_in.sin_addr,
+                              sizeof(p1->u.u_sockaddr_in.sin_addr)))
+      {
+        return 1;
+      }
+    }
+    else if (family1 == AF_INET6 && family2 == AF_INET)
+    {
+      const void* p_ipv4_addr = vsf_sysutil_sockaddr_ipv6_v4(p1);
+      if (p_ipv4_addr &&
+          !vsf_sysutil_memcmp(p_ipv4_addr, &p2->u.u_sockaddr_in.sin_addr,
+                              sizeof(p2->u.u_sockaddr_in.sin_addr)))
+      {
+        return 1;
+      }
+    }
+    return 0;
+  }
+  if (family1 == AF_INET)
+  {
+    if (vsf_sysutil_memcmp(&p1->u.u_sockaddr_in.sin_addr,
+                           &p2->u.u_sockaddr_in.sin_addr,
+                           sizeof(p1->u.u_sockaddr_in.sin_addr)) == 0)
+    {
+      return 1;
+    }
+  }
+  else if (family1 == AF_INET6)
+  {
+    if (vsf_sysutil_memcmp(&p1->u.u_sockaddr_in6.sin6_addr,
+                           &p2->u.u_sockaddr_in6.sin6_addr,
+                           sizeof(p1->u.u_sockaddr_in6.sin6_addr)) == 0)
+    {
+      return 1;
+    }
+  }
+  return 0;
 }
 
-struct vsf_sysutil_ipv4port
-vsf_sysutil_sockaddr_get_port(const struct vsf_sysutil_sockaddr* p_sockptr)
+int
+vsf_sysutil_sockaddr_is_ipv6(const struct vsf_sysutil_sockaddr* p_sockaddr)
 {
-  struct vsf_sysutil_ipv4port retval;
-  const struct sockaddr_in* p_sockaddr = (const struct sockaddr_in*) p_sockptr;
-  vsf_sysutil_memcpy(retval.data, &p_sockaddr->sin_port, sizeof(retval.data));
-  return retval;
+  if (p_sockaddr->u.u_sockaddr.sa_family == AF_INET6)
+  {
+    return 1;
+  }
+  return 0;
 }
 
-struct vsf_sysutil_ipv4port
-vsf_sysutil_ipv4port_from_int(unsigned int port)
+int
+vsf_sysutil_sockaddr_same_family(const struct vsf_sysutil_sockaddr* p1,
+                                 const struct vsf_sysutil_sockaddr* p2)
 {
-  struct vsf_sysutil_ipv4port retval;
-  unsigned short netorder_port = htons(port);
-  vsf_sysutil_memcpy(retval.data, &netorder_port, sizeof(retval.data));
-  return retval;
+  if (p1->u.u_sockaddr.sa_family == p2->u.u_sockaddr.sa_family)
+  {
+    return 1;
+  }
+  return 0;
+}
+
+void
+vsf_sysutil_sockaddr_set_ipv4addr(struct vsf_sysutil_sockaddr* p_sockptr,
+                                  const unsigned char* p_raw)
+{
+  if (p_sockptr->u.u_sockaddr.sa_family == AF_INET)
+  {
+    vsf_sysutil_memcpy(&p_sockptr->u.u_sockaddr_in.sin_addr, p_raw,
+                       sizeof(p_sockptr->u.u_sockaddr_in.sin_addr));
+  }
+  else
+  {
+    bug("bad family");
+  }
+}
+
+void
+vsf_sysutil_sockaddr_set_ipv6addr(struct vsf_sysutil_sockaddr* p_sockptr,
+                                  const unsigned char* p_raw)
+{
+  if (p_sockptr->u.u_sockaddr.sa_family == AF_INET6)
+  {
+    vsf_sysutil_memcpy(&p_sockptr->u.u_sockaddr_in6.sin6_addr, p_raw,
+                       sizeof(p_sockptr->u.u_sockaddr_in6.sin6_addr));
+  }
+  else
+  {
+    bug("bad family");
+  }
+}
+
+const void*
+vsf_sysutil_sockaddr_ipv6_v4(const struct vsf_sysutil_sockaddr* p_addr)
+{
+  static char pattern[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xFF, 0xFF };
+  const unsigned char* p_addr_start;
+  if (p_addr->u.u_sockaddr.sa_family != AF_INET6)
+  {
+    return 0;
+  }
+  if (vsf_sysutil_memcmp(pattern, &p_addr->u.u_sockaddr_in6.sin6_addr, 12))
+  {
+    return 0;
+  }
+  p_addr_start = (const unsigned char*)&p_addr->u.u_sockaddr_in6.sin6_addr;
+  return &p_addr_start[12];
+}
+
+void*
+vsf_sysutil_sockaddr_get_raw_addr(struct vsf_sysutil_sockaddr* p_sockptr)
+{
+  if (p_sockptr->u.u_sockaddr.sa_family == AF_INET)
+  {
+    return &p_sockptr->u.u_sockaddr_in.sin_addr;
+  }
+  else if (p_sockptr->u.u_sockaddr.sa_family == AF_INET6)
+  {
+    return &p_sockptr->u.u_sockaddr_in6.sin6_addr;
+  }
+  else
+  {
+    bug("bad family");
+  }
+  return 0;
+}
+
+unsigned int
+vsf_sysutil_get_ipaddr_size(void)
+{
+  struct vsf_sysutil_sockaddr addr;
+  unsigned int size = sizeof(addr.u.u_sockaddr_in.sin_addr);
+  unsigned int size2 = sizeof(addr.u.u_sockaddr_in6.sin6_addr);
+  if (size2 > size)
+  {
+    size = size2;
+  }
+  return size;
+}
+
+int
+vsf_sysutil_get_ipsock(const struct vsf_sysutil_sockaddr* p_addr)
+{
+  if (p_addr->u.u_sockaddr.sa_family == AF_INET)
+  {
+    return vsf_sysutil_get_ipv4_sock();
+  }
+  else if (p_addr->u.u_sockaddr.sa_family == AF_INET6)
+  {
+    return vsf_sysutil_get_ipv6_sock();
+  }
+  else
+  {
+    bug("bad family");
+  }
+  return -1;
+}
+
+void
+vsf_sysutil_sockaddr_set_any(struct vsf_sysutil_sockaddr* p_sockaddr)
+{
+  if (p_sockaddr->u.u_sockaddr.sa_family == AF_INET)
+  {
+    vsf_sysutil_memclr(&p_sockaddr->u.u_sockaddr_in.sin_addr,
+                       sizeof(p_sockaddr->u.u_sockaddr_in.sin_addr));
+  }
+  else if (p_sockaddr->u.u_sockaddr.sa_family == AF_INET6)
+  {
+    vsf_sysutil_memclr(&p_sockaddr->u.u_sockaddr_in6.sin6_addr,
+                       sizeof(p_sockaddr->u.u_sockaddr_in6.sin6_addr));
+  }
+  else
+  {
+    bug("bad family");
+  }
 }
 
 void
 vsf_sysutil_sockaddr_set_port(struct vsf_sysutil_sockaddr* p_sockptr,
-                              struct vsf_sysutil_ipv4port the_port)
+                              unsigned short the_port)
 {
-  struct sockaddr_in* p_sockaddrin = (struct sockaddr_in*) p_sockptr;
-  vsf_sysutil_memcpy(&p_sockaddrin->sin_port, the_port.data,
-                     sizeof(p_sockaddrin->sin_port));
+  if (p_sockptr->u.u_sockaddr.sa_family == AF_INET)
+  {
+    p_sockptr->u.u_sockaddr_in.sin_port = htons(the_port);
+  }
+  else if (p_sockptr->u.u_sockaddr.sa_family == AF_INET6)
+  {
+    p_sockptr->u.u_sockaddr_in6.sin6_port = htons(the_port);
+  }
+  else
+  {
+    bug("bad family");
+  }
 }
 
 int
-vsf_sysutil_is_port_reserved(const struct vsf_sysutil_ipv4port the_port)
+vsf_sysutil_is_port_reserved(unsigned short the_port)
 {
-  unsigned short netorder_port;
-  vsf_sysutil_memcpy(&netorder_port, the_port.data, sizeof(netorder_port));
-  if (ntohs(netorder_port) < IPPORT_RESERVED)
+  if (the_port < IPPORT_RESERVED)
   {
     return 1;
   }
@@ -1696,19 +2043,50 @@ vsf_sysutil_is_port_reserved(const struct vsf_sysutil_ipv4port the_port)
 }
 
 const char*
-vsf_sysutil_inet_ntoa(const struct vsf_sysutil_sockaddr* p_sockptr)
+vsf_sysutil_inet_ntop(const struct vsf_sysutil_sockaddr* p_sockptr)
 {
-  const struct sockaddr_in* p_sockaddr = (const struct sockaddr_in*) p_sockptr;
-  return inet_ntoa(p_sockaddr->sin_addr);
+  const struct sockaddr* p_sockaddr = &p_sockptr->u.u_sockaddr;
+  if (p_sockaddr->sa_family == AF_INET)
+  {
+    return inet_ntoa(p_sockptr->u.u_sockaddr_in.sin_addr);
+  }
+  else if (p_sockaddr->sa_family == AF_INET6)
+  {
+    static char inaddr_buf[64];
+    const char* p_ret = inet_ntop(AF_INET6,
+                                  &p_sockptr->u.u_sockaddr_in6.sin6_addr,
+                                  inaddr_buf, sizeof(inaddr_buf));
+    inaddr_buf[sizeof(inaddr_buf) - 1] = '\0';
+    if (p_ret == NULL)
+    {
+      inaddr_buf[0] = '\0';
+    }
+    return inaddr_buf;
+  }
+  else
+  {
+    die("can only support ipv4 and ipv6 currently");
+  }
+}
+
+const char*
+vsf_sysutil_inet_ntoa(const void* p_raw_addr)
+{
+  return inet_ntoa(*((struct in_addr*)p_raw_addr));
 }
 
 int
-vsf_sysutil_inet_aton(const char* p_text, struct vsf_sysutil_ipv4addr* p_addr)
+vsf_sysutil_inet_aton(const char* p_text, struct vsf_sysutil_sockaddr* p_addr)
 {
   struct in_addr sin_addr;
+  if (p_addr->u.u_sockaddr.sa_family != AF_INET)
+  {
+    bug("bad family");
+  }
   if (inet_aton(p_text, &sin_addr))
   {
-    vsf_sysutil_memcpy(p_addr, &sin_addr.s_addr, sizeof(*p_addr));
+    vsf_sysutil_memcpy(&p_addr->u.u_sockaddr_in.sin_addr,
+                       &sin_addr, sizeof(p_addr->u.u_sockaddr_in.sin_addr));
     return 1;
   }
   else
@@ -2044,5 +2422,26 @@ char*
 vsf_sysutil_getenv(const char* p_var)
 {
   return getenv(p_var);
+}
+
+void
+vsf_sysutil_openlog(void)
+{
+  int facility = LOG_DAEMON;
+#ifdef LOG_FTP
+  facility = LOG_FTP;
+#endif
+  openlog("vsftpd", LOG_NDELAY, facility);
+}
+
+void
+vsf_sysutil_syslog(const char* p_text, int severe)
+{
+  int prio = LOG_INFO;
+  if (severe)
+  {
+    prio = LOG_WARNING;
+  }
+  syslog(prio, "%s", p_text);
 }
 

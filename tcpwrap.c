@@ -13,9 +13,9 @@
 #ifndef VSF_BUILD_TCPWRAPPERS
 
 int
-vsf_tcp_wrapper_ok(const struct vsf_sysutil_sockaddr* p_addr)
+vsf_tcp_wrapper_ok(int remote_fd)
 {
-  (void) p_addr;
+  (void) remote_fd;
   return 1;
 }
 
@@ -28,10 +28,10 @@ int deny_severity = LOG_WARNING;
 int allow_severity = LOG_INFO;
 
 int
-vsf_tcp_wrapper_ok(const struct vsf_sysutil_sockaddr* p_addr)
+vsf_tcp_wrapper_ok(int remote_fd)
 {
   struct request_info req;
-  request_init(&req, RQ_DAEMON, "vsftpd", RQ_CLIENT_SIN, (void*)p_addr, 0);
+  request_init(&req, RQ_DAEMON, "vsftpd", RQ_FILE, remote_fd, 0);
   fromhost(&req);
   if (!hosts_access(&req))
   {

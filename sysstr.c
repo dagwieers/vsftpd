@@ -168,3 +168,9 @@ str_getpwnam(const struct mystr* p_user_str)
   return vsf_sysutil_getpwnam(str_getbuf(p_user_str));
 }
 
+void
+str_syslog(const struct mystr* p_str, int severe)
+{
+  vsf_sysutil_syslog(str_getbuf(p_str), severe);
+}
+

@@ -41,15 +41,15 @@ main(int argc, const char* argv[])
     /* Login */
     1, INIT_MYSTR, INIT_MYSTR,
     /* Protocol state */
-    0, 1, INIT_MYSTR, 0,
+    0, 1, INIT_MYSTR, 0, 0,
     /* Session state */
     0,
     /* Userids */
-    -1, -1,
+    -1, -1, -1,
     /* Pre-chroot() cache */
     INIT_MYSTR, INIT_MYSTR, INIT_MYSTR, 1,
     /* Logging */
-    -1, INIT_MYSTR, 0, 0, 0, INIT_MYSTR, 0,
+    -1, -1, INIT_MYSTR, 0, 0, 0, INIT_MYSTR, 0,
     /* Buffers */
     INIT_MYSTR, INIT_MYSTR,
     /* Parent <-> child comms */
@@ -92,7 +92,7 @@ main(int argc, const char* argv[])
     }
     else if (config_specified)
     {
-      die("vsftpd: cannot open specified config file");
+      die2("vsftpd: cannot open config file:", p_config_name);
     }
     vsf_sysutil_free(p_statbuf);
   }
@@ -101,7 +101,7 @@ main(int argc, const char* argv[])
     /* Warning -- warning -- may nuke argv, environ */
     vsf_sysutil_setproctitle_init(argc, argv);
   }
-  if (tunable_listen)
+  if (tunable_listen || tunable_listen_ipv6)
   {
     /* Standalone mode */
     struct vsf_client_launch ret = vsf_standalone_main();
@@ -121,7 +121,7 @@ main(int argc, const char* argv[])
    */
   vsf_log_init(&the_session);
   str_alloc_text(&the_session.remote_ip_str,
-                 vsf_sysutil_inet_ntoa(the_session.p_remote_addr));
+                 vsf_sysutil_inet_ntop(the_session.p_remote_addr));
   /* Set up options on the command socket */
   vsf_cmdio_sock_setup();
   if (tunable_setproctitle_enable)
@@ -134,9 +134,10 @@ main(int argc, const char* argv[])
    */
   if (tunable_tcp_wrappers)
   {
-    char* p_load_conf;
-    the_session.tcp_wrapper_ok = vsf_tcp_wrapper_ok(the_session.p_remote_addr);
-    p_load_conf = vsf_sysutil_getenv("VSFTPD_LOAD_CONF");
+    the_session.tcp_wrapper_ok = vsf_tcp_wrapper_ok(VSFTP_COMMAND_FD);
+  }
+  {
+    const char* p_load_conf = vsf_sysutil_getenv("VSFTPD_LOAD_CONF");
     if (p_load_conf)
     {
       vsf_parseconf_load_file(p_load_conf, 1);
@@ -148,7 +149,7 @@ main(int argc, const char* argv[])
                               tunable_banned_email_file, VSFTP_CONF_FILE_MAX);
     if (vsf_sysutil_retval_is_error(retval))
     {
-      die("cannot open banned e-mail list file");
+      die2("cannot open banned e-mail list file:", tunable_banned_email_file);
     }
   }
   if (tunable_banner_file)
@@ -157,7 +158,7 @@ main(int argc, const char* argv[])
                               VSFTP_CONF_FILE_MAX);
     if (vsf_sysutil_retval_is_error(retval))
     {
-      die("cannot open banner file");
+      die2("cannot open banner file:", tunable_banner_file);
     }
   }
   /* Special case - can force one process model if we've got a setup
@@ -244,19 +245,32 @@ session_init(struct vsf_session* p_sess)
       vsf_sysutil_getpwnam(tunable_ftp_username);
     if (p_user == 0)
     {
-      die("vsftpd: cannot locate user specified in 'ftp_username'");
+      die2("vsftpd: cannot locate user specified in 'ftp_username':",
+           tunable_ftp_username);
     }
     p_sess->anon_ftp_uid = vsf_sysutil_user_getuid(p_user);
-
-    if (tunable_chown_uploads)
+  }
+  if (tunable_guest_enable)
+  {
+    const struct vsf_sysutil_user* p_user =
+      vsf_sysutil_getpwnam(tunable_guest_username);
+    if (p_user == 0)
     {
-      p_user = vsf_sysutil_getpwnam(tunable_chown_username);
-      if (p_user == 0)
-      {
-        die("vsftpd: cannot locate user specified in 'chown_username'");
-      }
-      p_sess->anon_upload_chown_uid = vsf_sysutil_user_getuid(p_user);
+      die2("vsftpd: cannot locate user specified in 'guest_username':",
+           tunable_guest_username);
     }
+    p_sess->guest_user_uid = vsf_sysutil_user_getuid(p_user);
+  }
+  if (tunable_chown_uploads)
+  {
+    const struct vsf_sysutil_user* p_user =
+      vsf_sysutil_getpwnam(tunable_chown_username);
+    if (p_user == 0)
+    {
+      die2("vsftpd: cannot locate user specified in 'chown_username':",
+           tunable_chown_username);
+    }
+    p_sess->anon_upload_chown_uid = vsf_sysutil_user_getuid(p_user);
   }
 }
 

@@ -45,6 +45,16 @@ int tunable_passwd_chroot_enable = 0;
 int tunable_no_anon_password = 0;
 int tunable_tcp_wrappers = 0;
 int tunable_use_sendfile = 1;
+int tunable_force_dot_files = 0;
+int tunable_listen_ipv6 = 0;
+int tunable_dual_log_enable = 0;
+int tunable_syslog_enable = 0;
+int tunable_background = 0;
+int tunable_virtual_use_local_privs = 0;
+int tunable_session_support = 0;
+int tunable_download_enable = 1;
+int tunable_dirlist_enable = 1;
+int tunable_chmod_enable = 1;
 
 unsigned int tunable_accept_timeout = 60;
 unsigned int tunable_connect_timeout = 60;
@@ -64,13 +74,14 @@ unsigned int tunable_max_clients = 0;
 /* -rw-rw-rw- */
 unsigned int tunable_file_open_mode = 0666;
 unsigned int tunable_max_per_ip = 0;
+unsigned int tunable_trans_chunk_size = 0;
 
 const char* tunable_secure_chroot_dir = "/usr/share/empty";
 const char* tunable_ftp_username = "ftp";
 const char* tunable_chown_username = "root";
-const char* tunable_xferlog_file = "/var/log/vsftpd.log";
+const char* tunable_xferlog_file = "/var/log/xferlog";
+const char* tunable_vsftpd_log_file = "/var/log/vsftpd.log";
 const char* tunable_message_file = ".message";
-/* XXX -> "secure"? */
 const char* tunable_nopriv_user = "nobody";
 const char* tunable_ftpd_banner = 0;
 const char* tunable_banned_email_file = "/etc/vsftpd.banned_emails";
@@ -84,4 +95,5 @@ const char* tunable_banner_file = 0;
 const char* tunable_pasv_address = 0;
 const char* tunable_listen_address = 0;
 const char* tunable_user_config_dir = 0;
-
+const char* tunable_listen_address6 = 0;
+const char* tunable_cmds_allowed = 0;

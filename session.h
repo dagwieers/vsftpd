@@ -40,12 +40,14 @@ struct vsf_session
   int is_ascii;
   struct mystr rnfr_filename_str;
   int abor_received;
+  int epsv_all;
 
   /* Details of FTP session state */
   struct mystr_list* p_visited_dir_list;
 
   /* Details of userids which are interesting to us */
   int anon_ftp_uid;
+  int guest_user_uid;
   int anon_upload_chown_uid;
 
   /* Things we need to cache before we chroot() */
@@ -55,7 +57,8 @@ struct vsf_session
   int tcp_wrapper_ok;
 
   /* Logging related details */
-  int log_fd;
+  int xferlog_fd;
+  int vsftpd_log_fd;
   struct mystr remote_ip_str;
   unsigned long log_type;
   long log_start_sec;

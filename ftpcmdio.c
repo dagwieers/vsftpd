@@ -22,7 +22,7 @@
 /* Internal functions */
 static void ftp_getline(struct mystr* p_str);
 static void ftp_write_text_common(struct vsf_session* p_sess, int status,
-                                  const char* p_text, int noblock);
+                                  const char* p_text, int noblock, char sep);
 static void ftp_write_str_common(struct vsf_session* p_sess, int status,
                                  char sep, const struct mystr* p_str,
                                  int noblock);
@@ -47,24 +47,48 @@ handle_alarm_timeout(void* p_private)
 void
 vsf_cmdio_write(struct vsf_session* p_sess, int status, const char* p_text)
 {
-  ftp_write_text_common(p_sess, status, p_text, 0);
+  ftp_write_text_common(p_sess, status, p_text, 0, ' ');
+}
+
+void
+vsf_cmdio_write_hyphen(struct vsf_session* p_sess, int status,
+                       const char* p_text)
+{
+  ftp_write_text_common(p_sess, status, p_text, 0, '-');
+}
+
+void
+vsf_cmdio_write_raw(struct vsf_session* p_sess, const char* p_text)
+{
+  static struct mystr s_the_str;
+  int retval;
+  str_alloc_text(&s_the_str, p_text);
+  if (tunable_log_ftp_protocol)
+  {
+    vsf_log_line(p_sess, kVSFLogEntryFTPOutput, &s_the_str);
+  }
+  retval = str_netfd_write(&s_the_str, VSFTP_COMMAND_FD);
+  if (retval != 0)
+  {
+    die("str_netfd_write");
+  }
 }
 
 void
 vsf_cmdio_write_noblock(struct vsf_session* p_sess, int status,
                         const char* p_text)
 {
-  ftp_write_text_common(p_sess, status, p_text, 1);
+  ftp_write_text_common(p_sess, status, p_text, 1, ' ');
 }
 
 static void
 ftp_write_text_common(struct vsf_session* p_sess, int status,
-                      const char* p_text, int noblock)
+                      const char* p_text, int noblock, char sep)
 {
   /* XXX - could optimize */
   static struct mystr s_the_str;
   str_alloc_text(&s_the_str, p_text);
-  ftp_write_str_common(p_sess, status, ' ', &s_the_str, noblock);
+  ftp_write_str_common(p_sess, status, sep, &s_the_str, noblock);
 }
 
 void

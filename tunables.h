@@ -41,6 +41,16 @@ extern int tunable_passwd_chroot_enable;      /* chroot() based on passwd */
 extern int tunable_no_anon_password;          /* Do not ask for anon pword */
 extern int tunable_tcp_wrappers;              /* Standalone: do tcp wrappers */
 extern int tunable_use_sendfile;              /* Use sendfile() if we can */
+extern int tunable_force_dot_files;           /* Show dotfiles without -a */
+extern int tunable_listen_ipv6;               /* Standalone with IPv6 listen */
+extern int tunable_dual_log_enable;           /* Log vsftpd.log AND xferlog */
+extern int tunable_syslog_enable;             /* Use syslog not vsftpd.log */
+extern int tunable_background;                /* Background listener process */
+extern int tunable_virtual_use_local_privs;   /* Virtual user => local privs */
+extern int tunable_session_support;           /* utmp, wtmp, pam_session */
+extern int tunable_download_enable;           /* Can download anything? */
+extern int tunable_dirlist_enable;            /* Can see any dirs? */
+extern int tunable_chmod_enable;              /* Is CHMOD allowed? (local) */
 
 /* Integer/numeric defines */
 extern unsigned int tunable_accept_timeout;
@@ -58,12 +68,14 @@ extern unsigned int tunable_listen_port;
 extern unsigned int tunable_max_clients;
 extern unsigned int tunable_file_open_mode;
 extern unsigned int tunable_max_per_ip;
+extern unsigned int tunable_trans_chunk_size;
 
 /* String defines */
 extern const char* tunable_secure_chroot_dir;
 extern const char* tunable_ftp_username;
 extern const char* tunable_chown_username;
 extern const char* tunable_xferlog_file;
+extern const char* tunable_vsftpd_log_file;
 extern const char* tunable_message_file;
 extern const char* tunable_nopriv_user;
 extern const char* tunable_ftpd_banner;
@@ -78,6 +90,8 @@ extern const char* tunable_banner_file;
 extern const char* tunable_pasv_address;
 extern const char* tunable_listen_address;
 extern const char* tunable_user_config_dir;
+extern const char* tunable_listen_address6;
+extern const char* tunable_cmds_allowed;
 
 #endif /* VSF_TUNABLES_H */
 

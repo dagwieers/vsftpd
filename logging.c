@@ -25,21 +25,37 @@ static void vsf_log_do_log_vsftpd_format(struct vsf_session* p_sess,
                                          const struct mystr* p_log_str);
 static void vsf_log_do_log_wuftpd_format(struct vsf_session* p_sess,
                                          struct mystr* p_str, int succeeded);
+static void vsf_log_do_log_to_file(int fd, struct mystr* p_str);
 
 void
 vsf_log_init(struct vsf_session* p_sess)
 {
   int retval;
-  if (!tunable_xferlog_enable)
+  if (!tunable_xferlog_enable && !tunable_dual_log_enable)
   {
     return;
   }
-  retval = vsf_sysutil_create_or_open_file(tunable_xferlog_file, 0600);
-  if (vsf_sysutil_retval_is_error(retval))
+  if (tunable_dual_log_enable || tunable_xferlog_std_format)
   {
-    die("failed to open ftp log file");
+    retval = vsf_sysutil_create_or_open_file(tunable_xferlog_file, 0600);
+    if (vsf_sysutil_retval_is_error(retval))
+    {
+      die2("failed to open xferlog log file:", tunable_xferlog_file);
+    }
+    p_sess->xferlog_fd = retval;
   }
-  p_sess->log_fd = retval;
+  if (tunable_dual_log_enable || !tunable_xferlog_std_format)
+  {
+    if (!tunable_syslog_enable)
+    {
+      retval = vsf_sysutil_create_or_open_file(tunable_vsftpd_log_file, 0600);
+      if (vsf_sysutil_retval_is_error(retval))
+      {
+        die2("failed to open vsftpd log file:", tunable_vsftpd_log_file);
+      }
+      p_sess->vsftpd_log_fd = retval;
+    }
+  }
 }
 
 static int
@@ -88,30 +104,44 @@ vsf_log_common(struct vsf_session* p_sess, int succeeded,
                enum EVSFLogEntryType what, const struct mystr* p_str)
 {
   static struct mystr s_log_str;
-  int retval;
-  if (p_sess->log_fd == -1 || (tunable_xferlog_std_format &&
-                               !vsf_log_type_is_transfer(what)))
+  /* Handle xferlog line if appropriate */
+  if (p_sess->xferlog_fd != -1 && vsf_log_type_is_transfer(what))
   {
-    return;
+    vsf_log_do_log_wuftpd_format(p_sess, &s_log_str, succeeded);
+    vsf_log_do_log_to_file(p_sess->xferlog_fd, &s_log_str);
   }
-  retval = vsf_sysutil_lock_file(p_sess->log_fd);
+  /* Handle vsftpd.log line if appropriate */
+  if (p_sess->vsftpd_log_fd != -1)
+  {
+    vsf_log_do_log_vsftpd_format(p_sess, &s_log_str, succeeded, what, p_str);
+    vsf_log_do_log_to_file(p_sess->vsftpd_log_fd, &s_log_str);
+  }
+  /* Handle syslog() line if appropriate */
+  if (tunable_syslog_enable)
+  {
+    int severe = 0;
+    vsf_log_do_log_vsftpd_format(p_sess, &s_log_str, succeeded, what, p_str);
+    if (what == kVSFLogEntryLogin && !succeeded)
+    {
+      severe = 1;
+    }
+    str_syslog(&s_log_str, severe);
+  }
+}
+
+static void
+vsf_log_do_log_to_file(int fd, struct mystr* p_str)
+{
+  int retval = vsf_sysutil_lock_file(fd);
   if (vsf_sysutil_retval_is_error(retval))
   {
     return;
   }
-  if (tunable_xferlog_std_format)
-  {
-    vsf_log_do_log_wuftpd_format(p_sess, &s_log_str, succeeded);
-  }
-  else
-  {
-    vsf_log_do_log_vsftpd_format(p_sess, &s_log_str, succeeded, what, p_str);
-  }
-  str_replace_unprintable(&s_log_str, '?');
-  str_append_char(&s_log_str, '\n');
-  /* Write it! Ignore write failure; maybe the disk filled or something */
-  (void) str_write_loop(&s_log_str, p_sess->log_fd);
-  vsf_sysutil_unlock_file(p_sess->log_fd);
+  str_replace_unprintable(p_str, '?');
+  str_append_char(p_str, '\n');
+  /* Ignore write failure; maybe the disk filled etc. */
+  (void) str_write_loop(p_str, fd);
+  vsf_sysutil_unlock_file(fd);
 }
 
 static void

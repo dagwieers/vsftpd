@@ -12,6 +12,16 @@ struct mystr;
  */
 void die(const char* p_text);
 
+/* die2()
+ * PURPOSE
+ * Terminate execution of the process, due to an abnormal (but non-bug)
+ * situation.
+ * PARAMETERS
+ * p_text1      - text string describing why the process is exiting
+ * p_text2      - text to safely concatenate to p_text1
+ */
+void die2(const char* p_text1, const char* p_text2);
+
 /* bug()
  * PURPOSE
  * Terminate execution of the process, due to a suspected bug, trying to emit

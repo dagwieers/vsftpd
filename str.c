@@ -373,6 +373,7 @@ str_split_text_common(struct mystr* p_src, struct mystr* p_rhs,
 {
   struct str_locate_result locate_result;
   unsigned int indexx;
+  unsigned int search_len = vsf_sysutil_strlen(p_text);
   if (is_reverse)
   {
     locate_result = str_locate_text_reverse(p_src, p_text);
@@ -388,13 +389,13 @@ str_split_text_common(struct mystr* p_src, struct mystr* p_rhs,
     return;
   }
   indexx = locate_result.index;
-  if (indexx + vsf_sysutil_strlen(p_text) > p_src->len)
+  if (indexx + search_len > p_src->len)
   {
     bug("indexx invalid in str_split_text");
   } 
   /* Build rhs */
-  private_str_alloc_memchunk(p_rhs, p_src->p_buf + indexx + 1,
-                             p_src->len - indexx - 1);
+  private_str_alloc_memchunk(p_rhs, p_src->p_buf + indexx + search_len,
+                             p_src->len - indexx - search_len);
   /* Build lhs */
   str_trunc(p_src, indexx);
 }

@@ -35,15 +35,11 @@ int
 vsf_privop_get_ftp_port_sock(struct vsf_session* p_sess)
 {
   static struct vsf_sysutil_sockaddr* p_sockaddr;
-  struct vsf_sysutil_ipv4port the_port;
   int retval;
-  int s = vsf_sysutil_get_ipv4_sock();
+  int s = vsf_sysutil_get_ipsock(p_sess->p_local_addr);
   vsf_sysutil_activate_reuseaddr(s);
-  vsf_sysutil_sockaddr_alloc_ipv4(&p_sockaddr);
-  the_port = vsf_sysutil_ipv4port_from_int(tunable_ftp_data_port);
-  vsf_sysutil_sockaddr_set_port(p_sockaddr, the_port);
-  vsf_sysutil_sockaddr_set_ipaddr(p_sockaddr,
-    vsf_sysutil_sockaddr_get_ipaddr(p_sess->p_local_addr));
+  vsf_sysutil_sockaddr_clone(&p_sockaddr, p_sess->p_local_addr);
+  vsf_sysutil_sockaddr_set_port(p_sockaddr, tunable_ftp_data_port);
   retval = vsf_sysutil_bind(s, p_sockaddr);
   if (retval != 0)
   {
@@ -57,12 +53,19 @@ vsf_privop_do_file_chown(struct vsf_session* p_sess, int fd)
 {
   static struct vsf_sysutil_statbuf* s_p_statbuf;
   vsf_sysutil_fstat(fd, &s_p_statbuf);
+  /* Do nothing if it is already owned by the desired user. */
+  if (vsf_sysutil_statbuf_get_uid(s_p_statbuf) ==
+      p_sess->anon_upload_chown_uid)
+  {
+    return;
+  }
   /* Drop it like a hot potato unless it's a regular file owned by
    * the the anonymous ftp user
    */
-  if (p_sess->anon_ftp_uid == -1 || p_sess->anon_upload_chown_uid == -1 ||
+  if (p_sess->anon_upload_chown_uid == -1 ||
       !vsf_sysutil_statbuf_is_regfile(s_p_statbuf) ||
-      vsf_sysutil_statbuf_get_uid(s_p_statbuf) != p_sess->anon_ftp_uid)
+      (vsf_sysutil_statbuf_get_uid(s_p_statbuf) != p_sess->anon_ftp_uid &&
+       vsf_sysutil_statbuf_get_uid(s_p_statbuf) != p_sess->guest_user_uid))
   {
     die("invalid fd in cmd_process_chown");
   }
@@ -144,7 +147,6 @@ handle_login(struct vsf_session* p_sess, const struct mystr* p_user_str,
     {
       result = handle_local_login(p_sess, p_user_str, p_pass_str);
     }
-    str_free(&p_sess->banned_email_str);
     return result;
   }
 }
@@ -173,6 +175,7 @@ handle_anonymous_login(struct vsf_session* p_sess,
     setup_username_globals(p_sess, &ftp_username_str);
     str_free(&ftp_username_str);
   }
+  str_free(&p_sess->banned_email_str);
   return kVSFLoginAnon;
 }
 

@@ -6,10 +6,16 @@
 #define FTP_NOOPOK            200
 #define FTP_TYPEOK            200
 #define FTP_PORTOK            200
+#define FTP_EPRTOK            200
 #define FTP_UMASKOK           200
 #define FTP_CHMODOK           200
+#define FTP_EPSVALLOK         200
+#define FTP_STRUOK            200
+#define FTP_MODEOK            200
 #define FTP_SIZEOK            213
 #define FTP_MDTMOK            213
+#define FTP_SITEHELP          214
+#define FTP_HELP              214
 #define FTP_SYSTOK            215
 #define FTP_GREET             220
 #define FTP_GOODBYE           221
@@ -17,6 +23,7 @@
 #define FTP_TRANSFEROK        226
 #define FTP_ABOROK            226
 #define FTP_PASVOK            227
+#define FTP_EPSVOK            229
 #define FTP_LOGINOK           230
 #define FTP_CWDOK             250
 #define FTP_RMDIROK           250
@@ -39,9 +46,11 @@
 #define FTP_BADSENDFILE       451
 
 #define FTP_BADCMD            500
-#define FTP_BADHELP           502
 #define FTP_NEEDUSER          503
 #define FTP_NEEDRNFR          503
+#define FTP_BADSTRU           504
+#define FTP_BADMODE           504
+#define FTP_EPSVBAD           522
 #define FTP_LOGINERR          530
 #define FTP_FILEFAIL          550
 #define FTP_NOPERM            550

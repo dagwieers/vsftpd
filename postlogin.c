@@ -21,11 +21,12 @@
 #include "sysutil.h"
 #include "logging.h"
 #include "sysdeputil.h"
+#include "ipv6parse.h"
 
 /* Private local functions */
 static void handle_pwd(struct vsf_session* p_sess);
 static void handle_cwd(struct vsf_session* p_sess);
-static void handle_pasv(struct vsf_session* p_sess);
+static void handle_pasv(struct vsf_session* p_sess, int is_epsv);
 static void handle_retr(struct vsf_session* p_sess);
 static void handle_cdup(struct vsf_session* p_sess);
 static void handle_list(struct vsf_session* p_sess);
@@ -47,6 +48,9 @@ static void handle_site_chmod(struct vsf_session* p_sess,
                               struct mystr* p_arg_str);
 static void handle_site_umask(struct vsf_session* p_sess,
                               struct mystr* p_arg_str);
+static void handle_eprt(struct vsf_session* p_sess);
+static void handle_help(struct vsf_session* p_sess);
+static void handle_stou(struct vsf_session* p_sess);
 
 static int pasv_active(struct vsf_session* p_sess);
 static int port_active(struct vsf_session* p_sess);
@@ -57,7 +61,10 @@ static void prepend_path_to_filename(struct mystr* p_str);
 static int get_remote_transfer_fd(struct vsf_session* p_sess);
 static int dispose_remote_transfer_fd(struct vsf_session* p_sess);
 static void handle_sigurg(void* p_private);
-static void handle_upload_common(struct vsf_session* p_sess, int is_append);
+static void handle_upload_common(struct vsf_session* p_sess, int is_append,
+                                 int is_unique);
+static void get_unique_filename(struct mystr* p_outstr,
+                                const struct mystr* p_base);
 
 void
 process_post_login(struct vsf_session* p_sess)
@@ -79,9 +86,10 @@ process_post_login(struct vsf_session* p_sess)
   }
   /* Handle any login message */
   vsf_banner_dir_changed(p_sess, FTP_LOGINOK);
-  vsf_cmdio_write(p_sess, FTP_LOGINOK, "Login successful. Have fun.");
+  vsf_cmdio_write(p_sess, FTP_LOGINOK, "Login successful.");
   while(1)
   {
+    int cmd_ok = 1;
     if (tunable_setproctitle_enable)
     {
       vsf_sysutil_setproctitle("IDLE");
@@ -103,7 +111,32 @@ process_post_login(struct vsf_session* p_sess)
       vsf_sysutil_setproctitle_str(&proctitle_str);
       str_free(&proctitle_str);
     }
-    if (str_equal_text(&p_sess->ftp_cmd_str, "QUIT"))
+    /* Test command against the allowed list.. */
+    if (tunable_cmds_allowed)
+    {
+      static struct mystr s_src_str;
+      static struct mystr s_rhs_str;
+      str_alloc_text(&s_src_str, tunable_cmds_allowed);
+      while (1)
+      {
+        str_split_char(&s_src_str, &s_rhs_str, ',');
+        if (str_isempty(&s_src_str))
+        {
+          cmd_ok = 0;
+          break;
+        }
+        else if (str_equal(&s_src_str, &p_sess->ftp_cmd_str))
+        {
+          break;
+        }
+        str_copy(&s_src_str, &s_rhs_str);
+      }
+    }
+    if (!cmd_ok)
+    {
+      vsf_cmdio_write(p_sess, FTP_NOPERM, "Permission denied.");
+    }
+    else if (str_equal_text(&p_sess->ftp_cmd_str, "QUIT"))
     {
       vsf_cmdio_write(p_sess, FTP_GOODBYE, "Goodbye.");
       vsf_sysutil_exit(0);
@@ -124,11 +157,18 @@ process_post_login(struct vsf_session* p_sess)
       handle_cdup(p_sess);
     }
     else if (tunable_pasv_enable &&
+             !p_sess->epsv_all &&
              str_equal_text(&p_sess->ftp_cmd_str, "PASV"))
     {
-      handle_pasv(p_sess);
+      handle_pasv(p_sess, 0);
     }
-    else if (str_equal_text(&p_sess->ftp_cmd_str, "RETR"))
+    else if (tunable_pasv_enable &&
+             str_equal_text(&p_sess->ftp_cmd_str, "EPSV"))
+    {
+      handle_pasv(p_sess, 1);
+    }
+    else if (tunable_download_enable &&
+             str_equal_text(&p_sess->ftp_cmd_str, "RETR"))
     {
       handle_retr(p_sess);
     }
@@ -142,9 +182,10 @@ process_post_login(struct vsf_session* p_sess)
     }
     else if (str_equal_text(&p_sess->ftp_cmd_str, "HELP"))
     {
-      vsf_cmdio_write(p_sess, FTP_BADHELP, "Sorry, I don't have help.");
+      handle_help(p_sess);
     }
-    else if (str_equal_text(&p_sess->ftp_cmd_str, "LIST"))
+    else if (tunable_dirlist_enable &&
+             str_equal_text(&p_sess->ftp_cmd_str, "LIST"))
     {
       handle_list(p_sess);
     }
@@ -153,6 +194,7 @@ process_post_login(struct vsf_session* p_sess)
       handle_type(p_sess);
     }
     else if (tunable_port_enable &&
+             !p_sess->epsv_all &&
              str_equal_text(&p_sess->ftp_cmd_str, "PORT"))
     {
       handle_port(p_sess);
@@ -199,7 +241,8 @@ process_post_login(struct vsf_session* p_sess)
     {
       handle_rnto(p_sess);
     }
-    else if (str_equal_text(&p_sess->ftp_cmd_str, "NLST"))
+    else if (tunable_dirlist_enable &&
+             str_equal_text(&p_sess->ftp_cmd_str, "NLST"))
     {
       handle_nlst(p_sess);
     }
@@ -226,6 +269,39 @@ process_post_login(struct vsf_session* p_sess)
     {
       handle_mdtm(p_sess);
     }
+    else if (tunable_port_enable &&
+             str_equal_text(&p_sess->ftp_cmd_str, "EPRT"))
+    {
+      handle_eprt(p_sess);
+    }
+    else if (str_equal_text(&p_sess->ftp_cmd_str, "STRU"))
+    {
+      str_upper(&p_sess->ftp_arg_str);
+      if (str_equal_text(&p_sess->ftp_arg_str, "F"))
+      {
+        vsf_cmdio_write(p_sess, FTP_STRUOK, "Structure set to F.");
+      }
+      else
+      {
+        vsf_cmdio_write(p_sess, FTP_BADSTRU, "Bad STRU command.");
+      }
+    }
+    else if (str_equal_text(&p_sess->ftp_cmd_str, "MODE"))
+    {
+      str_upper(&p_sess->ftp_arg_str);
+      if (str_equal_text(&p_sess->ftp_arg_str, "S"))
+      {
+        vsf_cmdio_write(p_sess, FTP_MODEOK, "Mode set to S.");
+      }
+      else
+      {
+        vsf_cmdio_write(p_sess, FTP_BADMODE, "Bad MODE command.");
+      }
+    }
+    else if (str_equal_text(&p_sess->ftp_cmd_str, "STOU"))
+    {
+      handle_stou(p_sess);
+    }
     else if (str_equal_text(&p_sess->ftp_cmd_str, "PASV") ||
              str_equal_text(&p_sess->ftp_cmd_str, "PORT") ||
              str_equal_text(&p_sess->ftp_cmd_str, "STOR") ||
@@ -237,7 +313,13 @@ process_post_login(struct vsf_session* p_sess)
              str_equal_text(&p_sess->ftp_cmd_str, "RNFR") ||
              str_equal_text(&p_sess->ftp_cmd_str, "RNTO") ||
              str_equal_text(&p_sess->ftp_cmd_str, "SITE") ||
-             str_equal_text(&p_sess->ftp_cmd_str, "APPE"))
+             str_equal_text(&p_sess->ftp_cmd_str, "APPE") ||
+             str_equal_text(&p_sess->ftp_cmd_str, "EPSV") ||
+             str_equal_text(&p_sess->ftp_cmd_str, "EPRT") ||
+             str_equal_text(&p_sess->ftp_cmd_str, "RETR") ||
+             str_equal_text(&p_sess->ftp_cmd_str, "LIST") ||
+             str_equal_text(&p_sess->ftp_cmd_str, "NLST") ||
+             str_equal_text(&p_sess->ftp_cmd_str, "STOU"))
     {
       vsf_cmdio_write(p_sess, FTP_NOPERM, "Permission denied.");
     }
@@ -340,20 +422,43 @@ pasv_cleanup(struct vsf_session* p_sess)
 }
 
 static void
-handle_pasv(struct vsf_session* p_sess)
+handle_pasv(struct vsf_session* p_sess, int is_epsv)
 {
   static struct mystr s_pasv_res_str;
   static struct vsf_sysutil_sockaddr* s_p_sockaddr;
-  struct vsf_sysutil_ipv4port listen_port;
-  struct vsf_sysutil_ipv4addr listen_ipaddr;
   int bind_retries = 10;
+  unsigned short the_port = 0;
+  int is_ipv6 = vsf_sysutil_sockaddr_is_ipv6(p_sess->p_local_addr);
+  if (is_epsv && !str_isempty(&p_sess->ftp_arg_str))
+  {
+    int argval;
+    str_upper(&p_sess->ftp_arg_str);
+    if (str_equal_text(&p_sess->ftp_arg_str, "ALL"))
+    {
+      p_sess->epsv_all = 1;
+      vsf_cmdio_write(p_sess, FTP_EPSVALLOK, "EPSV ALL ok.");
+      return;
+    }
+    argval = vsf_sysutil_atoi(str_getbuf(&p_sess->ftp_arg_str));
+    if (!is_ipv6 || argval != 2)
+    {
+      vsf_cmdio_write(p_sess, FTP_EPSVBAD, "Bad network protocol.");
+      return;
+    }
+  }
   pasv_cleanup(p_sess);
   port_cleanup(p_sess);
-  p_sess->pasv_listen_fd = vsf_sysutil_get_ipv4_sock();
+  if (is_epsv && is_ipv6)
+  {
+    p_sess->pasv_listen_fd = vsf_sysutil_get_ipv6_sock();
+  }
+  else
+  {
+    p_sess->pasv_listen_fd = vsf_sysutil_get_ipv4_sock();
+  }
   while (--bind_retries)
   {
     int retval;
-    unsigned short the_port;
     double scaled_port;
     /* IPPORT_RESERVED */
     unsigned short min_port = 1024;
@@ -373,12 +478,8 @@ handle_pasv(struct vsf_session* p_sess)
     scaled_port += ((double) the_port / (double) 65535) *
                    ((double) max_port - min_port);
     the_port = (unsigned short) scaled_port;
-    vsf_sysutil_sockaddr_alloc_ipv4(&s_p_sockaddr);
-    vsf_sysutil_sockaddr_set_port(s_p_sockaddr,
-                                  vsf_sysutil_ipv4port_from_int(the_port));
-    /* Bind to same address we got the incoming connect on */
-    vsf_sysutil_sockaddr_set_ipaddr(s_p_sockaddr,
-      vsf_sysutil_sockaddr_get_ipaddr(p_sess->p_local_addr));
+    vsf_sysutil_sockaddr_clone(&s_p_sockaddr, p_sess->p_local_addr);
+    vsf_sysutil_sockaddr_set_port(s_p_sockaddr, the_port);
     retval = vsf_sysutil_bind(p_sess->pasv_listen_fd, s_p_sockaddr);
     if (!vsf_sysutil_retval_is_error(retval))
     {
@@ -395,34 +496,40 @@ handle_pasv(struct vsf_session* p_sess)
     die("vsf_sysutil_bind");
   }
   vsf_sysutil_listen(p_sess->pasv_listen_fd, 1);
-  /* Get the address of the bound socket, for the port */
-  vsf_sysutil_getsockname(p_sess->pasv_listen_fd, &s_p_sockaddr);
+  if (is_epsv)
+  {
+    str_alloc_text(&s_pasv_res_str, "Entering Extended Passive Mode (|||");
+    str_append_ulong(&s_pasv_res_str, (unsigned long) the_port);
+    str_append_text(&s_pasv_res_str, "|)");
+    vsf_cmdio_write_str(p_sess, FTP_EPSVOK, &s_pasv_res_str);
+    return;
+  }
   if (tunable_pasv_address != 0)
   {
     /* Report passive address as specified in configuration */
-    if (vsf_sysutil_inet_aton(tunable_pasv_address, &listen_ipaddr) == 0)
+    if (vsf_sysutil_inet_aton(tunable_pasv_address, s_p_sockaddr) == 0)
     {
       die("invalid pasv_address");
     }
   }
+  str_alloc_text(&s_pasv_res_str, "Entering Passive Mode (");
+  if (!is_ipv6)
+  {
+    str_append_text(&s_pasv_res_str, vsf_sysutil_inet_ntop(s_p_sockaddr));
+  }
   else
   {
-    /* Use address of bound socket for passive address */
-    listen_ipaddr = vsf_sysutil_sockaddr_get_ipaddr(s_p_sockaddr);
+    const void* p_v4addr = vsf_sysutil_sockaddr_ipv6_v4(s_p_sockaddr);
+    if (p_v4addr)
+    {
+      str_append_text(&s_pasv_res_str, vsf_sysutil_inet_ntoa(p_v4addr));
+    }
   }
-  listen_port = vsf_sysutil_sockaddr_get_port(s_p_sockaddr);
-  str_alloc_text(&s_pasv_res_str, "Entering Passive Mode (");
-  str_append_ulong(&s_pasv_res_str, listen_ipaddr.data[0]);
+  str_replace_char(&s_pasv_res_str, '.', ',');
   str_append_text(&s_pasv_res_str, ",");
-  str_append_ulong(&s_pasv_res_str, listen_ipaddr.data[1]);
+  str_append_ulong(&s_pasv_res_str, the_port >> 8);
   str_append_text(&s_pasv_res_str, ",");
-  str_append_ulong(&s_pasv_res_str, listen_ipaddr.data[2]);
-  str_append_text(&s_pasv_res_str, ",");
-  str_append_ulong(&s_pasv_res_str, listen_ipaddr.data[3]);
-  str_append_text(&s_pasv_res_str, ",");
-  str_append_ulong(&s_pasv_res_str, listen_port.data[0]);
-  str_append_text(&s_pasv_res_str, ",");
-  str_append_ulong(&s_pasv_res_str, listen_port.data[1]);
+  str_append_ulong(&s_pasv_res_str, the_port & 255);
   str_append_text(&s_pasv_res_str, ")");
   vsf_cmdio_write_str(p_sess, FTP_PASVOK, &s_pasv_res_str);
 }
@@ -661,12 +768,9 @@ static void
 handle_port(struct vsf_session* p_sess)
 {
   static struct mystr s_tmp_str;
-  struct vsf_sysutil_ipv4addr the_addr;
-  struct vsf_sysutil_ipv4port the_port;
+  unsigned short the_port;
   unsigned char vals[6];
   int i;
-  struct vsf_sysutil_ipv4addr remote_addr =
-    vsf_sysutil_sockaddr_get_ipaddr(p_sess->p_remote_addr);
   pasv_cleanup(p_sess);
   port_cleanup(p_sess);
   str_copy(&s_tmp_str, &p_sess->ftp_arg_str);
@@ -696,16 +800,19 @@ handle_port(struct vsf_session* p_sess)
      */
     str_copy(&s_tmp_str, &s_rhs_comma_str);
   }
-  vsf_sysutil_memcpy(the_addr.data, vals, sizeof(the_addr.data));
-  vsf_sysutil_memcpy(the_port.data, &vals[4], sizeof(the_port.data));
+  the_port = vals[4] << 8;
+  the_port |= vals[5];
+  vsf_sysutil_sockaddr_alloc_ipv4(&p_sess->p_port_sockaddr);
+  vsf_sysutil_sockaddr_set_ipv4addr(p_sess->p_port_sockaddr, vals);
+  vsf_sysutil_sockaddr_set_port(p_sess->p_port_sockaddr, the_port);
   /* SECURITY:
    * 1) Reject requests not connecting to the control socket IP
    * 2) Reject connects to privileged ports
    */
   if (!tunable_port_promiscuous)
   {
-    if (vsf_sysutil_memcmp(the_addr.data, remote_addr.data,
-                           sizeof(the_addr.data)) != 0 ||
+    if (!vsf_sysutil_sockaddr_addr_equal(p_sess->p_remote_addr,
+                                         p_sess->p_port_sockaddr) ||
         vsf_sysutil_is_port_reserved(the_port))
     {
       vsf_cmdio_write(p_sess, FTP_BADCMD, "Illegal PORT command.");
@@ -713,9 +820,6 @@ handle_port(struct vsf_session* p_sess)
       return;
     }
   }
-  vsf_sysutil_sockaddr_alloc_ipv4(&p_sess->p_port_sockaddr);
-  vsf_sysutil_sockaddr_set_port(p_sess->p_port_sockaddr, the_port);
-  vsf_sysutil_sockaddr_set_ipaddr(p_sess->p_port_sockaddr, the_addr);
   vsf_cmdio_write(p_sess, FTP_PORTOK,
                   "PORT command successful. Consider using PASV.");
 }
@@ -723,12 +827,14 @@ handle_port(struct vsf_session* p_sess)
 static void
 handle_stor(struct vsf_session* p_sess)
 {
-  handle_upload_common(p_sess, 0);
+  handle_upload_common(p_sess, 0, 0);
 }
 
 static void
-handle_upload_common(struct vsf_session* p_sess, int is_append)
+handle_upload_common(struct vsf_session* p_sess, int is_append, int is_unique)
 {
+  static struct mystr s_filename;
+  struct mystr* p_filename;
   struct vsf_transfer_ret trans_ret;
   int new_file_fd;
   int remote_fd;
@@ -740,24 +846,30 @@ handle_upload_common(struct vsf_session* p_sess, int is_append)
     vsf_cmdio_write(p_sess, FTP_BADSENDCONN, "Use PORT or PASV first.");
     return;
   }
+  p_filename = &p_sess->ftp_arg_str;
+  if (is_unique)
+  {
+    get_unique_filename(&s_filename, p_filename);
+    p_filename = &s_filename;
+  }
   /* NOTE - actual file permissions will be governed by the tunable umask */
   /* XXX - do we care about race between create and chown() of anonymous
    * upload?
    */
-  if (p_sess->is_anonymous && !tunable_anon_other_write_enable)
+  if (is_unique || (p_sess->is_anonymous && !tunable_anon_other_write_enable))
   {
-    new_file_fd = str_create(&p_sess->ftp_arg_str);
+    new_file_fd = str_create(p_filename);
   }
   else
   {
     /* For non-anonymous, allow open() to overwrite or append existing files */
     if (!is_append && offset == 0)
     {
-      new_file_fd = str_create_overwrite(&p_sess->ftp_arg_str);
+      new_file_fd = str_create_overwrite(p_filename);
     }
     else
     {
-      new_file_fd = str_create_append(&p_sess->ftp_arg_str);
+      new_file_fd = str_create_append(p_filename);
     }
   }
   if (vsf_sysutil_retval_is_error(new_file_fd))
@@ -768,6 +880,7 @@ handle_upload_common(struct vsf_session* p_sess, int is_append)
   /* Are we required to chown() this file for security? */
   if (p_sess->is_anonymous && tunable_chown_uploads)
   {
+    vsf_sysutil_fchmod(new_file_fd, 0600);
     if (tunable_one_process_model)
     {
       vsf_one_process_chown_upload(p_sess, new_file_fd);
@@ -787,8 +900,18 @@ handle_upload_common(struct vsf_session* p_sess, int is_append)
   {
     goto port_pasv_cleanup_out;
   }
-  vsf_cmdio_write(p_sess, FTP_DATACONN,
-                  "Ok to send data.");
+  if (is_unique)
+  {
+    struct mystr resp_str = INIT_MYSTR;
+    str_alloc_text(&resp_str, "FILE: ");
+    str_append_str(&resp_str, p_filename);
+    vsf_cmdio_write_str(p_sess, FTP_DATACONN, &resp_str);
+    str_free(&resp_str);
+  }
+  else
+  {
+    vsf_cmdio_write(p_sess, FTP_DATACONN, "Ok to send data.");
+  }
   vsf_log_start_entry(p_sess, kVSFLogEntryUpload);
   str_copy(&p_sess->log_str, &p_sess->ftp_arg_str);
   prepend_path_to_filename(&p_sess->log_str);
@@ -1079,6 +1202,7 @@ handle_site(struct vsf_session* p_sess)
   str_split_char(&p_sess->ftp_arg_str, &s_site_args_str, ' ');
   str_upper(&p_sess->ftp_arg_str);
   if (tunable_write_enable &&
+      tunable_chmod_enable &&
       str_equal_text(&p_sess->ftp_arg_str, "CHMOD"))
   {
     handle_site_chmod(p_sess, &s_site_args_str);
@@ -1086,6 +1210,10 @@ handle_site(struct vsf_session* p_sess)
   else if (str_equal_text(&p_sess->ftp_arg_str, "UMASK"))
   {
     handle_site_umask(p_sess, &s_site_args_str);
+  }
+  else if (str_equal_text(&p_sess->ftp_arg_str, "HELP"))
+  {
+    vsf_cmdio_write(p_sess, FTP_SITEHELP, "CHMOD UMASK HELP");
   }
   else
   {
@@ -1149,7 +1277,7 @@ handle_site_umask(struct vsf_session* p_sess, struct mystr* p_arg_str)
 static void
 handle_appe(struct vsf_session* p_sess)
 {
-  handle_upload_common(p_sess, 1);
+  handle_upload_common(p_sess, 1, 0);
 }
 
 static void
@@ -1169,6 +1297,115 @@ handle_mdtm(struct vsf_session* p_sess)
                    vsf_sysutil_statbuf_get_numeric_date(
                      s_p_statbuf, tunable_use_localtime));
     vsf_cmdio_write_str(p_sess, FTP_MDTMOK, &s_mdtm_res_str);
+  }
+}
+
+static void
+handle_eprt(struct vsf_session* p_sess)
+{
+  static struct mystr s_part1_str;
+  static struct mystr s_part2_str;
+  int proto;
+  int port;
+  const unsigned char* p_raw_addr;
+  int is_ipv6 = vsf_sysutil_sockaddr_is_ipv6(p_sess->p_local_addr);
+  port_cleanup(p_sess);
+  pasv_cleanup(p_sess);
+  str_copy(&s_part1_str, &p_sess->ftp_arg_str);
+  str_split_char(&s_part1_str, &s_part2_str, '|');
+  if (!str_isempty(&s_part1_str))
+  {
+    goto bad_eprt;
+  }
+  /* Split out the protocol and check it */
+  str_split_char(&s_part2_str, &s_part1_str, '|');
+  proto = str_atoi(&s_part2_str);
+  if (!is_ipv6 || proto != 2)
+  {
+    vsf_cmdio_write(p_sess, FTP_BADCMD, "Bad EPRT protocol.");
+    return;
+  }
+  /* Split out address and parse it */
+  str_split_char(&s_part1_str, &s_part2_str, '|');
+  p_raw_addr = vsf_sysutil_parse_ipv6(&s_part1_str);
+  if (!p_raw_addr)
+  {
+    goto bad_eprt;
+  }
+  /* Split out port and parse it */
+  str_split_char(&s_part2_str, &s_part1_str, '|');
+  if (!str_isempty(&s_part1_str) || str_isempty(&s_part2_str))
+  {
+    goto bad_eprt;
+  }
+  port = str_atoi(&s_part2_str);
+  if (port < 0 || port > 65535)
+  {
+    goto bad_eprt;
+  }
+  vsf_sysutil_sockaddr_alloc_ipv6(&p_sess->p_port_sockaddr);
+  vsf_sysutil_sockaddr_set_ipv6addr(p_sess->p_port_sockaddr, p_raw_addr);
+  vsf_sysutil_sockaddr_set_port(p_sess->p_port_sockaddr, (unsigned short)port);
+  /* SECURITY:
+   * 1) Reject requests not connecting to the control socket IP
+   * 2) Reject connects to privileged ports
+   */
+  if (!tunable_port_promiscuous)
+  {
+    if (!vsf_sysutil_sockaddr_addr_equal(p_sess->p_remote_addr,
+                                         p_sess->p_port_sockaddr) ||
+        vsf_sysutil_is_port_reserved(port))
+    {
+      vsf_cmdio_write(p_sess, FTP_BADCMD, "Illegal EPRT command.");
+      port_cleanup(p_sess);
+      return;
+    }
+  }
+  vsf_cmdio_write(p_sess, FTP_EPRTOK,
+                  "EPRT command successful. Consider using EPSV.");
+  return;
+bad_eprt:
+  vsf_cmdio_write(p_sess, FTP_BADCMD, "Bad EPRT command.");
+}
+
+static void
+handle_help(struct vsf_session* p_sess)
+{
+  vsf_cmdio_write_hyphen(p_sess, FTP_HELP,
+                         "The following commands are implemented.");
+  vsf_cmdio_write_raw(p_sess,
+" ABOR APPE CDUP CWD  DELE EPRT EPSV HELP LIST MDTM MKD  MODE NLST NOOP\r\n");
+  vsf_cmdio_write_raw(p_sess,
+" PASS PASV PORT PWD  QUIT REST RETR RMD  RNFR RNTO SITE SIZE STOR STOU\r\n");
+  vsf_cmdio_write_raw(p_sess,
+" STRU SYST TYPE USER XCUP XCWD XMKD XPWD XRMD\r\n");
+  vsf_cmdio_write(p_sess, FTP_HELP, "Help OK.");
+}
+
+static void
+handle_stou(struct vsf_session* p_sess)
+{
+  handle_upload_common(p_sess, 0, 1);
+}
+
+static void
+get_unique_filename(struct mystr* p_outstr, const struct mystr* p_base_str)
+{
+  /* Use silly wu-ftpd algorithm for compatibility */
+  static struct vsf_sysutil_statbuf* s_p_statbuf;
+  unsigned int suffix = 1;
+  int retval;
+  while (1)
+  {
+    str_copy(p_outstr, p_base_str);
+    str_append_char(p_outstr, '.');
+    str_append_ulong(p_outstr, suffix);
+    retval = str_stat(p_outstr, &s_p_statbuf);
+    if (vsf_sysutil_retval_is_error(retval))
+    {
+      return;
+    }
+    ++suffix;
   }
 }
 

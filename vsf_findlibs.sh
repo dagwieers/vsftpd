@@ -3,7 +3,7 @@
 
 locate_library() { [ ! "$1*" = "`echo $1*`" ]; }
 
-if (grep -q "#define VSF_BUILD_TCPWRAPPERS" builddefs.h); then
+if (grep "#define VSF_BUILD_TCPWRAPPERS" builddefs.h >/dev/null); then
   echo "-lwrap";
   locate_library /lib/libnsl.so && echo "-lnsl";
 fi

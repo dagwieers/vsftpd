@@ -74,6 +74,7 @@ emit_greeting(struct vsf_session* p_sess)
     vsf_cmdio_write_noblock(p_sess, FTP_IP_DENY, "Service not available.");
     vsf_sysutil_exit(0);
   }
+  vsf_log_line(p_sess, kVSFLogEntryConnection, &str_log_line);
   if (!str_isempty(&p_sess->banner_str))
   {
     vsf_banner_write(p_sess, &p_sess->banner_str, FTP_GREET);

@@ -38,9 +38,6 @@ static void calculate_chdir_dir(int anon, struct mystr* p_chroot_str,
 static void
 handle_sigchld(int duff)
 {
-  /* WARNING - async handler. Must not call anything which might have
-   * re-entrancy issues
-   */
   struct vsf_sysutil_wait_retval wait_retval = vsf_sysutil_wait();
   (void) duff;
   /* Child died, so we'll do the same! Report it as an error unless the child
@@ -73,8 +70,6 @@ vsf_two_process_start(struct vsf_session* p_sess)
       {
         process_login_req(p_sess);
       }
-      /* NOTREACHED */
-      bug("should not get here: vsf_two_process_start");
     }
   }
   /* Child process - time to lose as much privilege as possible and do the
@@ -86,7 +81,7 @@ vsf_two_process_start(struct vsf_session* p_sess)
                               VSFTP_CONF_FILE_MAX);
     if (vsf_sysutil_retval_is_error(retval))
     {
-      die("cannot open user list file");
+      die2("cannot open user list file:", tunable_userlist_file);
     }
   }
   drop_all_privs();
@@ -106,7 +101,8 @@ drop_all_privs(void)
     struct vsf_sysutil_statbuf* p_statbuf = 0;
     if (vsf_sysutil_retval_is_error(str_lstat(&dir_str, &p_statbuf)))
     {
-      die("vsftpd: not found: directory given in 'secure_chroot_dir'");
+      die2("vsftpd: not found: directory given in 'secure_chroot_dir':",
+           tunable_secure_chroot_dir);
     }
     vsf_sysutil_free(p_statbuf);
   }
@@ -174,8 +170,12 @@ static void
 process_login_req(struct vsf_session* p_sess)
 {
   enum EVSFPrivopLoginResult e_login_result = kVSFLoginNull;
+  char cmd;
+  vsf_sysutil_unblock_sig(kVSFSysUtilSigCHLD);
   /* Blocks */
-  if (priv_sock_get_cmd(p_sess) != PRIV_SOCK_LOGIN)
+  cmd = priv_sock_get_cmd(p_sess);
+  vsf_sysutil_block_sig(kVSFSysUtilSigCHLD);
+  if (cmd != PRIV_SOCK_LOGIN)
   {
     die("bad request");
   }
@@ -212,7 +212,8 @@ process_login_req(struct vsf_session* p_sess)
                                     VSFTP_CONF_FILE_MAX);
           if (vsf_sysutil_retval_is_error(retval))
           {
-            die("cannot open chroot() user list file");
+            die2("could not open chroot() list file:",
+                 tunable_chroot_list_file);
           }
           if (str_contains_line(&chroot_list_file, &p_sess->user_str))
           {
@@ -243,12 +244,16 @@ common_do_login(struct vsf_session* p_sess, const struct mystr* p_user_str,
 {
   int was_anon = anon;
   int newpid;
-  vsf_sysutil_default_sig(kVSFSysUtilSigCHLD);
+  vsf_sysutil_install_null_sighandler(kVSFSysUtilSigCHLD);
   /* Asks the pre-login child to go away (by exiting) */
   priv_sock_send_result(p_sess, PRIV_SOCK_RESULT_OK);
   (void) vsf_sysutil_wait();
+  /* Absorb the SIGCHLD */
+  vsf_sysutil_unblock_sig(kVSFSysUtilSigCHLD);
   /* Handle loading per-user config options */
   handle_per_user_config(p_user_str);
+  /* Set this before we fork */
+  p_sess->is_anonymous = anon;
   vsf_sysutil_install_async_sighandler(kVSFSysUtilSigCHLD, handle_sigchld);
   newpid = vsf_sysutil_fork(); 
   if (newpid == 0)
@@ -268,10 +273,10 @@ common_do_login(struct vsf_session* p_sess, const struct mystr* p_user_str,
       /* Remap to the guest user */
       str_alloc_text(&guest_user_str, tunable_guest_username);
       p_user_str = &guest_user_str;
-      /* SECURITY: For now, apply the anonymous restrictions to
-       * guest users
-       */
-      anon = 1;
+      if (!tunable_virtual_use_local_privs)
+      {
+        anon = 1;
+      }
     }
     if (!anon)
     {
@@ -348,10 +353,7 @@ calculate_chdir_dir(int anon, struct mystr* p_chroot_str,
     struct str_locate_result loc_result;
     if (p_user == 0)
     {
-      struct mystr death_str = INIT_MYSTR;
-      str_alloc_text(&death_str, "str_getpwnam: ");
-      str_append_str(&death_str, p_user_str);
-      die(str_getbuf(&death_str));
+      die2("cannot locate user entry:", str_getbuf(p_user_str));
     }
     str_alloc_text(&homedir_str, vsf_sysutil_user_get_homedir(p_user));
     loc_result = str_locate_text(&homedir_str, "/./");

@@ -15,7 +15,8 @@ enum EVSFSysUtilError
   kVSFSysUtilErrADDRINUSE,
   kVSFSysUtilErrNOSYS,
   kVSFSysUtilErrINTR,
-  kVSFSysUtilErrINVAL
+  kVSFSysUtilErrINVAL,
+  kVSFSysUtilErrOPNOTSUPP
 };
 enum EVSFSysUtilError vsf_sysutil_get_error(void);
 
@@ -48,6 +49,8 @@ void vsf_sysutil_install_io_handler(vsf_context_io_t handler, void* p_private);
 void vsf_sysutil_uninstall_io_handler(void);
 void vsf_sysutil_check_pending_actions(
   const enum EVSFSysUtilInterruptContext context, int retval, int fd);
+void vsf_sysutil_block_sig(const enum EVSFSysUtilSignal sig);
+void vsf_sysutil_unblock_sig(const enum EVSFSysUtilSignal sig);
 
 /* Alarm setting/clearing utility functions */
 void vsf_sysutil_set_alarm(const unsigned int trigger_seconds);
@@ -129,6 +132,7 @@ const char* vsf_sysutil_statbuf_get_sortkey_mtime(
 
 int vsf_sysutil_chmod(const char* p_filename, unsigned int mode);
 void vsf_sysutil_fchown(const int fd, const int uid, const int gid);
+void vsf_sysutil_fchmod(const int fd, unsigned int mode);
 int vsf_sysutil_readlink(const char* p_filename, char* p_dest,
                          unsigned int bufsiz);
 
@@ -176,6 +180,7 @@ char* vsf_sysutil_strdup(const char* p_str);
 void vsf_sysutil_memclr(void* p_dest, unsigned int size);
 void vsf_sysutil_memcpy(void* p_dest, const void* p_src,
                         const unsigned int size);
+void vsf_sysutil_strcpy(char* p_dest, const char* p_src, unsigned int maxsize);
 int vsf_sysutil_memcmp(const void* p_src1, const void* p_src2,
                        unsigned int size);
 int vsf_sysutil_strcmp(const char* p_src1, const char* p_src2);
@@ -193,14 +198,6 @@ int vsf_sysutil_isalnum(int the_char);
 
 /* Socket handling */
 struct vsf_sysutil_sockaddr;
-struct vsf_sysutil_ipv4addr
-{
-  unsigned char data[4];
-};
-struct vsf_sysutil_ipv4port
-{
-  unsigned char data[2];
-};
 struct vsf_sysutil_socketpair_retval
 {
   int socket_one;
@@ -208,18 +205,33 @@ struct vsf_sysutil_socketpair_retval
 };
 void vsf_sysutil_sockaddr_clear(struct vsf_sysutil_sockaddr** p_sockptr);
 void vsf_sysutil_sockaddr_alloc_ipv4(struct vsf_sysutil_sockaddr** p_sockptr);
-void vsf_sysutil_sockaddr_set_ipaddr(struct vsf_sysutil_sockaddr* p_sockptr,
-                                     struct vsf_sysutil_ipv4addr the_addr);
-struct vsf_sysutil_ipv4addr vsf_sysutil_sockaddr_get_ipaddr(
-  const struct vsf_sysutil_sockaddr* p_sockptr);
-struct vsf_sysutil_ipv4addr vsf_sysutil_sockaddr_get_any(void);
-struct vsf_sysutil_ipv4port vsf_sysutil_ipv4port_from_int(unsigned int port);
+void vsf_sysutil_sockaddr_alloc_ipv6(struct vsf_sysutil_sockaddr** p_sockptr);
+void vsf_sysutil_sockaddr_clone(
+  struct vsf_sysutil_sockaddr** p_sockptr,
+  const struct vsf_sysutil_sockaddr* p_src);
+int vsf_sysutil_sockaddr_addr_equal(const struct vsf_sysutil_sockaddr* p1,
+                                    const struct vsf_sysutil_sockaddr* p2);
+int vsf_sysutil_sockaddr_is_ipv6(
+  const struct vsf_sysutil_sockaddr* p_sockaddr);
+int vsf_sysutil_sockaddr_same_family(
+  const struct vsf_sysutil_sockaddr* p1,
+  const struct vsf_sysutil_sockaddr* p2);
+void vsf_sysutil_sockaddr_set_ipv4addr(struct vsf_sysutil_sockaddr* p_sockptr,
+                                       const unsigned char* p_raw);
+void vsf_sysutil_sockaddr_set_ipv6addr(struct vsf_sysutil_sockaddr* p_sockptr,
+                                       const unsigned char* p_raw);
+void vsf_sysutil_sockaddr_set_any(struct vsf_sysutil_sockaddr* p_sockaddr);
 void vsf_sysutil_sockaddr_set_port(struct vsf_sysutil_sockaddr* p_sockptr,
-                                   struct vsf_sysutil_ipv4port the_port);
-struct vsf_sysutil_ipv4port vsf_sysutil_sockaddr_get_port(
-  const struct vsf_sysutil_sockaddr* p_sockptr);
-int vsf_sysutil_is_port_reserved(const struct vsf_sysutil_ipv4port);
+                                   unsigned short the_port);
+int vsf_sysutil_is_port_reserved(unsigned short port);
+int vsf_sysutil_get_ipsock(const struct vsf_sysutil_sockaddr* p_sockaddr);
+unsigned int vsf_sysutil_get_ipaddr_size(void);
+void* vsf_sysutil_sockaddr_get_raw_addr(
+  struct vsf_sysutil_sockaddr* p_sockaddr);
+const void* vsf_sysutil_sockaddr_ipv6_v4(
+  const struct vsf_sysutil_sockaddr* p_sockaddr);
 int vsf_sysutil_get_ipv4_sock(void);
+int vsf_sysutil_get_ipv6_sock(void);
 struct vsf_sysutil_socketpair_retval
   vsf_sysutil_unix_dgram_socketpair(void);
 int vsf_sysutil_bind(int fd, const struct vsf_sysutil_sockaddr* p_sockptr);
@@ -239,17 +251,18 @@ void vsf_sysutil_set_nodelay(int fd);
 void vsf_sysutil_activate_sigurg(int fd);
 void vsf_sysutil_activate_oobinline(int fd);
 void vsf_sysutil_activate_linger(int fd);
-void vsf_sysutil_deactivate_linger(int fd);
+void vsf_sysutil_deactivate_linger_failok(int fd);
 void vsf_sysutil_activate_noblock(int fd);
 void vsf_sysutil_deactivate_noblock(int fd);
 /* This does SHUT_RDWR */
 void vsf_sysutil_shutdown_failok(int fd);
 int vsf_sysutil_recv_peek(const int fd, void* p_buf, unsigned int len);
 
-const char* vsf_sysutil_inet_ntoa(
+const char* vsf_sysutil_inet_ntop(
   const struct vsf_sysutil_sockaddr* p_sockptr);
+const char* vsf_sysutil_inet_ntoa(const void* p_raw_addr);
 int vsf_sysutil_inet_aton(
-  const char* p_text, struct vsf_sysutil_ipv4addr* p_addr);
+  const char* p_text, struct vsf_sysutil_sockaddr* p_addr);
 
 /* User database queries etc. */
 struct vsf_sysutil_user;
@@ -278,6 +291,12 @@ void vsf_sysutil_qsort(void* p_base, unsigned int num_elem,
                        unsigned int elem_size,
                        int (*p_compar)(const void *, const void *));
 char* vsf_sysutil_getenv(const char* p_var);
+typedef void (*exitfunc_t)(void);
+void vsf_sysutil_set_exit_func(exitfunc_t exitfunc);
+
+/* Syslogging (bah) */
+void vsf_sysutil_openlog(void);
+void vsf_sysutil_syslog(const char* p_text, int severe);
 
 /* Credentials handling */
 int vsf_sysutil_running_as_root(void);

@@ -637,3 +637,61 @@ rather than a partial byte count!
 At this point: 1.1.3 package released
 -------------------------------------
 
+- Eliminate crypt() not defined warning.
+- "grep -q" is not standard to redirect to /dev/null instead.
+- Make banned_email_file work second time around.
+- Add force_dot_files to work around broken clients. The behaviour when
+enabled is very wu-ftpd like.
+- Implement SITE HELP - should work around IE bug?
+- Update README, vsftpd.conf with references to read the manual page!
+- Log revamp: add dual_log_enable to log to xferlog AND vsftpd.log.
+- Log revamp: add syslog_enable to log vsftpd.log to syslog().
+- Add "background" option to background the listener process.
+- Fix warning is vsftpd.8 man page, Bill Nottingham <notting@redhat.com>.
+- Fix tcp wrappers support to NOT emit loads of Bad file descriptor messages
+to the system log.
+- Add ability to make bandwidth limiter smoother by using e.g.
+trans_chunk_size=8192.
+- Add ability for virtual users to use local privs non anon privs, via
+virtual_use_local_privs=YES.
+- Fix sendfile() fallback on FreeBSD, thanks to Adam Stroud
+<adstro@stny.rr.com>.
+- Add pam_session support, as well as utmp and wtmp logging for local logins
+(when using a PAM build). Tested pam_limits maxlogins works.
+- Ensure the source IP address for PORT connects is always the same as the
+control connection local IP address. Previously it was not when NOT using
+connect_from_port_20 in the presence of multiple local IP addresses.
+- Oops - make max_per_ip and max_clients work with the two process model
+when both connect_from_port_20 and chown_uploads are false.
+- Initial IPv6 support (EPSV only).
+- Add EPRT support to IPv6.
+- Fix "ls .file" to list .file even if the ls -a flag is not present. Noted
+by and thanks to Sean Millichamp <sean@enertronllc.com>.
+- Better error messages for config file parse fail: include setting name.
+- Fix bug in str_split_text where text is greater than 1 character long!
+- Make it build on Solaris8 - switch from utmp to utmpx and handle missing
+LOG_FTP.
+- Always check for VSFTPD_LOAD_CONF environment variable.
+- Implement HELP properly (should help broken clients).
+- Fix FreeBSD build (no utmpx.h, so disable feature).
+- Fix chown_uploads.
+- "Guess fix" for FreeBSD reported bug. I reckon FreeBSD is returning -EINTR
+from a blocking close but still closing the fd, despite the error return. So
+cater for this. Reported by Drew Vogel <dvogel@intercarve.net>.
+- Add download_enable and dirlist_enable. Useful in conjunction with the
+per-user config stuff.
+- Add chmod_enable.
+- Implement STRU and MODE for _old_, broken clients!
+- Log connects.
+- Fix 500 OOPS with chown_uploads and an APPE command.
+- Improve some error messages: die -> die2 for more information.
+- Repair max_per_ip (problem comparing IPv4 addresses).
+- Make chown_uploads work with virtual users.
+- Chmod files to 0600 before chown_uploads kicks in.
+- Add STOU support.
+- Add cmds_allowed config parameter.
+- Add some FAQ entries.
+
+At this point: v1.2.0 released!
+===============================
+
