@@ -4,13 +4,15 @@ CRITICAL
 NOT SO CRITICAL
 ===============
 
+- separate out xferlog and vsftpd.log
 - lock the files being modified?
 - Sweedish characters showing as ? in the log.
 
 - separate upload/download max rates
 - select() is assuming Linux behaviour (not threatening stability)
 - IPv6 support
-- enhance standalone support (IP filtering? - tcp_wrappers?)
+- some FTP clients are trying to use MDTM to _set_ timestamps?
+- smoother bandwidth limiter
 
 ON THE BACK BURNER
 ==================

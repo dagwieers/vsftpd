@@ -11,6 +11,9 @@ e.g.:
 
 cd vsftpd-1.1.2
 
+edit "builddefs.h" to handle compile-time settings (tcp_wrappers build,
+etc).
+
 Just type "make" (and mail me to fix it if it doesn't build ;-).
 This should produce you a vsftpd binary. You can test for this, e.g.:
 
@@ -143,13 +146,15 @@ Other notes
 ===========
 
 Tested platforms (well, it builds)
+- Any modern, well featured platform should work fine!
+- RedHat Linux 8.0
 - RedHat Linux 7.3
 - RedHat Linux 7.2
 - RedHat Linux 7.0
 - RedHat Linux 6.1
 - RedHat Linux 6.2
 - RedHat Linux 5.2
-- Solaris 8 / GNU tools (light testing)
+- Solaris 8 / GNU tools
 - SuSE 6.4
 - SuSE 6.0
 - Debian 2.2

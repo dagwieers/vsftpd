@@ -196,7 +196,8 @@ handle_sighup(int duff)
 static void
 do_reload(void)
 {
-  vsf_parseconf_load_file(0);
+  /* We don't crash the out the listener if an invalid config was added */
+  vsf_parseconf_load_file(0, 0);
 }
 
 static unsigned int

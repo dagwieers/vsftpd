@@ -623,3 +623,17 @@ At this point: 1.1.1 package released
 At this point: 1.1.2 package released
 -------------------------------------
 
+- Support for tcp_wrappers.
+- First stab at Solaris sendfilev() support.
+- Don't bomb out the listener on SIGHUP if the config became invalid.
+- End vsf_findlibs.sh with "exit 0;" - thanks Lars Hecking <lhecking@nmrc.ie>!
+- Integrate with tcp_wrappers - load config based on VSFTPD_LOAD_CONF
+environment variables. Allows per-IP configurability in standalone mode.
+- Fix build without tcp_wrappers.
+- Fix Solaris sendfilev() support - interruption via a signal returns EINTR
+rather than a partial byte count!
+- Add to EXAMPLE/ - PER_IP_CONFIG and INTERNET_SITE_NOINETD
+
+At this point: 1.1.3 package released
+-------------------------------------
+

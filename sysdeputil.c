@@ -95,6 +95,10 @@
 #if (defined(__sgi) || defined(__hpux) || defined(__osf__))
   #define VSF_SYSDEP_NEED_OLD_FD_PASSING
 #endif
+
+#ifdef __sun
+  #define VSF_SYSDEP_HAVE_SOLARIS_SENDFILE
+#endif
 /* END config */
 
 /* PAM support - we include our own dummy version if the system lacks this */
@@ -121,7 +125,8 @@ _syscall2(int, capset, cap_user_header_t, header, const cap_user_data_t, data)
 #undef __FDMASK
 #endif /* VSF_SYSDEP_HAVE_CAPABILITIES */
 
-#ifdef VSF_SYSDEP_HAVE_LINUX_SENDFILE
+#if defined(VSF_SYSDEP_HAVE_LINUX_SENDFILE) || \
+    defined(VSF_SYSDEP_HAVE_SOLARIS_SENDFILE)
 #include <sys/sendfile.h>
 #elif defined(VSF_SYSDEP_HAVE_FREEBSD_SENDFILE)
 #include <sys/types.h>
@@ -518,10 +523,6 @@ vsf_sysutil_sendfile(const int out_fd, const int in_fd,
     /* Keep input file position in line with sendfile() calls */
     vsf_sysutil_lseek_to(in_fd, *p_offset);
     retval = do_sendfile(out_fd, in_fd, send_this_time, *p_offset);
-    if (*p_offset < 0)
-    {
-      die("invalid offset returned in vsf_sysutil_sendfile");
-    }
     if (vsf_sysutil_retval_is_error(retval) || retval == 0)
     {
       return retval;
@@ -542,7 +543,9 @@ static int do_sendfile(const int out_fd, const int in_fd,
   (void) start_pos;
 #if defined(VSF_SYSDEP_HAVE_LINUX_SENDFILE) || \
     defined(VSF_SYSDEP_HAVE_FREEBSD_SENDFILE) || \
-    defined(VSF_SYSDEP_HAVE_HPUX_SENDFILE)
+    defined(VSF_SYSDEP_HAVE_HPUX_SENDFILE) || \
+    defined(VSF_SYSDEP_HAVE_SOLARIS_SENDFILE)
+  if (tunable_use_sendfile)
   {
     static int s_sendfile_checked;
     static int s_runtime_sendfile_works;
@@ -560,6 +563,21 @@ static int do_sendfile(const int out_fd, const int in_fd,
           off_t written = 0;
           retval = sendfile(in_fd, out_fd, start_pos, num_send, NULL,
                             &written, 0);
+          /* Translate to Linux-like retval */
+          if (written > 0)
+          {
+            retval = (int) written;
+          }
+        }
+  #elif defined(VSF_SYSDEP_HAVE_SOLARIS_SENDFILE)
+        {
+          off_t written = 0;
+          struct sendfilevec the_vec;
+          vsf_sysutil_memclr(&the_vec, sizeof(the_vec));
+          the_vec.sfv_fd = in_fd;
+          the_vec.sfv_off = start_pos;
+          the_vec.sfv_len = num_send;
+          retval = sendfilev(out_fd, &the_vec, 1, &written);
           /* Translate to Linux-like retval */
           if (written > 0)
           {

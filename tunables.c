@@ -43,6 +43,8 @@ int tunable_listen = 0;
 int tunable_port_promiscuous = 0;
 int tunable_passwd_chroot_enable = 0;
 int tunable_no_anon_password = 0;
+int tunable_tcp_wrappers = 0;
+int tunable_use_sendfile = 1;
 
 unsigned int tunable_accept_timeout = 60;
 unsigned int tunable_connect_timeout = 60;

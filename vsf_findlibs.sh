@@ -3,6 +3,11 @@
 
 locate_library() { [ ! "$1*" = "`echo $1*`" ]; }
 
+if (grep -q "#define VSF_BUILD_TCPWRAPPERS" builddefs.h); then
+  echo "-lwrap";
+  locate_library /lib/libnsl.so && echo "-lnsl";
+fi
+
 # Optimizations for specific platforms, to avoid unneccessary libraries
 # Check for Mandrake first, because it also pretends to be RedHat!!
 if [ -r /etc/mandrake-release ]; then
@@ -74,4 +79,9 @@ locate_library /lib/libposix4.so /usr/lib/libposix4.so && echo "-lposix4";
 
 # Tru64 (nanosleep)
 locate_library /usr/shlib/librt.so && echo "-lrt";
+
+# Solaris sendfile
+locate_library /usr/lib/libsendfile.so && echo "-lsendfile";
+
+exit 0;
 

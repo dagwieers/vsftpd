@@ -39,6 +39,8 @@ extern int tunable_listen;                    /* Standalone (no inetd) mode? */
 extern int tunable_port_promiscuous;          /* Any any PORT connect IP */
 extern int tunable_passwd_chroot_enable;      /* chroot() based on passwd */
 extern int tunable_no_anon_password;          /* Do not ask for anon pword */
+extern int tunable_tcp_wrappers;              /* Standalone: do tcp wrappers */
+extern int tunable_use_sendfile;              /* Use sendfile() if we can */
 
 /* Integer/numeric defines */
 extern unsigned int tunable_accept_timeout;

@@ -19,6 +19,7 @@
 #include "oneprocess.h"
 #include "twoprocess.h"
 #include "standalone.h"
+#include "tcpwrap.h"
 
 /*
  * Forward decls of helper functions
@@ -46,7 +47,7 @@ main(int argc, const char* argv[])
     /* Userids */
     -1, -1,
     /* Pre-chroot() cache */
-    INIT_MYSTR, INIT_MYSTR, INIT_MYSTR,
+    INIT_MYSTR, INIT_MYSTR, INIT_MYSTR, 1,
     /* Logging */
     -1, INIT_MYSTR, 0, 0, 0, INIT_MYSTR, 0,
     /* Buffers */
@@ -87,7 +88,7 @@ main(int argc, const char* argv[])
     int retval = vsf_sysutil_stat(p_config_name, &p_statbuf);
     if (!vsf_sysutil_retval_is_error(retval))
     {
-      vsf_parseconf_load_file(p_config_name);
+      vsf_parseconf_load_file(p_config_name, 1);
     }
     else if (config_specified)
     {
@@ -131,6 +132,16 @@ main(int argc, const char* argv[])
   /* We might chroot() very soon (one process model), so we need to open
    * any required config files here.
    */
+  if (tunable_tcp_wrappers)
+  {
+    char* p_load_conf;
+    the_session.tcp_wrapper_ok = vsf_tcp_wrapper_ok(the_session.p_remote_addr);
+    p_load_conf = vsf_sysutil_getenv("VSFTPD_LOAD_CONF");
+    if (p_load_conf)
+    {
+      vsf_parseconf_load_file(p_load_conf, 1);
+    }
+  }
   if (tunable_deny_email_enable)
   {
     int retval = str_fileread(&the_session.banned_email_str,

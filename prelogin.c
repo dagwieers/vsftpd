@@ -66,6 +66,14 @@ emit_greeting(struct vsf_session* p_sess)
         "There are too many connections from your internet address.");
     vsf_sysutil_exit(0);
   }
+  if (!p_sess->tcp_wrapper_ok)
+  {
+    str_alloc_text(&str_log_line,
+                   "Connection refused: tcp_wrappers denial.");
+    vsf_log_line(p_sess, kVSFLogEntryConnection, &str_log_line);
+    vsf_cmdio_write_noblock(p_sess, FTP_IP_DENY, "Service not available.");
+    vsf_sysutil_exit(0);
+  }
   if (!str_isempty(&p_sess->banner_str))
   {
     vsf_banner_write(p_sess, &p_sess->banner_str, FTP_GREET);

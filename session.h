@@ -52,6 +52,7 @@ struct vsf_session
   struct mystr banned_email_str;
   struct mystr userlist_str;
   struct mystr banner_str;
+  int tcp_wrapper_ok;
 
   /* Logging related details */
   int log_fd;

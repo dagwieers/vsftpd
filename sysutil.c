@@ -2040,3 +2040,9 @@ vsf_sysutil_sleep(double seconds)
   } while (retval == -1 && errno == EINTR);
 }
 
+char*
+vsf_sysutil_getenv(const char* p_var)
+{
+  return getenv(p_var);
+}
+

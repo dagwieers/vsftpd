@@ -258,12 +258,34 @@ probably want to leave this off for security purposes.
 
 Default: NO
 .TP
+.B tcp_wrappers
+If enabled, and vsftpd was compiled with tcp_wrappers support, incoming
+connections will be fed through tcp_wrappers access control. Furthermore,
+there is a mechanism for per-IP based configuration. If tcp_wrappers sets
+the VSFTPD_LOAD_CONF environment variable, then the vsftpd session will try
+and load the vsftpd configuration file specified in this variable. 
+
+Default: NO
+.TP
 .B text_userdb_names
 By default, numeric IDs are shown in the user and group fields of directory
 listings. You can get textual names by enabling this parameter. It is off
 by default for performance reasons.
 
 Default: NO
+.TP
+.B use_localtime
+If enabled, vsftpd will display directory listings with the the time in your
+local time zone. The default is to display GMT. The times returned by the
+MDTM FTP command are also affected by this option.
+
+Default: NO
+.TP
+.B use_sendfile
+An internal setting used for testing the relative benefit of using the
+sendfile() system call on your platform.
+
+Default: YES
 .TP
 .B userlist_deny
 This option is examined if
@@ -275,13 +297,6 @@ When login is denied, the denial is issued before the user is asked for a
 password.
 
 Default: YES
-.TP
-.B use_localtime
-If enabled, vsftpd will display directory listings with the the time in your
-local time zone. The default is to display GMT. The times returned by the
-MDTM FTP command are also affected by this option.
-
-Default: NO
 .TP
 .B userlist_enable
 If enabled, vsftpd will load a list of usernames, from the filename given by

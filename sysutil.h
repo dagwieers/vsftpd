@@ -277,6 +277,7 @@ const char* vsf_sysutil_get_current_date(void);
 void vsf_sysutil_qsort(void* p_base, unsigned int num_elem,
                        unsigned int elem_size,
                        int (*p_compar)(const void *, const void *));
+char* vsf_sysutil_getenv(const char* p_var);
 
 /* Credentials handling */
 int vsf_sysutil_running_as_root(void);

@@ -1,6 +1,9 @@
 Solaris specific notes
 ======================
 
+NOTE - you are recommended to use a modern version of Solaris, which comes
+with the GNU tools. You can then use the normal Makefile.
+
 Modern releases of Solaris (2.6+ ?) ship with PAM. PAM is an excellent
 generic authentication framework. Unfortunately, Solaris seems to be a
 little sparse in the number of PAM modules supported.

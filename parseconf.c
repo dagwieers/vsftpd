@@ -21,7 +21,8 @@ static int s_strings_copied;
 
 /* File local functions */
 static void handle_config_setting(struct mystr* p_setting_str,
-                                  struct mystr* p_value_str);
+                                  struct mystr* p_value_str,
+                                  int errs_fatal);
 
 static void copy_string_settings(void);
 
@@ -70,6 +71,8 @@ parseconf_bool_array[] =
   { "port_promiscuous", &tunable_port_promiscuous },
   { "passwd_chroot_enable", &tunable_passwd_chroot_enable },
   { "no_anon_password", &tunable_no_anon_password },
+  { "tcp_wrappers", &tunable_tcp_wrappers },
+  { "use_sendfile", &tunable_use_sendfile },
   { 0, 0 }
 };
 
@@ -127,7 +130,7 @@ parseconf_str_array[] =
 };
 
 void
-vsf_parseconf_load_file(const char* p_filename)
+vsf_parseconf_load_file(const char* p_filename, int errs_fatal)
 {
   struct mystr config_file_str = INIT_MYSTR;
   struct mystr config_setting_str = INIT_MYSTR;
@@ -162,7 +165,14 @@ vsf_parseconf_load_file(const char* p_filename)
   retval = str_fileread(&config_file_str, p_filename, VSFTP_CONF_FILE_MAX);
   if (vsf_sysutil_retval_is_error(retval))
   {
-    die("cannot open config file");
+    if (errs_fatal)
+    {
+      die("cannot open config file");
+    }
+    else
+    {
+      return;
+    }
   }
   while (str_getline(&config_file_str, &config_setting_str, &str_pos))
   {
@@ -173,7 +183,7 @@ vsf_parseconf_load_file(const char* p_filename)
     }
     /* Split into name=value pair */
     str_split_char(&config_setting_str, &config_value_str, '=');
-    handle_config_setting(&config_setting_str, &config_value_str);
+    handle_config_setting(&config_setting_str, &config_value_str, errs_fatal);
   }
   str_free(&config_file_str);
   str_free(&config_setting_str);
@@ -181,11 +191,19 @@ vsf_parseconf_load_file(const char* p_filename)
 }
 
 static void
-handle_config_setting(struct mystr* p_setting_str, struct mystr* p_value_str)
+handle_config_setting(struct mystr* p_setting_str, struct mystr* p_value_str,
+                      int errs_fatal)
 {
   if (str_isempty(p_value_str))
   {
-    die("missing value in config file");
+    if (errs_fatal)
+    {
+      die("missing value in config file");
+    }
+    else
+    {
+      return;
+    }
   }
   /* Is it a boolean value? */
   {
@@ -208,7 +226,7 @@ handle_config_setting(struct mystr* p_setting_str, struct mystr* p_value_str)
         {
           *(p_bool_setting->p_variable) = 0;
         }
-        else
+        else if (errs_fatal)
         {
           die("bad bool value in config file");
         }
@@ -259,7 +277,10 @@ handle_config_setting(struct mystr* p_setting_str, struct mystr* p_value_str)
       p_str_setting++;
     }
   }
-  die("unrecognised variable in config file");
+  if (errs_fatal)
+  {
+    die("unrecognised variable in config file");
+  }
 }
 
 static void

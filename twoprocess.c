@@ -318,7 +318,7 @@ handle_per_user_config(const struct mystr* p_user_str)
     if (!vsf_sysutil_retval_is_error(retval) &&
         vsf_sysutil_statbuf_get_uid(p_statbuf) == VSFTP_ROOT_UID)
     {
-      vsf_parseconf_load_file(str_getbuf(&filename_str));
+      vsf_parseconf_load_file(str_getbuf(&filename_str), 1);
     }
     str_free(&filename_str);
     vsf_sysutil_free(p_statbuf);

@@ -9,6 +9,9 @@ authentication.
 Contents
 ========
 INTERNET_SITE         How you might configure vsftpd for an internet site.
+INTERNET_SITE_NOINETD How to use vsftpd without xinetd.
+PER_IP_CONFIG         How to apply different settings based on the connecting
+                      IP address.
 VIRTUAL_HOSTS         How to set up vsftpd with virtual hosting.
 VIRTUAL_USERS         How to set up virtual users with vsftpd.
 VIRTUAL_USERS_2       Advanced virtual users - different access rights.
