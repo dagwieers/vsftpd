@@ -1,0 +1,79 @@
+vsftpd frequently asked questions!!
+-----------------------------------
+
+Q) Does vsftpd support a limit on the number of users connected?
+A) Yes, indirectly. vsftpd is an inetd-based service. If use the popular
+"xinetd" as your inetd, this supports per-service per-IP connection limits.
+
+Q) Help! I'm getting the error message "refusing to run with writable anonymous
+root".
+A) vsftpd is protecting against dangerous configurations. The cause of this
+message is usually dodgy ownership of the ftp home directory. The home
+directory should NOT be owned by the ftp user itself. Neither should it
+be writable by the ftp user. A way to fix this is:
+"chown root ~ftp; chmod -w ~ftp"
+
+Q) Help! I'm getting the error message "str_getpwnam".
+A) The most likely cause of this is that the "nobody" user does not exist on
+your system. vsftpd needs this user to run bits of itself with no privilege.
+
+Q) Help! Local users cannot log in.
+A) There are various possible problems.
+A1) By default, vsftpd disables any logins other than anonymous logins. Put
+local_enable=YES in your /etc/vsftpd.conf to allow local users to log in.
+A2) vsftpd tries to link with PAM. (Run "ldd vsftpd" and look for libpam to
+find out whether this has happened or not). If vsftpd links with PAM, then
+you will need to have a PAM file installed for the vsftpd service. There is
+a sample one for RedHat systems included in the "RedHat" directory - put it
+under /etc/pam.d
+A3) If vsftpd didn't link with PAM, then there are various possible issues. Is
+the user's shell in /etc/shells? If you have shadowed passwords, does your
+system have a "shadow.h" file in the include path?
+A4) If you are not using PAM, then vsftpd will do its own check for a valid
+user shell in /etc/shells. You may need to disable this if you use an invalid
+shell to disable logins other than FTP logins. Put check_shell=NO in your
+/etc/vsftpd.conf.
+
+Q) Help! Uploads or other write commands give me "500 Unknown command.".
+A) By default, write commands, including uploads and new directories, are
+disabled. This is a security measure. To enable writes, put write_enable=YES
+in your /etc/vsftpd.conf.
+
+Q) Help! What are the security implications referred to in the
+"chroot_local_user" option?
+A) Firstly note that other ftp daemons have the same implications. It is a
+generic problem.
+The problem isn't too severe, but it is this: Some people have FTP user
+accounts which are not trusted to have full shell access. If these
+accounts can also upload files, there is a small risk. A bad user now has
+control of the filesystem root, which is their home directory. The ftp
+daemon might cause some config file to be read - e.g. /etc/some_file. With
+chroot(), this file is now under the control of the user. vsftpd is
+careful in this area. But, the system's libc might want to open locale
+config files or other settings...
+
+Q) Help! Uploaded files are appearing with permissions -rw-------.
+A) Depending on if this is an upload by a local user or an anonymous user,
+use "local_umask" or "anon_umask" to change this. For example, use
+"anon_umask=022" to give anonymously uploaded files permissions
+-rw-r--r--. Note that the "0" before the "22" is important.
+
+Q) Help! How do I integrate with LDAP users and logins?
+A) Use vsftpd's PAM integration to do this, and have PAM authenticate against
+an LDAP repository.
+
+Q) Help! Does vsftpd do virtual hosting setups?
+A) Yes. If you integrate vsftpd with xinetd, you can use xinetd to bind to
+several different IP addresses. For each IP address, get xinetd to launch
+vsftpd with a different config file. This way, you can get different behaviour
+per virtual address.
+
+Q) Help! Does vsftpd support virtual users?
+A) Yes, via PAM integration. Set "guest_enable=YES" in /etc/vsftpd.conf. This
+has the effect of mapping every non-anonymous successful login to the local
+username specified in "guest_username". Then, use PAM and (e.g.) its pam_userdb
+module to provide authentication against an external (i.e. non-/etc/passwd)
+repository of users.
+Note - currently there is a restriction that with guest_enable enabled, local
+users also get mapped to guest_username.
+

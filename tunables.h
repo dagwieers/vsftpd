@@ -32,6 +32,12 @@ extern int tunable_log_ftp_protocol;          /* Log FTP requests/responses */
 extern int tunable_guest_enable;              /* Remap guest users */
 extern int tunable_userlist_enable;           /* Explicit user allow or deny */
 extern int tunable_userlist_deny;             /* Is user list allow or deny? */
+extern int tunable_use_localtime;             /* Use local time or GMT? */
+extern int tunable_check_shell;               /* Use /etc/shells for non-PAM */
+extern int tunable_hide_ids;                  /* Show "ftp" in ls listings */
+extern int tunable_listen;                    /* Standalone (no inetd) mode? */
+extern int tunable_port_promiscuous;          /* Any any PORT connect IP */
+extern int tunable_passwd_chroot_enable;      /* chroot() based on passwd */
 
 /* Integer/numeric defines */
 extern unsigned int tunable_accept_timeout;
@@ -45,6 +51,8 @@ extern unsigned int tunable_pasv_min_port;
 extern unsigned int tunable_pasv_max_port;
 extern unsigned int tunable_anon_max_rate;
 extern unsigned int tunable_local_max_rate;
+extern unsigned int tunable_listen_port;
+extern unsigned int tunable_max_clients;
 
 /* String defines */
 extern const char* tunable_secure_chroot_dir;
@@ -59,6 +67,12 @@ extern const char* tunable_chroot_list_file;
 extern const char* tunable_pam_service_name;
 extern const char* tunable_guest_username;
 extern const char* tunable_userlist_file;
+extern const char* tunable_anon_root;
+extern const char* tunable_local_root;
+extern const char* tunable_banner_file;
+extern const char* tunable_pasv_address;
+extern const char* tunable_listen_address;
+extern const char* tunable_user_config_dir;
 
 #endif /* VSF_TUNABLES_H */
 

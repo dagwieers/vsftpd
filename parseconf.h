@@ -10,6 +10,9 @@
  * parsed and the global config settings will have been updated.
  * PARAMETERS
  * p_filename     - the name of the config file to parse
+ * NOTES
+ * If p_filename is NULL, then the last filename passed to this function is
+ * used to reload the configuration details.
  */
 void vsf_parseconf_load_file(const char* p_filename);
 

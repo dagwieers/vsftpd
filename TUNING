@@ -13,7 +13,7 @@ operating systems. Currently, Linux 2.2+ and FreeBSD 3.0+ use sendfile().
 Consider running on these excellent operating systems.
 
 3) Irritated by vsftpd using _two_ processes per connection? Don't be, it's
-a very secure architecture. However, if you run Linux 2.4+, or Linux 2.2.19, a
+a very secure architecture. However, if you run Linux 2.4+, or Linux 2.2.19+, a
 "one process" security model is possible thanks to nifty security features.
 See the vsftpd.conf man page.
 

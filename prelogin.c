@@ -18,6 +18,7 @@
 #include "sysdeputil.h"
 #include "sysutil.h"
 #include "session.h"
+#include "banner.h"
 
 /* Functions used */
 static void emit_greeting(struct vsf_session* p_sess);
@@ -43,7 +44,21 @@ init_connection(struct vsf_session* p_sess)
 static void
 emit_greeting(struct vsf_session* p_sess)
 {
-  if (tunable_ftpd_banner == 0)
+  /* Check for client limit (standalone mode only) */
+  if (tunable_max_clients > 0 &&
+      p_sess->num_clients > (int)tunable_max_clients)
+  {
+    vsf_cmdio_write(p_sess, FTP_TOO_MANY_USERS,
+                    "There are too many connected users, please try later.");
+    vsf_sysutil_exit(0);
+  }
+  if (!str_isempty(&p_sess->banner_str))
+  {
+    vsf_banner_write(p_sess, &p_sess->banner_str, FTP_GREET);
+    str_free(&p_sess->banner_str);
+    vsf_cmdio_write(p_sess, FTP_GREET, "");
+  }
+  else if (tunable_ftpd_banner == 0)
   {
     vsf_cmdio_write(p_sess, FTP_GREET, "ready, dude (vsFTPd " VSF_VERSION 
                     ": beat me, break me)");

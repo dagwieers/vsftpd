@@ -87,7 +87,8 @@ minimize_privilege(struct vsf_session* p_sess)
     {
       caps |= kCapabilityCAP_NET_BIND_SERVICE;
     }
-    vsf_secutil_change_credentials(&user_str, &dir_str, 1, 0, caps);
+    vsf_secutil_change_credentials(&user_str, &dir_str, 0, caps,
+                                   VSF_SECUTIL_OPTION_CHROOT);
     str_free(&user_str);
     str_free(&dir_str);
   }

@@ -20,7 +20,7 @@ str_fileread(struct mystr* p_str, const char* p_filename, unsigned int maxsize)
 {
   int fd;
   int retval;
-  unsigned long size;
+  filesize_t size;
   char* p_sec_buf = 0;
   struct vsf_sysutil_statbuf* p_stat = 0;
   /* In case we fail, make sure we return an empty string */

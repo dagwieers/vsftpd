@@ -3,6 +3,10 @@
 
 /* TODO: these functions need proper documenting! */
 
+#ifndef VSF_FILESIZE_H
+#include "filesize.h"
+#endif
+
 /* Return value queries */
 int vsf_sysutil_retval_is_error(int retval);
 enum EVSFSysUtilError
@@ -10,7 +14,8 @@ enum EVSFSysUtilError
   kVSFSysUtilErrUnknown = 1,
   kVSFSysUtilErrADDRINUSE,
   kVSFSysUtilErrNOSYS,
-  kVSFSysUtilErrINTR
+  kVSFSysUtilErrINTR,
+  kVSFSysUtilErrINVAL
 };
 enum EVSFSysUtilError vsf_sysutil_get_error(void);
 
@@ -21,7 +26,8 @@ enum EVSFSysUtilSignal
   kVSFSysUtilSigTERM,
   kVSFSysUtilSigCHLD,
   kVSFSysUtilSigPIPE,
-  kVSFSysUtilSigURG
+  kVSFSysUtilSigURG,
+  kVSFSysUtilSigHUP
 };
 enum EVSFSysUtilInterruptContext
 {
@@ -76,14 +82,15 @@ int vsf_sysutil_create_overwrite_file(const char* p_filename);
 int vsf_sysutil_create_append_file(const char* p_filename);
 /* Creates or appends */
 int vsf_sysutil_create_or_open_file(const char* p_filename, unsigned int mode);
+void vsf_sysutil_dupfd2(int old_fd, int new_fd);
 void vsf_sysutil_close(int fd);
 int vsf_sysutil_close_failok(int fd);
 int vsf_sysutil_unlink(const char* p_dead);
 int vsf_sysutil_write_access(const char* p_filename);
 
 /* Reading and writing */
-unsigned long vsf_sysutil_lseek_to(const int fd, unsigned long seek_pos);
-unsigned long vsf_sysutil_get_file_offset(const int file_fd);
+void vsf_sysutil_lseek_to(const int fd, filesize_t seek_pos);
+filesize_t vsf_sysutil_get_file_offset(const int file_fd);
 int vsf_sysutil_read(const int fd, void* p_buf, const unsigned int size);
 int vsf_sysutil_write(const int fd, const void* p_buf,
                       const unsigned int size);
@@ -103,14 +110,14 @@ int vsf_sysutil_statbuf_is_regfile(const struct vsf_sysutil_statbuf* p_stat);
 int vsf_sysutil_statbuf_is_symlink(const struct vsf_sysutil_statbuf* p_stat);
 int vsf_sysutil_statbuf_is_socket(const struct vsf_sysutil_statbuf* p_stat);
 int vsf_sysutil_statbuf_is_dir(const struct vsf_sysutil_statbuf* p_stat);
-unsigned long vsf_sysutil_statbuf_get_size(
+filesize_t vsf_sysutil_statbuf_get_size(
   const struct vsf_sysutil_statbuf* p_stat);
 const char* vsf_sysutil_statbuf_get_perms(
   const struct vsf_sysutil_statbuf* p_stat);
 const char* vsf_sysutil_statbuf_get_date(
-  const struct vsf_sysutil_statbuf* p_stat);
+  const struct vsf_sysutil_statbuf* p_stat, int use_localtime);
 const char* vsf_sysutil_statbuf_get_numeric_date(
-  const struct vsf_sysutil_statbuf* p_stat);
+  const struct vsf_sysutil_statbuf* p_stat, int use_localtime);
 unsigned int vsf_sysutil_statbuf_get_links(
   const struct vsf_sysutil_statbuf* p_stat);
 int vsf_sysutil_statbuf_get_uid(const struct vsf_sysutil_statbuf* p_stat);
@@ -154,6 +161,7 @@ struct vsf_sysutil_wait_retval
   int PRIVATE_HANDS_OFF_exit_status;
 };
 struct vsf_sysutil_wait_retval vsf_sysutil_wait(void);
+int vsf_sysutil_wait_reap_one(void);
 int vsf_sysutil_wait_get_retval(
   const struct vsf_sysutil_wait_retval* p_waitret);
 int vsf_sysutil_wait_exited_normally(
@@ -171,8 +179,9 @@ int vsf_sysutil_memcmp(const void* p_src1, const void* p_src2,
                        unsigned int size);
 int vsf_sysutil_strcmp(const char* p_src1, const char* p_src2);
 int vsf_sysutil_atoi(const char* p_str);
-long vsf_sysutil_atol(const char* p_str);
+filesize_t vsf_sysutil_a_to_filesize_t(const char* p_str);
 const char* vsf_sysutil_ulong_to_str(unsigned long the_ulong);
+const char* vsf_sysutil_filesize_t_to_str(filesize_t the_filesize);
 const char* vsf_sysutil_double_to_str(double the_double);
 const char* vsf_sysutil_uint_to_octal(unsigned int the_uint);
 unsigned int vsf_sysutil_octal_to_uint(const char* p_str);
@@ -202,6 +211,7 @@ void vsf_sysutil_sockaddr_set_ipaddr(struct vsf_sysutil_sockaddr* p_sockptr,
                                      struct vsf_sysutil_ipv4addr the_addr);
 struct vsf_sysutil_ipv4addr vsf_sysutil_sockaddr_get_ipaddr(
   const struct vsf_sysutil_sockaddr* p_sockptr);
+struct vsf_sysutil_ipv4addr vsf_sysutil_sockaddr_get_any(void);
 struct vsf_sysutil_ipv4port vsf_sysutil_ipv4port_from_int(unsigned int port);
 void vsf_sysutil_sockaddr_set_port(struct vsf_sysutil_sockaddr* p_sockptr,
                                    struct vsf_sysutil_ipv4port the_port);
@@ -209,7 +219,7 @@ struct vsf_sysutil_ipv4port vsf_sysutil_sockaddr_get_port(
   const struct vsf_sysutil_sockaddr* p_sockptr);
 int vsf_sysutil_is_port_reserved(const struct vsf_sysutil_ipv4port);
 int vsf_sysutil_get_ipv4_sock(void);
-const struct vsf_sysutil_socketpair_retval
+struct vsf_sysutil_socketpair_retval
   vsf_sysutil_unix_dgram_socketpair(void);
 int vsf_sysutil_bind(int fd, const struct vsf_sysutil_sockaddr* p_sockptr);
 void vsf_sysutil_listen(int fd, const unsigned int backlog);
@@ -237,6 +247,8 @@ int vsf_sysutil_recv_peek(const int fd, void* p_buf, unsigned int len);
 
 const char* vsf_sysutil_inet_ntoa(
   const struct vsf_sysutil_sockaddr* p_sockptr);
+int vsf_sysutil_inet_aton(
+  const char* p_text, struct vsf_sysutil_ipv4addr* p_addr);
 
 /* User database queries etc. */
 struct vsf_sysutil_user;
@@ -268,9 +280,15 @@ void vsf_sysutil_qsort(void* p_base, unsigned int num_elem,
 /* Credentials handling */
 int vsf_sysutil_running_as_root(void);
 void vsf_sysutil_setuid(const struct vsf_sysutil_user* p_user);
-void vsf_sysutil_setuid_numeric(int uid);
 void vsf_sysutil_setgid(const struct vsf_sysutil_user* p_user);
+void vsf_sysutil_setuid_numeric(int uid);
 void vsf_sysutil_setgid_numeric(int gid);
+int vsf_sysutil_geteuid(void);
+int vsf_sysutil_getegid(void);
+void vsf_sysutil_seteuid(const struct vsf_sysutil_user* p_user);
+void vsf_sysutil_setegid(const struct vsf_sysutil_user* p_user);
+void vsf_sysutil_seteuid_numeric(int uid);
+void vsf_sysutil_setegid_numeric(int gid);
 void vsf_sysutil_clear_supp_groups(void);
 void vsf_sysutil_initgroups(const struct vsf_sysutil_user* p_user);
 void vsf_sysutil_chroot(const char* p_root_path);

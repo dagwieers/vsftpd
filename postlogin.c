@@ -17,7 +17,7 @@
 #include "defs.h"
 #include "str.h"
 #include "sysstr.h"
-#include "dirchange.h"
+#include "banner.h"
 #include "sysutil.h"
 #include "logging.h"
 #include "sysdeputil.h"
@@ -75,11 +75,10 @@ process_post_login(struct vsf_session* p_sess)
   if (tunable_async_abor_enable)
   {
     vsf_sysutil_install_sighandler(kVSFSysUtilSigURG, handle_sigurg, p_sess);
-    vsf_sysutil_activate_oobinline(VSFTP_COMMAND_FD);
     vsf_sysutil_activate_sigurg(VSFTP_COMMAND_FD);
   }
   /* Handle any login message */
-  dir_changed(p_sess, FTP_LOGINOK);
+  vsf_banner_dir_changed(p_sess, FTP_LOGINOK);
   vsf_cmdio_write(p_sess, FTP_LOGINOK, "Login successful. Have fun.");
   while(1)
   {
@@ -227,6 +226,21 @@ process_post_login(struct vsf_session* p_sess)
     {
       handle_mdtm(p_sess);
     }
+    else if (str_equal_text(&p_sess->ftp_cmd_str, "PASV") ||
+             str_equal_text(&p_sess->ftp_cmd_str, "PORT") ||
+             str_equal_text(&p_sess->ftp_cmd_str, "STOR") ||
+             str_equal_text(&p_sess->ftp_cmd_str, "MKD") ||
+             str_equal_text(&p_sess->ftp_cmd_str, "XMKD") ||
+             str_equal_text(&p_sess->ftp_cmd_str, "RMD") ||
+             str_equal_text(&p_sess->ftp_cmd_str, "XRMD") ||
+             str_equal_text(&p_sess->ftp_cmd_str, "DELE") ||
+             str_equal_text(&p_sess->ftp_cmd_str, "RNFR") ||
+             str_equal_text(&p_sess->ftp_cmd_str, "RNTO") ||
+             str_equal_text(&p_sess->ftp_cmd_str, "SITE") ||
+             str_equal_text(&p_sess->ftp_cmd_str, "APPE"))
+    {
+      vsf_cmdio_write(p_sess, FTP_NOPERM, "Permission denied.");
+    }
     else
     {
       vsf_cmdio_write(p_sess, FTP_BADCMD, "Unknown command.");
@@ -256,7 +270,7 @@ handle_cwd(struct vsf_session* p_sess)
   if (retval == 0)
   {
     /* Handle any messages */
-    dir_changed(p_sess, FTP_CWDOK);
+    vsf_banner_dir_changed(p_sess, FTP_CWDOK);
     vsf_cmdio_write(p_sess, FTP_CWDOK, "Directory successfully changed.");
   }
   else
@@ -383,7 +397,19 @@ handle_pasv(struct vsf_session* p_sess)
   vsf_sysutil_listen(p_sess->pasv_listen_fd, 1);
   /* Get the address of the bound socket, for the port */
   vsf_sysutil_getsockname(p_sess->pasv_listen_fd, &s_p_sockaddr);
-  listen_ipaddr = vsf_sysutil_sockaddr_get_ipaddr(s_p_sockaddr);
+  if (tunable_pasv_address != 0)
+  {
+    /* Report passive address as specified in configuration */
+    if (vsf_sysutil_inet_aton(tunable_pasv_address, &listen_ipaddr) == 0)
+    {
+      die("invalid pasv_address");
+    }
+  }
+  else
+  {
+    /* Use address of bound socket for passive address */
+    listen_ipaddr = vsf_sysutil_sockaddr_get_ipaddr(s_p_sockaddr);
+  }
   listen_port = vsf_sysutil_sockaddr_get_port(s_p_sockaddr);
   str_alloc_text(&s_pasv_res_str, "Entering Passive Mode (");
   str_append_ulong(&s_pasv_res_str, listen_ipaddr.data[0]);
@@ -404,12 +430,14 @@ handle_pasv(struct vsf_session* p_sess)
 static void
 handle_retr(struct vsf_session* p_sess)
 {
+  static struct mystr s_mark_str;
   static struct vsf_sysutil_statbuf* s_p_statbuf;
   struct vsf_transfer_ret trans_ret;
   int retval;
   int remote_fd;
   int opened_file;
-  unsigned long offset = p_sess->restart_pos;
+  int is_ascii = 0;
+  filesize_t offset = p_sess->restart_pos;
   p_sess->restart_pos = 0;
   if (!pasv_active(p_sess) && !port_active(p_sess))
   {
@@ -446,7 +474,7 @@ handle_retr(struct vsf_session* p_sess)
   /* Set the download offset (from REST) if any */
   if (offset != 0)
   {
-    (void) vsf_sysutil_lseek_to(opened_file, offset);
+    vsf_sysutil_lseek_to(opened_file, offset);
   }
   remote_fd = get_remote_transfer_fd(p_sess);
   if (vsf_sysutil_retval_is_error(remote_fd))
@@ -456,19 +484,25 @@ handle_retr(struct vsf_session* p_sess)
   vsf_log_start_entry(p_sess, kVSFLogEntryDownload);
   str_copy(&p_sess->log_str, &p_sess->ftp_arg_str);
   prepend_path_to_filename(&p_sess->log_str);
+  str_alloc_text(&s_mark_str, "Opening ");
   if (tunable_ascii_download_enable && p_sess->is_ascii)
   {
-    vsf_cmdio_write(p_sess, FTP_DATACONN,
-                    "Here comes the data. WARNING - ASCII.");
-    trans_ret = vsf_ftpdataio_transfer_file(p_sess, remote_fd,
-                                            opened_file, 0, 1);
+    str_append_text(&s_mark_str, "ASCII");
+    is_ascii = 1;
   }
   else
   {
-    vsf_cmdio_write(p_sess, FTP_DATACONN, "Here comes the data.");
-    trans_ret = vsf_ftpdataio_transfer_file(p_sess, remote_fd,
-                                            opened_file, 0, 0);
+    str_append_text(&s_mark_str, "BINARY");
   }
+  str_append_text(&s_mark_str, " mode data connection for ");
+  str_append_str(&s_mark_str, &p_sess->ftp_arg_str);
+  str_append_text(&s_mark_str, " (");
+  str_append_filesize_t(&s_mark_str,
+                        vsf_sysutil_statbuf_get_size(s_p_statbuf));
+  str_append_text(&s_mark_str, " bytes).");
+  vsf_cmdio_write_str(p_sess, FTP_DATACONN, &s_mark_str);
+  trans_ret = vsf_ftpdataio_transfer_file(p_sess, remote_fd,
+                                          opened_file, 0, is_ascii);
   p_sess->transfer_size = trans_ret.transferred;
   retval = dispose_remote_transfer_fd(p_sess);
   /* Log _after_ the blocking dispose call, so we get transfer times right */
@@ -668,13 +702,16 @@ handle_port(struct vsf_session* p_sess)
    * 1) Reject requests not connecting to the control socket IP
    * 2) Reject connects to privileged ports
    */
-  if (vsf_sysutil_memcmp(the_addr.data, remote_addr.data,
-                         sizeof(the_addr.data)) != 0 ||
-      vsf_sysutil_is_port_reserved(the_port))
+  if (!tunable_port_promiscuous)
   {
-    vsf_cmdio_write(p_sess, FTP_BADCMD, "Illegal PORT command.");
-    port_cleanup(p_sess);
-    return;
+    if (vsf_sysutil_memcmp(the_addr.data, remote_addr.data,
+                           sizeof(the_addr.data)) != 0 ||
+        vsf_sysutil_is_port_reserved(the_port))
+    {
+      vsf_cmdio_write(p_sess, FTP_BADCMD, "Illegal PORT command.");
+      port_cleanup(p_sess);
+      return;
+    }
   }
   vsf_sysutil_sockaddr_alloc_ipv4(&p_sess->p_port_sockaddr);
   vsf_sysutil_sockaddr_set_port(p_sess->p_port_sockaddr, the_port);
@@ -696,6 +733,8 @@ handle_upload_common(struct vsf_session* p_sess, int is_append)
   int new_file_fd;
   int remote_fd;
   int retval;
+  filesize_t offset = p_sess->restart_pos;
+  p_sess->restart_pos = 0;
   if (!pasv_active(p_sess) && !port_active(p_sess))
   {
     vsf_cmdio_write(p_sess, FTP_BADSENDCONN, "Use PORT or PASV first.");
@@ -712,7 +751,7 @@ handle_upload_common(struct vsf_session* p_sess, int is_append)
   else
   {
     /* For non-anonymous, allow open() to overwrite or append existing files */
-    if (!is_append)
+    if (!is_append && offset == 0)
     {
       new_file_fd = str_create_overwrite(&p_sess->ftp_arg_str);
     }
@@ -737,6 +776,11 @@ handle_upload_common(struct vsf_session* p_sess, int is_append)
     {
       vsf_two_process_chown_upload(p_sess, new_file_fd);
     }
+  }
+  if (!is_append && offset != 0)
+  {
+    /* XXX - warning, allows seek past end of file! Check for seek > size? */
+    vsf_sysutil_lseek_to(new_file_fd, offset);
   }
   remote_fd = get_remote_transfer_fd(p_sess);
   if (vsf_sysutil_retval_is_error(remote_fd))
@@ -841,12 +885,12 @@ handle_dele(struct vsf_session* p_sess)
 static void
 handle_rest(struct vsf_session* p_sess)
 {
-  long val = str_atol(&p_sess->ftp_arg_str);
+  filesize_t val = str_a_to_filesize_t(&p_sess->ftp_arg_str);
   if (val < 0)
   {
     val = 0;
   }
-  p_sess->restart_pos = (unsigned long) val;
+  p_sess->restart_pos = val;
   vsf_cmdio_write(p_sess, FTP_RESTOK, "Restart position accepted.");
 }
 
@@ -1017,8 +1061,8 @@ handle_size(struct vsf_session* p_sess)
   else
   {
     static struct mystr s_size_res_str;
-    str_alloc_ulong(&s_size_res_str,
-                    vsf_sysutil_statbuf_get_size(s_p_statbuf));
+    str_alloc_filesize_t(&s_size_res_str,
+                         vsf_sysutil_statbuf_get_size(s_p_statbuf));
     vsf_cmdio_write_str(p_sess, FTP_SIZEOK, &s_size_res_str);
   }
 }
@@ -1118,7 +1162,8 @@ handle_mdtm(struct vsf_session* p_sess)
   {
     static struct mystr s_mdtm_res_str;
     str_alloc_text(&s_mdtm_res_str,
-                   vsf_sysutil_statbuf_get_numeric_date(s_p_statbuf));
+                   vsf_sysutil_statbuf_get_numeric_date(
+                     s_p_statbuf, tunable_use_localtime));
     vsf_cmdio_write_str(p_sess, FTP_MDTMOK, &s_mdtm_res_str);
   }
 }

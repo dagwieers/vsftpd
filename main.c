@@ -18,6 +18,7 @@
 #include "parseconf.h"
 #include "oneprocess.h"
 #include "twoprocess.h"
+#include "standalone.h"
 
 /*
  * Forward decls of helper functions
@@ -45,13 +46,15 @@ main(int argc, const char* argv[])
     /* Userids */
     -1, -1,
     /* Pre-chroot() cache */
-    INIT_MYSTR, INIT_MYSTR,
+    INIT_MYSTR, INIT_MYSTR, INIT_MYSTR,
     /* Logging */
     -1, INIT_MYSTR, 0, 0, 0, INIT_MYSTR, 0,
     /* Buffers */
     INIT_MYSTR, INIT_MYSTR,
     /* Parent <-> child comms */
-    0, -1, -1
+    0, -1, -1,
+    /* Number of clients */
+    -1
   };
   int config_specified = 0;
   const char* p_config_name = VSFTP_DEFAULT_CONFIG;
@@ -71,6 +74,8 @@ main(int argc, const char* argv[])
     p_config_name = argv[1];
     config_specified = 1;
   }
+  /* Just get out unless we start with requisite privilege */
+  die_unless_privileged();
   /* This might need to open /dev/zero on systems lacking MAP_ANON. Needs
    * to be done early (i.e. before config file parse, which may use
    * anonymous pages
@@ -90,12 +95,20 @@ main(int argc, const char* argv[])
     }
     vsf_sysutil_free(p_statbuf);
   }
+  if (tunable_setproctitle_enable)
+  {
+    /* Warning -- warning -- may nuke argv, environ */
+    vsf_sysutil_setproctitle_init(argc, argv);
+  }
+  if (tunable_listen)
+  {
+    /* Standalone mode */
+    the_session.num_clients = vsf_standalone_main();
+  }
   /* Sanity checks - exit with a graceful error message if our STDIN is not
    * a socket. Also check various config options don't collide.
    */
   do_sanity_checks();
-  /* Just get out unless we start with requisite privilege */
-  die_unless_privileged();
   /* Initializes session globals - e.g. IP addr's etc. */
   session_init(&the_session);
   /* Set up "environment", e.g. process group etc. */
@@ -110,8 +123,6 @@ main(int argc, const char* argv[])
   vsf_cmdio_sock_setup();
   if (tunable_setproctitle_enable)
   {
-    /* Warning -- warning -- may nuke argv, environ */
-    vsf_sysutil_setproctitle_init(argc, argv);
     vsf_sysutil_set_proctitle_prefix(&the_session.remote_ip_str);
     vsf_sysutil_setproctitle("connected");
   }
@@ -125,6 +136,15 @@ main(int argc, const char* argv[])
     if (vsf_sysutil_retval_is_error(retval))
     {
       die("cannot open banned e-mail list file");
+    }
+  }
+  if (tunable_banner_file)
+  {
+    int retval = str_fileread(&the_session.banner_str, tunable_banner_file,
+                              VSFTP_CONF_FILE_MAX);
+    if (vsf_sysutil_retval_is_error(retval))
+    {
+      die("cannot open banner file");
     }
   }
   /* Special case - can force one process model if we've got a setup
@@ -173,11 +193,11 @@ do_sanity_checks(void)
   {
     if (tunable_local_enable)
     {
-      die("vsftpd: security: 'tunable_one_process_model' is anonymous only");
+      die("vsftpd: security: 'one_process_model' is anonymous only");
     }
     if (!vsf_sysdep_has_capabilities_as_non_root())
     {
-      die("vsftpd: security: 'tunable_one_process_model' needs a better OS");
+      die("vsftpd: security: 'one_process_model' needs a better OS");
     }
   }
   if (!tunable_local_enable && !tunable_anonymous_enable)
@@ -211,7 +231,7 @@ session_init(struct vsf_session* p_sess)
       vsf_sysutil_getpwnam(tunable_ftp_username);
     if (p_user == 0)
     {
-      die("vsftpd: cannot locate user specified in 'tunable_ftp_username'");
+      die("vsftpd: cannot locate user specified in 'ftp_username'");
     }
     p_sess->anon_ftp_uid = vsf_sysutil_user_getuid(p_user);
 
@@ -220,7 +240,7 @@ session_init(struct vsf_session* p_sess)
       p_user = vsf_sysutil_getpwnam(tunable_chown_username);
       if (p_user == 0)
       {
-        die("vsf_sysutil_getpwnam");
+        die("vsftpd: cannot locate user specified in 'chown_username'");
       }
       p_sess->anon_upload_chown_uid = vsf_sysutil_user_getuid(p_user);
     }

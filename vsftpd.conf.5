@@ -95,6 +95,12 @@ so you may wish to enable it.
 
 Default: NO
 .TP
+.B check_shell
+Note! This option only has an effect for non-PAM builds of vsftpd. If disabled,
+vsftpd will not check /etc/shells for a valid user shell for local logins.
+
+Default: YES
+.TP
 .B chown_uploads
 If enabled, all anonymously uploaded files will have the ownership changed
 to the user specified in the setting
@@ -119,8 +125,10 @@ Default: NO
 If set to YES, local users will be placed in a chroot() jail in their home
 directory after login.
 .BR Warning:
-This option has security implications, especially if the users also have
-shell access. Only enable if you know what you are doing.
+This option has security implications, especially if the users have upload
+permission, or shell access. Only enable if you know what you are doing.
+Note that these security implications are not vsftpd specific. They apply to
+all FTP daemons which offer to put local users in chroot() jails.
 
 Default: NO
 .TP
@@ -157,6 +165,20 @@ setting.
 
 Default: NO
 .TP
+.B hide_ids
+If enabled, all user and group information in directory listings will be
+displayed as "ftp".
+
+Default: NO
+.TP
+.B listen
+If enabled, vsftpd will run in standalone mode. This means that vsftpd must
+not be run from an inetd of some kind. Instead, the vsftpd executable is
+run once directly. vsftpd itself will then take care of listening for and
+handling incoming connections.
+
+Default: NO
+.TP
 .B local_enable
 Controls whether local logins are permitted or not. If enabled, normal
 user accounts in /etc/passwd may be used to log in.
@@ -185,6 +207,16 @@ simultaneously connected users.
 
 Default: NO
 .TP
+.B passwd_chroot_enable
+If enabled, along with
+.BR chroot_local_user
+, then a chroot() jail location may be specified on a per-user basis. Each
+user's jail is derived from their home directory string in /etc/passwd. The
+occurence of /./ in the home directory string denotes that the jail is at that
+particular location in the path.
+
+Default: NO
+.TP
 .B pasv_enable
 Set to NO if you want to disallow the PASV method of obtaining a data
 connection.
@@ -204,6 +236,13 @@ Set to NO if you want to disallow the PORT method of obtaining a data
 connection.
 
 Default: YES
+.TP
+.B tunable_port_promiscuous
+Set to YES if you want to disable the PORT security check that ensures that
+outgoing data connections can only connect to the client. Only enable if
+you know what you are doing!
+
+Default: NO
 .TP
 .B setproctitle_enable
 If enabled, vsftpd will try and show session status information in the system
@@ -230,6 +269,13 @@ When login is denied, the denial is issued before the user is asked for a
 password.
 
 Default: YES
+.TP
+.B use_localtime
+If enabled, vsftpd will display directory listings with the the time in your
+local time zone. The default is to display GMT. The times returned by the
+MDTM FTP command are also affected by this option.
+
+Default: NO
 .TP
 .B userlist_enable
 If enabled, vsftpd will load a list of usernames, from the filename given by
@@ -314,6 +360,12 @@ off.
 
 Default: 300
 .TP
+.B listen_port
+If vsftpd is in standalone mode, this is the port it will listen on for
+incoming FTP connections.
+
+Default: 21
+.TP
 .B local_max_rate
 The maximum data transfer rate permitted, in bytes per second, for local
 authenticated users.
@@ -326,6 +378,12 @@ you want to specify octal values, remember the "0" prefix otherwise the value
 will be treated as a base 10 integer!
 
 Default: 077
+.TP
+.B max_clients
+If vsftpd is in standalone mode, this is the maximum number of clients which
+may be connected. Any additional clients connecting will get an error message.
+
+Default: 0 (unlimited)
 .TP
 .B pasv_max_port
 The maximum port to allocate for PASV style data connections. Can be used to
@@ -343,6 +401,12 @@ Default: 0 (use any port)
 Below is a list of string options.
 
 .TP
+.B anon_root
+This option represents a directory which vsftpd will try to change into
+after an anonymous login. Failure is silently ignored.
+
+Default: (none)
+.TP
 .B banned_email_file
 This option is the name of a file containing a list of anonymous e-mail
 passwords which are not permitted. This file is consulted if the option
@@ -350,6 +414,15 @@ passwords which are not permitted. This file is consulted if the option
 is enabled.
 
 Default: /etc/vsftpd.banned_emails
+.TP
+.B banner_file
+This option is the name of a file containing text to display when someone
+connects to the server. If set, it overrides the banner string provided by
+the
+.BR ftpd_banner
+option.
+
+Default: (none)
 .TP
 .B chown_username
 This is the name of the user who is given ownership of anonymously uploaded
@@ -390,6 +463,18 @@ by vsftpd when a connection first comes in.
 
 Default: (none - default vsftpd banner is displayed)
 .TP
+.B listen_address
+If vsftpd is in standalone mode, the default listen address (of all local
+interfaces) may be overridden by this setting. Provide a numeric IP address.
+
+Default: (none)
+.TP
+.B local_root
+This option represents a directory which vsftpd will try to change into
+after a local (i.e. non-anonymous) login. Failure is silently ignored.
+
+Default: (none)
+.TP
 .B message_file
 This option is the name of the file we look for when a new directory is
 entered. The contents are displayed to the remote user. This option is
@@ -412,12 +497,33 @@ This string is the name of the PAM service vsftpd will use.
 
 Default: ftp
 .TP
+.B pasv_address
+Use this option to override the IP address that vsftpd will advertise in
+response to the PASV command. Provide a numeric IP address.
+
+Default: (none - the address is taken from the incoming connected socket)
+.TP
 .B secure_chroot_dir
 This option should be the name of a directory which is empty. Also, the
 directory should not be writable by the ftp user. This directory is used
 as a secure chroot() jail at times vsftpd does not require filesystem access.
 
 Default: /usr/share/empty
+.TP
+.B user_config_dir
+This powerful option allows the override of any config option specified in
+the manual page, on a per-user basis. Usage is simple, and is best illustrated
+with an example. If you set
+.BR user_config_dir
+to be
+.BR /etc/vsftpd_user_conf
+and then log on as the user "chris", then vsftpd will apply the settings in
+the file
+.BR /etc/vsftpd_user_conf/chris
+for the duration of the session. The format of this file is as detailed in
+this manual page!
+
+Default: (none)
 .TP
 .B userlist_file
 This option is the name of the file loaded when the

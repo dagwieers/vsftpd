@@ -450,10 +450,10 @@ do_file_send_binary(struct vsf_session* p_sess, int net_fd, int file_fd)
 {
   static struct vsf_sysutil_statbuf* s_p_statbuf;
   int retval;
-  unsigned long bytes_to_send;
-  unsigned long init_file_offset;
-  unsigned long curr_file_offset;
-  unsigned long bytes_sent;
+  filesize_t bytes_to_send;
+  filesize_t init_file_offset;
+  filesize_t curr_file_offset;
+  filesize_t bytes_sent;
   unsigned int chunk_size;
   struct vsf_transfer_ret ret_struct = { 0, 0 };
   /* Work out how many bytes to send based on file size minus current offset */
@@ -461,6 +461,10 @@ do_file_send_binary(struct vsf_session* p_sess, int net_fd, int file_fd)
   vsf_sysutil_fstat(file_fd, &s_p_statbuf);
   bytes_to_send = vsf_sysutil_statbuf_get_size(s_p_statbuf);
   init_file_offset = vsf_sysutil_get_file_offset(file_fd);
+  if (init_file_offset < 0 || bytes_to_send < 0)
+  {
+    die("do_file_send_binary: negative file offset or send count");
+  }
   curr_file_offset = init_file_offset;
   /* Don't underflow if some bonehead sets a REST greater than the file size */
   if (init_file_offset > bytes_to_send)

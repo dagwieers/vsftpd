@@ -31,6 +31,7 @@
 
 #define FTP_IDLE_TIMEOUT      421
 #define FTP_DATA_TIMEOUT      421
+#define FTP_TOO_MANY_USERS    421
 #define FTP_BADSENDCONN       425
 #define FTP_BADSENDNET        426
 #define FTP_BADSENDFILE       451
@@ -41,6 +42,7 @@
 #define FTP_NEEDRNFR          503
 #define FTP_LOGINERR          530
 #define FTP_FILEFAIL          550
+#define FTP_NOPERM            550
 #define FTP_UPLOADFAIL        553
 
 #endif /* VSF_FTPCODES_H */

@@ -163,12 +163,12 @@ sort_compare_common(const void* p1, const void* p2, int reverse)
 }
 
 const struct mystr*
-str_list_get_pstr(const struct mystr_list* p_list, unsigned int index)
+str_list_get_pstr(const struct mystr_list* p_list, unsigned int indexx)
 {
-  if (index >= p_list->list_len)
+  if (indexx >= p_list->list_len)
   {
-    bug("index out of range in str_list_get_str");
+    bug("indexx out of range in str_list_get_str");
   }
-  return &p_list->p_nodes[index].str;
+  return &p_list->p_nodes[indexx].str;
 }
 

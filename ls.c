@@ -206,9 +206,9 @@ filename_passes_filter(const struct mystr* p_filename_str,
     /* Isolate text leading up to wildcard (if any) - needs to be matched */
     if (locate_result.found)
     {
-      unsigned int index = locate_result.index;
-      str_left(&s_filter_remain_str, &s_match_needed_str, index);
-      str_mid_to_end(&s_filter_remain_str, &s_temp_str, index + 1);
+      unsigned int indexx = locate_result.index;
+      str_left(&s_filter_remain_str, &s_match_needed_str, indexx);
+      str_mid_to_end(&s_filter_remain_str, &s_temp_str, indexx + 1);
       str_copy(&s_filter_remain_str, &s_temp_str);
     }
     else
@@ -223,22 +223,22 @@ filename_passes_filter(const struct mystr* p_filename_str,
       /* Need to match something.. could be a match which has to start at
        * current position, or we could allow it to start anywhere
        */
-      unsigned int index;
+      unsigned int indexx;
       locate_result = str_locate_str(&s_name_remain_str, &s_match_needed_str);
       if (!locate_result.found)
       {
         /* Fail */
         return 0;
       }
-      index = locate_result.index;
-      if (must_match_at_current_pos && index > 0)
+      indexx = locate_result.index;
+      if (must_match_at_current_pos && indexx > 0)
       {
         /* Fail */
         return 0;
       }
       /* Chop matched string out of remainder */
       str_mid_to_end(&s_name_remain_str, &s_temp_str,
-                     index + str_getlen(&s_match_needed_str));
+                     indexx + str_getlen(&s_match_needed_str));
       str_copy(&s_name_remain_str, &s_temp_str);
     }
     /* Only the first iteration can require a match at current position -
@@ -260,7 +260,7 @@ build_dir_line(struct mystr* p_str, const struct mystr* p_filename_str,
                const struct vsf_sysutil_statbuf* p_stat)
 {
   static struct mystr s_tmp_str;
-  unsigned long size = vsf_sysutil_statbuf_get_size(p_stat);
+  filesize_t size = vsf_sysutil_statbuf_get_size(p_stat);
   /* Permissions */
   str_alloc_text(p_str, vsf_sysutil_statbuf_get_perms(p_stat));
   str_append_char(p_str, ' ');
@@ -270,6 +270,11 @@ build_dir_line(struct mystr* p_str, const struct mystr* p_filename_str,
   str_append_str(p_str, &s_tmp_str);
   str_append_char(p_str, ' ');
   /* User */
+  if (tunable_hide_ids)
+  {
+    str_alloc_text(&s_tmp_str, "ftp");
+  }
+  else
   {
     int uid = vsf_sysutil_statbuf_get_uid(p_stat);
     struct vsf_sysutil_user* p_user = 0;
@@ -290,6 +295,11 @@ build_dir_line(struct mystr* p_str, const struct mystr* p_filename_str,
   str_append_str(p_str, &s_tmp_str);
   str_append_char(p_str, ' ');
   /* Group */
+  if (tunable_hide_ids)
+  {
+    str_alloc_text(&s_tmp_str, "ftp");
+  }
+  else
   {
     int gid = vsf_sysutil_statbuf_get_gid(p_stat);
     struct vsf_sysutil_group* p_group = 0;
@@ -310,12 +320,13 @@ build_dir_line(struct mystr* p_str, const struct mystr* p_filename_str,
   str_append_str(p_str, &s_tmp_str);
   str_append_char(p_str, ' ');
   /* Size in bytes */
-  str_alloc_ulong(&s_tmp_str, size);
+  str_alloc_filesize_t(&s_tmp_str, size);
   str_lpad(&s_tmp_str, 8);
   str_append_str(p_str, &s_tmp_str);
   str_append_char(p_str, ' ');
   /* Date stamp */
-  str_append_text(p_str, vsf_sysutil_statbuf_get_date(p_stat));
+  str_append_text(p_str, vsf_sysutil_statbuf_get_date(p_stat,
+                                                      tunable_use_localtime));
   str_append_char(p_str, ' ');
   /* Filename */
   str_append_str(p_str, p_filename_str);

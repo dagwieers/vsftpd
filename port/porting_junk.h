@@ -13,6 +13,10 @@
 #include "hpux_bogons.h"
 #endif
 
+#ifdef _AIX
+#include "aix_bogons.h"
+#endif
+
 /* So many older systems lack these, that it's too much hassle to list all
  * the errant systems
  */

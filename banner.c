@@ -2,13 +2,14 @@
  * Part of Very Secure FTPd
  * Licence: GPL
  * Author: Chris Evans
- * dirchange.c
+ * banner.c
  *
  * Calls exposed to handle the junk a typical FTP server has to do upon
- * entering a new directory (messages, etc).
+ * entering a new directory (messages, etc), as well as general banner
+ * writing support.
  */
 
-#include "dirchange.h"
+#include "banner.h"
 #include "strlist.h"
 #include "str.h"
 #include "sysstr.h"
@@ -23,7 +24,7 @@
 #define VSFTP_MAX_MSGFILE_SIZE 1000
 
 void
-dir_changed(struct vsf_session* p_sess, int ftpcode)
+vsf_banner_dir_changed(struct vsf_session* p_sess, int ftpcode)
 {
   struct mystr dir_str = INIT_MYSTR;
   /* Do nothing if .message support is off */
@@ -52,18 +53,24 @@ dir_changed(struct vsf_session* p_sess, int ftpcode)
      */
     {
       struct mystr msg_file_str = INIT_MYSTR;
-      struct mystr msg_line_str = INIT_MYSTR;
-      unsigned int str_pos = 0;
       (void) str_fileread(&msg_file_str, tunable_message_file,
                           VSFTP_MAX_MSGFILE_SIZE);
-      while (str_getline(&msg_file_str, &msg_line_str, &str_pos))
-      {
-        vsf_cmdio_write_str_hyphen(p_sess, ftpcode, &msg_line_str);
-      }
+      vsf_banner_write(p_sess, &msg_file_str, ftpcode);
       str_free(&msg_file_str);
-      str_free(&msg_line_str);
     }
   }
   str_free(&dir_str);
+}
+
+void
+vsf_banner_write(struct vsf_session* p_sess, struct mystr* p_str, int ftpcode)
+{
+  struct mystr msg_line_str = INIT_MYSTR;
+  unsigned int str_pos = 0;
+  while (str_getline(p_str, &msg_line_str, &str_pos))
+  {
+    vsf_cmdio_write_str_hyphen(p_sess, ftpcode, &msg_line_str);
+  }
+  str_free(&msg_line_str);
 }
 

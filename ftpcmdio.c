@@ -33,6 +33,7 @@ vsf_cmdio_sock_setup(void)
 {
   vsf_sysutil_activate_keepalive(VSFTP_COMMAND_FD);
   vsf_sysutil_set_nodelay(VSFTP_COMMAND_FD);
+  vsf_sysutil_activate_oobinline(VSFTP_COMMAND_FD);
 }
 
 static void

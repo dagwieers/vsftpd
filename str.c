@@ -109,6 +109,12 @@ str_alloc_ulong(struct mystr* p_str, unsigned long the_long)
 }
 
 void
+str_alloc_filesize_t(struct mystr* p_str, filesize_t the_filesize)
+{
+  str_alloc_text(p_str, vsf_sysutil_filesize_t_to_str(the_filesize));
+}
+
+void
 str_free(struct mystr* p_str)
 {
   if (p_str->p_buf != 0)
@@ -238,6 +244,12 @@ str_append_ulong(struct mystr* p_str, unsigned long the_ulong)
 }
 
 void
+str_append_filesize_t(struct mystr* p_str, filesize_t the_filesize)
+{
+  str_append_text(p_str, vsf_sysutil_filesize_t_to_str(the_filesize));
+}
+
+void
 str_append_double(struct mystr* p_str, double the_double)
 {
   str_append_text(p_str, vsf_sysutil_double_to_str(the_double));
@@ -360,7 +372,7 @@ str_split_text_common(struct mystr* p_src, struct mystr* p_rhs,
                       const char* p_text, int is_reverse)
 {
   struct str_locate_result locate_result;
-  unsigned int index;
+  unsigned int indexx;
   if (is_reverse)
   {
     locate_result = str_locate_text_reverse(p_src, p_text);
@@ -375,16 +387,16 @@ str_split_text_common(struct mystr* p_src, struct mystr* p_rhs,
     str_empty(p_rhs);
     return;
   }
-  index = locate_result.index;
-  if (index + vsf_sysutil_strlen(p_text) > p_src->len)
+  indexx = locate_result.index;
+  if (indexx + vsf_sysutil_strlen(p_text) > p_src->len)
   {
-    bug("index invalid in str_split_text");
+    bug("indexx invalid in str_split_text");
   } 
   /* Build rhs */
-  private_str_alloc_memchunk(p_rhs, p_src->p_buf + index + 1,
-                             p_src->len - index - 1);
+  private_str_alloc_memchunk(p_rhs, p_src->p_buf + indexx + 1,
+                             p_src->len - indexx - 1);
   /* Build lhs */
-  str_trunc(p_src, index);
+  str_trunc(p_src, indexx);
 }
 
 struct str_locate_result
@@ -480,33 +492,34 @@ str_left(const struct mystr* p_str, struct mystr* p_out, unsigned int chars)
 void
 str_right(const struct mystr* p_str, struct mystr* p_out, unsigned int chars)
 {
-  unsigned int index = p_str->len - chars;
+  unsigned int indexx = p_str->len - chars;
   if (chars > p_str->len)
   {
     bug("chars invalid in str_right");
   }
-  private_str_alloc_memchunk(p_out, p_str->p_buf + index, chars);
+  private_str_alloc_memchunk(p_out, p_str->p_buf + indexx, chars);
 }
 
 void
 str_mid_to_end(const struct mystr* p_str, struct mystr* p_out,
-               unsigned int index)
+               unsigned int indexx)
 {
-  if (index > p_str->len)
+  if (indexx > p_str->len)
   {
-    bug("invalid index in str_mid_to_end");
+    bug("invalid indexx in str_mid_to_end");
   }
-  private_str_alloc_memchunk(p_out, p_str->p_buf + index, p_str->len - index);
+  private_str_alloc_memchunk(p_out, p_str->p_buf + indexx,
+                             p_str->len - indexx);
 }
 
 char
-str_get_char_at(const struct mystr* p_str, const unsigned int index)
+str_get_char_at(const struct mystr* p_str, const unsigned int indexx)
 {
-  if (index >= p_str->len)
+  if (indexx >= p_str->len)
   {
-    bug("bad index in str_get_char_at");
+    bug("bad indexx in str_get_char_at");
   }
-  return p_str->p_buf[index];
+  return p_str->p_buf[indexx];
 }
 
 int
@@ -543,10 +556,10 @@ str_atoi(const struct mystr* p_str)
   return vsf_sysutil_atoi(str_getbuf(p_str));
 }
 
-long
-str_atol(const struct mystr* p_str)
+filesize_t
+str_a_to_filesize_t(const struct mystr* p_str)
 {
-  return vsf_sysutil_atol(str_getbuf(p_str));
+  return vsf_sysutil_a_to_filesize_t(str_getbuf(p_str));
 }
 
 unsigned int

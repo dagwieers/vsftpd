@@ -1,9 +1,13 @@
 For now, just type "make" and mail me if it doesn't build.
+Running "make install" will try to copy the binary, man pages, etc. to
+somewhere sensible.
 
 Once built, you will need to run the binary from an inetd of some kind.
 
 The FTP server will refuse to start up unless you satisfy a few prerequisites:
-1) You will need the user "ftp" to exist and have a valid home directory.
+1) You will need the user "ftp" to exist and have a valid home directory. The
+home directory must NOT be owned by the "ftp" user, nor must it be writable
+by the FTP user.
 2) You will need the user "nobody" to exist.
 3) You will need an empty directory /usr/share/empty to exist.
 
@@ -28,6 +32,8 @@ as opposed to xinetd, be careful to specify the program name argv[0] before
 the config file location argv[1]!
 
 Tested platforms (well, it builds)
+- RedHat Linux 7.3
+- RedHat Linux 7.2
 - RedHat Linux 7.0
 - RedHat Linux 6.1
 - RedHat Linux 6.2

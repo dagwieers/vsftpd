@@ -6,6 +6,7 @@ The important rule is that when a file is changed, the audit status goes back
 to 1, _unless_ the change(s) are audited very carefully as they go in.
 
 ascii.c                      3
+banner.c                     2
 dirchange.c                  3
 filestr.c                    3
 ftpcmdio.c                   3
@@ -24,6 +25,7 @@ privparent.c                 3
 privsock.c                   3
 secbuf.c                     3
 secutil.c                    3
+standalone.c                 2 
 str.c                        2
 strlist.c                    2
 sysdeputil.c                 2

@@ -1,9 +1,0 @@
-WARNING
--------
-
-vsftpd seems to under some conditions kill kernels 2.4.0 and 2.4.1 dead. The
-problem has been observed by several people. The problem has been reported,
-and was fixed in kernel version 2.4.2-pre1.
-
-The problem seems to trigger when vsftpd exits.
-

@@ -26,7 +26,7 @@ int str_list_contains_str(const struct mystr_list* p_list,
                           const struct mystr* p_str);
 
 const struct mystr* str_list_get_pstr(const struct mystr_list* p_list,
-                                      unsigned int index);
+                                      unsigned int indexx);
 
 #endif /* VSF_STRLIST_H */
 

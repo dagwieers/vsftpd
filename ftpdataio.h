@@ -1,6 +1,8 @@
 #ifndef VSF_FTPDATAIO_H
 #define VSF_FTPDATAIO_H
 
+#include "filesize.h"
+
 struct mystr;
 struct vsf_sysutil_sockaddr;
 struct vsf_sysutil_dir;
@@ -55,7 +57,7 @@ int vsf_ftpdataio_get_port_fd(struct vsf_session* p_sess);
 struct vsf_transfer_ret
 {
   int retval;
-  unsigned long transferred;
+  filesize_t transferred;
 };
 struct vsf_transfer_ret vsf_ftpdataio_transfer_file(
   struct vsf_session* p_sess,

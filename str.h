@@ -3,6 +3,10 @@
 
 /* TODO - document these functions ;-) */
 
+#ifndef VSF_FILESIZE_H
+#include "filesize.h"
+#endif
+
 struct mystr
 {
   char* PRIVATE_HANDS_OFF_p_buf;
@@ -24,6 +28,7 @@ void str_alloc_text(struct mystr* p_str, const char* p_src);
 /* NOTE: String buffer data does NOT include terminating character */
 void str_alloc_alt_term(struct mystr* p_str, const char* p_src, char term);
 void str_alloc_ulong(struct mystr* p_str, unsigned long the_ulong);
+void str_alloc_filesize_t(struct mystr* p_str, filesize_t the_filesize);
 void str_copy(struct mystr* p_dest, const struct mystr* p_src);
 const char* str_strdup(const struct mystr* p_str);
 void str_empty(struct mystr* p_str);
@@ -42,6 +47,7 @@ int str_equal_text(const struct mystr* p_str, const char* p_text);
 void str_append_str(struct mystr* p_str, const struct mystr* p_other);
 void str_append_text(struct mystr* p_str, const char* p_src);
 void str_append_ulong(struct mystr* p_str, unsigned long the_long);
+void str_append_filesize_t(struct mystr* p_str, filesize_t the_filesize);
 void str_append_char(struct mystr* p_str, char the_char);
 void str_append_double(struct mystr* p_str, double the_double);
 
@@ -81,14 +87,14 @@ void str_left(const struct mystr* p_str, struct mystr* p_out,
 void str_right(const struct mystr* p_str, struct mystr* p_out,
                unsigned int chars);
 void str_mid_to_end(const struct mystr* p_str, struct mystr* p_out,
-                    unsigned int index);
+                    unsigned int indexx);
 
-char str_get_char_at(const struct mystr* p_str, const unsigned int index);
+char str_get_char_at(const struct mystr* p_str, const unsigned int indexx);
 int str_contains_space(const struct mystr* p_str);
 int str_contains_unprintable(const struct mystr* p_str);
 void str_replace_unprintable(struct mystr* p_str, char new_char);
 int str_atoi(const struct mystr* p_str);
-long str_atol(const struct mystr* p_str);
+filesize_t str_a_to_filesize_t(const struct mystr* p_str);
 unsigned int str_octal_to_uint(const struct mystr* p_str);
 
 /* PURPOSE: Extract a line of text (delimited by \n or EOF) from a string

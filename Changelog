@@ -477,7 +477,7 @@ Lars Hecking <lhecking@nmrc.ie>.
 - Fix chown_upload bug noted by brett <beldridg@best.com>.
 - Add concept of guest user, idea from Andrew Anderson <andrew@redhat.com>.
 - Simple bandwidth limitation, inspired by Mads Martin Jørgensen
-<mmj@suse.com>.
+<mmj@suse.de>.
 - Fix chown_upload bug in a different way.
 - Correct *_umask details in vsftpd.conf.5, from brett <beldridg@best.com>.
 - Don't show .files unless "ls -a" was specified, n.b. this differs in
@@ -497,4 +497,92 @@ cleartext password!!
 
 0.9.2 packaged
 --------------
+
+- Fix potential leak in PAM handling code.
+- Fix build in the non-PAM case (dammit!!). Reported by Alexey E. Korchagin
+<Webmaster@buzuluk.ru> and Michael Fengler <michael.fengler@adpag.de>.
+- Include filename and size in bytes in the "here comes the data" 150 message.
+- Change link flags from "-s" to "-Wl,-s"
+- Add libcap support - should fix ia64, Alpha build problems with syscalls.
+- Tidy up vsf_findlibs.sh
+- Work with NFS mounted home dirs and root_squash, thanks to Hunter Matthews
+<thm@duke.edu> for the report.
+- Add FAQ.
+- Improve "make install".
+- Fix Solaris build (nanosleep is in a separate library, typical).
+- Fix REST + STOR combination, investigation inspired by Mike Batchelor
+<mikebat@tmcs.net>.
+
+0.9.3 packaged
+--------------
+
+- Update xinetd file to reflect /usr/local location. Thanks to Fridtjof
+Busse <fridtjof@fbunet.de>.
+- Make our 150 response code match wu-ftpd - allows broken "ange-ftp" of
+emacs to do a percentage complete indicator. Reported by Jonathan Kamens
+<jik@kamens.brookline.ma.us> via Andrew Anderson <andrew@redhat.com>.
+- Fix build on S390, ia64 platforms (poor kernel includes). Patch from
+<mmj@suse.de>.
+- Fix up vsf_findlibs.sh to cater for RedHat7.2 which has libcap. Reported
+by Chris Burton <chris@post.cpac.uk.com>.
+- Boast some more in BENCHMARKS.
+- Add anon_root and local_root, inspired by Ole Tange <tange@tange.dk>.
+- Fix up vsf_findlibs.sh to cater for broken Mandrake, and also consider
+the case of missing PAM headers (no pam-devel installed). Thanks to
+Jeff Baldwin <jeff_baldwin@unc.edu> for access to Mandrake.
+
+At this point: 1.0.0 packaged and released
+------------------------------------------
+Ah, the wonderful psychology of release numbers
+-----------------------------------------------
+
+- Fix IRIX build (capabilities issue), Jan-Frode Myklebust
+<janfrode@parallab.uib.no>.
+- Fix FreeBSD build, reported by Jim Breton
+<jamesb-security-audit@alongtheway.com>.
+- Fix Debian build, reported by Brian Clark <brianj@fusionwerks.com>.
+
+1.0.1 packaged
+--------------
+
+- Fix .spec files to use /usr/local/sbin not /usr/sbin, noted by Bill Unruh
+<unruh@physics.ubc.ca>.
+- Small doc tweaks and improvements(?)
+- Add COPYING, the GNU GPL version 2.
+- Add use_localtime config option to override the use of GMT times.
+- Add tunable_check_shell (default YES) so people can disable this if they
+are not using PAM.
+- AIX 5.1 build support, thanks to Jan-Frode Myklebust
+<janfrode@parallab.uib.no>.
+- Add "hide_ids" option to show user/group in directory listings as "ftp".
+Request from Solar.
+- Use the seemingly more portable setreuid() and setregid(), poxy HP.
+- Use status 550 instead of 500 for known but disabled commands.
+- Rename "dirchange.[ch]" to "banner.[ch]".
+- Multiline connect banner support via "banner_file" config option.
+- Minor error message changes.
+- Add more FAQ entries.
+- Add patch to specify PASV address - thanks to Mike McLean <mikem@redhat.com>.
+- Drop the 2.4.0 kernel warning file
+- Rudimentary standalone listener support - to be expanded in a later release.
+- If sendfile() returns EINVAL just fall back to normal routines - handles
+non-pagecache backed files.
+- Add "port_promiscuous" setting - should help enabling FXP.
+- Modify anon_root and local_root to change directory _before_ applying the
+chroot().
+- Open all files O_NONBLOCK to avoid pipes blocking on open.
+- Support wu-ftpd style per-user chroot() via /./ in /etc/passwd HOMEDIR.
+- Add SIGHUP support to new built in listener.
+- Per-user config overrides, via "user_config_dir" - woohoo!
+- Warning fixes, i.e. change "index" to "indexx" thanks to Olaf Kirch
+<okir@suse.de>.
+- Make sure the standalone daemon doesn't leak zombies!
+- Supposedly fix kernel messages about MSG_PEEK race - thanks to advice from
+Alexey <kuznet@ms2.inr.ac.ru>.
+- Add global client limit for standalone mode.
+- Add username that failed when we die with str_getpwnam.
+- Add a bunch of documentation under EXAMPLES.
+
+At this point: 1.1.0 package released
+-------------------------------------
 

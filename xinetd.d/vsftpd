@@ -8,7 +8,7 @@ service ftp
         socket_type             = stream
         wait                    = no
         user                    = root
-        server                  = /usr/sbin/vsftpd
+        server                  = /usr/local/sbin/vsftpd
 #       server_args             =
 #       log_on_success          += DURATION USERID
 #       log_on_failure          += USERID

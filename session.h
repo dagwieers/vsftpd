@@ -5,6 +5,10 @@
 #include "str.h"
 #endif
 
+#ifndef VSF_FILESIZE_H
+#include "filesize.h"
+#endif
+
 struct vsf_sysutil_sockaddr;
 struct mystr_list;
 
@@ -32,7 +36,7 @@ struct vsf_session
   struct mystr anon_pass_str;
 
   /* Details of the FTP protocol state */
-  unsigned long restart_pos;
+  filesize_t restart_pos;
   int is_ascii;
   struct mystr rnfr_filename_str;
   int abor_received;
@@ -47,6 +51,7 @@ struct vsf_session
   /* Things we need to cache before we chroot() */
   struct mystr banned_email_str;
   struct mystr userlist_str;
+  struct mystr banner_str;
 
   /* Logging related details */
   int log_fd;
@@ -55,7 +60,7 @@ struct vsf_session
   long log_start_sec;
   long log_start_usec;
   struct mystr log_str;
-  unsigned long transfer_size;
+  filesize_t transfer_size;
 
   /* Buffers */
   struct mystr ftp_cmd_str;
@@ -65,6 +70,9 @@ struct vsf_session
   int privsock_inited;
   int parent_fd;
   int child_fd;
+
+  /* Other details */
+  int num_clients;
 };
 
 #endif /* VSF_SESSION_H */

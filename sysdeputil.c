@@ -42,9 +42,10 @@
 #define VSF_SYSDEP_HAVE_PAM
 #define VSF_SYSDEP_HAVE_SHADOW
 #define VSF_SYSDEP_HAVE_USERSHELL
+#define VSF_SYSDEP_HAVE_LIBCAP
 
 /* BEGIN config */
-#ifdef __linux__
+#if defined(__linux__) && !defined(__ia64__) && !defined(__s390__)
   #define VSF_SYSDEP_TRY_LINUX_SETPROCTITLE_HACK
   #include <linux/version.h>
   #if defined(LINUX_VERSION_CODE) && defined(KERNEL_VERSION)
@@ -84,6 +85,7 @@
 
 #ifdef __sgi
   #undef VSF_SYSDEP_HAVE_USERSHELL
+  #undef VSF_SYSDEP_HAVE_LIBCAP
 #endif
 
 #if (defined(__sgi) || defined(__hpux))
@@ -102,7 +104,10 @@
 #include <unistd.h>
 #endif
 
-#ifdef VSF_SYSDEP_HAVE_CAPABILITIES
+/* Prefer libcap based capabilities over raw syscall capabilities */
+#include <sys/capability.h>
+
+#if defined(VSF_SYSDEP_HAVE_CAPABILITIES) && !defined(VSF_SYSDEP_HAVE_LIBCAP)
 #include <linux/capability.h>
 #include <errno.h>
 #include <syscall.h>
@@ -144,7 +149,7 @@ static int s_zero_fd = -1;
 
 /* File private functions/variables */
 static int do_sendfile(const int out_fd, const int in_fd,
-                       long* p_offset, unsigned int num_send);
+                       unsigned int num_send, filesize_t start_pos);
 static void vsf_sysutil_setproctitle_internal(const char* p_text);
 static struct mystr s_proctitle_prefix_str;
 
@@ -156,24 +161,27 @@ vsf_sysdep_check_auth(const struct mystr* p_user_str,
 {
   const char* p_shell;
   const char* p_crypted;
-  (void) p_remote_host;
   const struct passwd* p_pwd = getpwnam(str_getbuf(p_user_str));
+  (void) p_remote_host;
   if (p_pwd == NULL)
   {
     return 0;
   }
   #ifdef VSF_SYSDEP_HAVE_USERSHELL
-  while ((p_shell = getusershell()) != NULL)
+  if (tunable_check_shell)
   {
-    if (!vsf_sysutil_strcmp(p_shell, p_pwd->pw_shell))
+    while ((p_shell = getusershell()) != NULL)
     {
-      break;
+      if (!vsf_sysutil_strcmp(p_shell, p_pwd->pw_shell))
+      {
+        break;
+      }
     }
-  }
-  endusershell();
-  if (p_shell == NULL)
-  {
-    return 0;
+    endusershell();
+    if (p_shell == NULL)
+    {
+      return 0;
+    }
   }
   #endif
   #ifdef VSF_SYSDEP_HAVE_SHADOW
@@ -283,19 +291,11 @@ pam_conv_func(int nmsg, const struct pam_message** p_msg,
   {
     bug("dodgy nmsg in pam_conv_func");
   }
-  /* XXX sometimes leaks */
   p_resps = vsf_sysutil_malloc(sizeof(struct pam_response) * nmsg);
-  if (p_resps == 0)
-  {
-    return PAM_CONV_ERR;
-  }
   for (i=0; i<nmsg; i++)
   {
     switch (p_msg[i]->msg_style)
     {
-      case PAM_PROMPT_ECHO_ON:
-        return PAM_CONV_ERR;
-        break;
       case PAM_PROMPT_ECHO_OFF:
         p_resps[i].resp_retcode = PAM_SUCCESS;
         p_resps[i].resp = (char*) str_strdup(&s_pword_str);
@@ -305,7 +305,9 @@ pam_conv_func(int nmsg, const struct pam_message** p_msg,
         p_resps[i].resp_retcode = PAM_SUCCESS;
         p_resps[i].resp = 0;
         break;
+      case PAM_PROMPT_ECHO_ON:
       default:
+        vsf_sysutil_free(p_resps);
         return PAM_CONV_ERR;
         break;
     }
@@ -334,7 +336,7 @@ vsf_sysdep_keep_capabilities(void)
   }
 #endif /* VSF_SYSDEP_HAVE_SETKEEPCAPS */
 }
-#ifndef VSF_SYSDEP_HAVE_CAPABILITIES
+#if !defined(VSF_SYSDEP_HAVE_CAPABILITIES) && !defined(VSF_SYSDEP_HAVE_LIBCAP)
 
 int
 vsf_sysdep_has_capabilities(void)
@@ -355,29 +357,9 @@ vsf_sysdep_adopt_capabilities(unsigned int caps)
   bug("asked to adopt capabilities, but no support exists");
 }
 
-#else /* VSF_SYSDEP_HAVE_CAPABILITIES */
+#else /* VSF_SYSDEP_HAVE_CAPABILITIES || VSF_SYSDEP_HAVE_LIBCAP */
 
-int
-vsf_sysdep_has_capabilities(void)
-{
-  /* Even though compiled with capabilities, the runtime system may lack them.
-   * Also, RH7.0 kernel headers advertise a 2.4.0 box, but on a 2.2.x kernel!
-   */
-  static int s_caps_checked;
-  static int s_runtime_has_caps;
-  if (!s_caps_checked)
-  {
-    /* EFAULT (EINVAL if page 0 mapped) vs. ENOSYS */
-    int retval = capset(0, 0);
-    if (!vsf_sysutil_retval_is_error(retval) ||
-        vsf_sysutil_get_error() != kVSFSysUtilErrNOSYS)
-    {
-      s_runtime_has_caps = 1;
-    }
-    s_caps_checked = 1;
-  }
-  return s_runtime_has_caps;
-}
+static int do_checkcap(void);
 
 int
 vsf_sysdep_has_capabilities_as_non_root(void)
@@ -396,6 +378,36 @@ vsf_sysdep_has_capabilities_as_non_root(void)
     s_prctl_checked = 1;
   }
   return s_runtime_prctl_works;
+}
+
+int
+vsf_sysdep_has_capabilities(void)
+{
+  /* Even though compiled with capabilities, the runtime system may lack them.
+   * Also, RH7.0 kernel headers advertise a 2.4.0 box, but on a 2.2.x kernel!
+   */
+  static int s_caps_checked;
+  static int s_runtime_has_caps;
+  if (!s_caps_checked)
+  {
+    s_runtime_has_caps = do_checkcap();
+    s_caps_checked = 1;
+  }
+  return s_runtime_has_caps;
+}
+  
+  #ifndef VSF_SYSDEP_HAVE_LIBCAP
+static int
+do_checkcap(void)
+{
+  /* EFAULT (EINVAL if page 0 mapped) vs. ENOSYS */
+  int retval = capset(0, 0);
+  if (!vsf_sysutil_retval_is_error(retval) ||
+      vsf_sysutil_get_error() != kVSFSysUtilErrNOSYS)
+  {
+    return 1;
+  }
+  return 0;
 }
 
 void
@@ -431,58 +443,99 @@ vsf_sysdep_adopt_capabilities(unsigned int caps)
   }
 }
 
-#endif /* VSF_SYSDEP_HAVE_CAPABILITIES */
+  #else /* VSF_SYSDEP_HAVE_LIBCAP */
+static int
+do_checkcap(void)
+{
+  cap_t current_caps = cap_get_proc();
+  cap_free(current_caps);
+  if (current_caps != NULL)
+  {
+    return 1;
+  }
+  return 0;
+}
+
+void
+vsf_sysdep_adopt_capabilities(unsigned int caps)
+{
+  int retval;
+  cap_value_t cap_value;
+  cap_t adopt_caps = cap_init();
+  if (caps & kCapabilityCAP_CHOWN)
+  {
+    cap_value = CAP_CHOWN;
+    cap_set_flag(adopt_caps, CAP_EFFECTIVE, 1, &cap_value, CAP_SET);
+    cap_set_flag(adopt_caps, CAP_PERMITTED, 1, &cap_value, CAP_SET);
+  }
+  if (caps & kCapabilityCAP_NET_BIND_SERVICE)
+  {
+    cap_value = CAP_NET_BIND_SERVICE;
+    cap_set_flag(adopt_caps, CAP_EFFECTIVE, 1, &cap_value, CAP_SET);
+    cap_set_flag(adopt_caps, CAP_PERMITTED, 1, &cap_value, CAP_SET);
+  }
+  retval = cap_set_proc(adopt_caps);
+  if (retval != 0)
+  {
+    die("cap_set_proc");
+  }
+  cap_free(adopt_caps);
+}
+
+  #endif /* !VSF_SYSDEP_HAVE_LIBCAP */
+#endif /* VSF_SYSDEP_HAVE_CAPABILITIES || VSF_SYSDEP_HAVE_LIBCAP */
 
 int
 vsf_sysutil_sendfile(const int out_fd, const int in_fd,
-                     unsigned long* p_offset, unsigned long num_send,
+                     filesize_t* p_offset, filesize_t num_send,
                      unsigned int max_chunk)
 {
   /* Grr - why is off_t signed? */
-  long real_offset = *p_offset;
-  if (real_offset < 0)
+  if (*p_offset < 0 || num_send < 0)
   {
-    die("invalid offset in vsf_sysutil_sendfile");
+    die("invalid offset or send count in vsf_sysutil_sendfile");
+  }
+  if (max_chunk == 0)
+  {
+    max_chunk = INT_MAX;
   }
   while (num_send > 0)
   {
     int retval;
     unsigned int send_this_time;
-    /* For 64-bit platforms */
-    if (num_send > INT_MAX)
+    if (num_send > max_chunk)
     {
-      send_this_time = INT_MAX;
+      send_this_time = max_chunk;
     }
     else
     {
       send_this_time = (unsigned int) num_send;
     }
-    if (max_chunk != 0 && send_this_time > max_chunk)
-    {
-      send_this_time = max_chunk;
-    }
-    retval = do_sendfile(out_fd, in_fd, &real_offset, send_this_time);
-    if (real_offset < 0)
+    /* Keep input file position in line with sendfile() calls */
+    vsf_sysutil_lseek_to(in_fd, *p_offset);
+    retval = do_sendfile(out_fd, in_fd, send_this_time, *p_offset);
+    if (*p_offset < 0)
     {
       die("invalid offset returned in vsf_sysutil_sendfile");
     }
-    *p_offset = real_offset;
     if (vsf_sysutil_retval_is_error(retval) || retval == 0)
     {
       return retval;
     }
-    num_send -= (unsigned long) retval;
+    num_send -= retval;
+    *p_offset += retval;
   }
   return 0;
 }
 
 static int do_sendfile(const int out_fd, const int in_fd,
-                       long* p_offset, unsigned int num_send)
+                       unsigned int num_send, filesize_t start_pos)
 {
   /* Probably should one day be shared with instance in ftpdataio.c */
   static char* p_recvbuf;
   unsigned int total_written = 0;
   int retval;
+  (void) start_pos;
 #if defined(VSF_SYSDEP_HAVE_LINUX_SENDFILE) || \
     defined(VSF_SYSDEP_HAVE_FREEBSD_SENDFILE) || \
     defined(VSF_SYSDEP_HAVE_HPUX_SENDFILE)
@@ -494,27 +547,24 @@ static int do_sendfile(const int out_fd, const int in_fd,
       do
       {
   #ifdef VSF_SYSDEP_HAVE_LINUX_SENDFILE
-        retval = sendfile(out_fd, in_fd, p_offset, num_send);
+        retval = sendfile(out_fd, in_fd, NULL, num_send);
   #elif defined(VSF_SYSDEP_HAVE_FREEBSD_SENDFILE)
         {
+          /* XXX - start_pos will truncate on 32-bit machines - can we
+           * say "start from current pos"?
+           */
           off_t written = 0;
-          retval = sendfile(in_fd, out_fd, *p_offset, num_send, NULL,
+          retval = sendfile(in_fd, out_fd, start_pos, num_send, NULL,
                             &written, 0);
           /* Translate to Linux-like retval */
           if (written > 0)
           {
             retval = (int) written;
-            *p_offset += retval;
           }
         }
   #else /* must be VSF_SYSDEP_HAVE_HPUX_SENDFILE */
         {
-          retval = sendfile(out_fd, in_fd, *p_offset, num_send, NULL, 0);
-          /* Translate to Linux-like retval */
-          if (retval > 0)
-          {
-            *p_offset += retval;
-          }
+          retval = sendfile(out_fd, in_fd, start_pos, num_send, NULL, 0);
         }
   #endif /* VSF_SYSDEP_HAVE_LINUX_SENDFILE */
         vsf_sysutil_check_pending_actions(kVSFSysUtilIO, retval, out_fd);
@@ -530,11 +580,16 @@ static int do_sendfile(const int out_fd, const int in_fd,
           s_runtime_sendfile_works = 1;
         }
       }
-      if (s_runtime_sendfile_works)
+      if (s_runtime_sendfile_works &&
+          vsf_sysutil_get_error() != kVSFSysUtilErrINVAL)
       {
         return retval;
       }
-      /* Fall thru to normal implementation. We won't check again. */
+      /* Fall thru to normal implementation. We won't check again. NOTE -
+       * also falls through if sendfile() is OK but it returns EINVAL. For
+       * Linux this means the file was not page cache backed. Original
+       * complaint was trying to serve files from an NTFS filesystem!
+       */
     }
   }
 #endif /* VSF_SYSDEP_HAVE_LINUX_SENDFILE || VSF_SYSDEP_HAVE_FREEBSD_SENDFILE */
@@ -561,7 +616,6 @@ static int do_sendfile(const int out_fd, const int in_fd,
       return -1;
     }
     num_read = (unsigned int) retval;
-    *p_offset += num_read;
     retval = vsf_sysutil_write_loop(out_fd, p_recvbuf, num_read);
     if (retval < 0)
     {

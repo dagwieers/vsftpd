@@ -16,9 +16,14 @@
 #include "sysutil.h"
 #include "utility.h"
 
+static const char* s_p_saved_filename;
+static int s_strings_copied;
+
 /* File local functions */
 static void handle_config_setting(struct mystr* p_setting_str,
                                   struct mystr* p_value_str);
+
+static void copy_string_settings(void);
 
 /* Tables mapping setting names to runtime variables */
 /* Boolean settings */
@@ -58,6 +63,11 @@ parseconf_bool_array[] =
   { "guest_enable", &tunable_guest_enable },
   { "userlist_enable", &tunable_userlist_enable },
   { "userlist_deny", &tunable_userlist_deny },
+  { "use_localtime", &tunable_use_localtime },
+  { "check_shell", &tunable_check_shell },
+  { "hide_ids", &tunable_hide_ids },
+  { "listen", &tunable_listen },
+  { "passwd_chroot_enable", &tunable_passwd_chroot_enable },
   { 0, 0 }
 };
 
@@ -79,6 +89,8 @@ parseconf_uint_array[] =
   { "pasv_max_port", &tunable_pasv_max_port },
   { "anon_max_rate", &tunable_anon_max_rate },
   { "local_max_rate", &tunable_local_max_rate },
+  { "listen_port", &tunable_listen_port },
+  { "max_clients", &tunable_max_clients },
   { 0, 0 }
 };
 
@@ -101,6 +113,12 @@ parseconf_str_array[] =
   { "pam_service_name", &tunable_pam_service_name },
   { "guest_username", &tunable_guest_username },
   { "userlist_file", &tunable_userlist_file },
+  { "anon_root", &tunable_anon_root },
+  { "local_root", &tunable_local_root },
+  { "banner_file", &tunable_banner_file },
+  { "pasv_address", &tunable_pasv_address },
+  { "listen_address", &tunable_listen_address },
+  { "user_config_dir", &tunable_user_config_dir },
   { 0, 0 }
 };
 
@@ -111,7 +129,33 @@ vsf_parseconf_load_file(const char* p_filename)
   struct mystr config_setting_str = INIT_MYSTR;
   struct mystr config_value_str = INIT_MYSTR;
   unsigned int str_pos = 0;
-  int retval = str_fileread(&config_file_str, p_filename, VSFTP_CONF_FILE_MAX);
+  int retval;
+  if (!p_filename)
+  {
+    p_filename = s_p_saved_filename;
+  }
+  else
+  {
+    if (s_p_saved_filename)
+    {
+      vsf_sysutil_free((char*)s_p_saved_filename);
+    }
+    s_p_saved_filename = vsf_sysutil_strdup(p_filename);
+  }
+  if (!p_filename)
+  {
+    bug("null filename in vsf_parseconf_load_file");
+  }
+  if (!s_strings_copied)
+  {
+    s_strings_copied = 1;
+    /* A minor hack to make sure all strings are malloc()'ed so we can free
+     * them at some later date. Specifically handles strings embedded in the
+     * binary.
+     */
+    copy_string_settings();
+  }
+  retval = str_fileread(&config_file_str, p_filename, VSFTP_CONF_FILE_MAX);
   if (vsf_sysutil_retval_is_error(retval))
   {
     die("cannot open config file");
@@ -200,12 +244,32 @@ handle_config_setting(struct mystr* p_setting_str, struct mystr* p_value_str)
       if (str_equal_text(p_setting_str, p_str_setting->p_setting_name))
       {
         /* Got it */
-        *(p_str_setting->p_variable) = str_strdup(p_value_str);
+        const char** p_curr_setting = p_str_setting->p_variable;
+        if (*p_curr_setting)
+        {
+          vsf_sysutil_free((char*)*p_curr_setting);
+        }
+        *p_curr_setting = str_strdup(p_value_str);
         return;
       }
       p_str_setting++;
     }
   }
   die("unrecognised variable in config file");
+}
+
+static void
+copy_string_settings(void)
+{
+  const struct parseconf_str_setting* p_str_setting = parseconf_str_array;
+  while (p_str_setting->p_setting_name != 0)
+  {
+    if (*p_str_setting->p_variable != 0)
+    {
+      *p_str_setting->p_variable =
+          vsf_sysutil_strdup(*p_str_setting->p_variable);
+    }
+    p_str_setting++;
+  }
 }
 

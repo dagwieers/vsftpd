@@ -1,6 +1,10 @@
 #ifndef VSF_SYSDEPUTIL_H
 #define VSF_SYSDEPUTIL_H
 
+#ifndef VSF_FILESIZE_H
+#include "filesize.h"
+#endif
+
 /* VSF_SYSDEPUTIL_H:
  * Support for highly system dependent features, and querying for support
  * or lack thereof
@@ -31,7 +35,7 @@ void vsf_sysdep_adopt_capabilities(unsigned int caps);
  * loop under the covers if the target system lacks support.
  */
 int vsf_sysutil_sendfile(const int out_fd, const int in_fd,
-                         unsigned long* p_offset, unsigned long num_send,
+                         filesize_t* p_offset, filesize_t num_send,
                          unsigned int max_chunk);
 
 /* Support for changing the process name as reported by the operating system.

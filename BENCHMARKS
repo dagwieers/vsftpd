@@ -1,3 +1,11 @@
+- See also SPEED
+
+Update 2nd Nov 2001
+ftp.redhat.com ran vsftpd for the RedHat 7.2 release. vsftpd achieved 4,000
+concurrent users on a single machine with 1Gb RAM. Even with this insane user
+count, bandwidth remained totally saturated. The user count could have been
+higher, but the machine ran out of processes.
+
 --
 Below are some quick benchmark figures vs. wu-ftpd. This is an untuned BETA
 version of vsftpd (0.0.10)

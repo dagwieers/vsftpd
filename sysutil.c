@@ -15,6 +15,9 @@
 #include "sysutil.h"
 #include "utility.h"
 
+/* Activate 64-bit file support on Linux/32bit */
+#define _FILE_OFFSET_BITS 64
+
 /* For Linux, this adds nothing :-) */
 #include "port/porting_junk.h"
 
@@ -147,6 +150,9 @@ vsf_sysutil_translate_sig(const enum EVSFSysUtilSignal sig)
       break;
     case kVSFSysUtilSigURG:
       realsig = SIGURG;
+      break;
+    case kVSFSysUtilSigHUP:
+      realsig = SIGHUP;
       break;
     default:
       bug("unknown signal in vsf_sysutil_translate_sig");
@@ -351,32 +357,30 @@ vsf_sysutil_write_loop(const int fd, const void* p_buf, unsigned int size)
   }
 }
 
-unsigned long
+filesize_t
 vsf_sysutil_get_file_offset(const int file_fd)
 {
-  off_t retval = lseek(file_fd, 0, SEEK_CUR);
+  filesize_t retval = lseek(file_fd, 0, SEEK_CUR);
   if (retval < 0)
   {
     die("lseek");
   }
-  return (unsigned long) retval;
+  return retval;
 }
 
-unsigned long
-vsf_sysutil_lseek_to(const int fd, unsigned long seek_pos)
+void
+vsf_sysutil_lseek_to(const int fd, filesize_t seek_pos)
 {
-  off_t retval;
-  off_t real_seek_pos = (off_t) seek_pos;
-  if (real_seek_pos < 0)
+  filesize_t retval;
+  if (seek_pos < 0)
   {
     die("negative seek_pos in vsf_sysutil_lseek_to");
   }
-  retval = lseek(fd, real_seek_pos, SEEK_SET);
+  retval = lseek(fd, seek_pos, SEEK_SET);
   if (retval < 0)
   {
     die("lseek");
   }
-  return (unsigned long) retval;
 }
 
 void*
@@ -469,6 +473,19 @@ vsf_sysutil_wait(void)
     retval.syscall_retval = sys_ret;
     return retval;
   }
+}
+
+int
+vsf_sysutil_wait_reap_one(void)
+{
+  int retval = waitpid(-1, NULL, WNOHANG);
+  if (retval == 0 || (retval < 0 && errno == ECHILD))
+  {
+    /* No more children */
+    return 0;
+  }
+  /* Got one */
+  return 1;
 }
 
 int
@@ -645,24 +662,42 @@ vsf_sysutil_atoi(const char* p_str)
   return atoi(p_str);
 }
 
-long
-vsf_sysutil_atol(const char* p_str)
+filesize_t
+vsf_sysutil_a_to_filesize_t(const char* p_str)
 {
-  return atol(p_str);
+  /* atoll() is C99 standard - may break build on older platforms */
+  return atoll(p_str);
 }
 
 const char*
 vsf_sysutil_ulong_to_str(unsigned long the_ulong)
 {
-  static char int_buf[128];
-  (void) snprintf(int_buf, sizeof(int_buf), "%lu", the_ulong);
-  return int_buf;
+  static char ulong_buf[32];
+  (void) snprintf(ulong_buf, sizeof(ulong_buf), "%lu", the_ulong);
+  return ulong_buf;
+}
+
+const char*
+vsf_sysutil_filesize_t_to_str(filesize_t the_filesize)
+{
+  static char filesize_buf[32];
+  if (sizeof(long) == 8)
+  {
+    /* Avoid using non-standard %ll if we can */
+    (void) snprintf(filesize_buf, sizeof(filesize_buf), "%ld",
+                    (long) the_filesize);
+  }
+  else
+  {
+    (void) snprintf(filesize_buf, sizeof(filesize_buf), "%lld", the_filesize);
+  }
+  return filesize_buf;
 }
 
 const char*
 vsf_sysutil_double_to_str(double the_double)
 {
-  static char double_buf[128];
+  static char double_buf[32];
   (void) snprintf(double_buf, sizeof(double_buf), "%.2f", the_double);
   return double_buf;
 }
@@ -670,7 +705,7 @@ vsf_sysutil_double_to_str(double the_double)
 const char*
 vsf_sysutil_uint_to_octal(unsigned int the_uint)
 {
-  static char octal_buf[128];
+  static char octal_buf[32];
   if (the_uint == 0)
   {
     octal_buf[0] = '0';
@@ -943,7 +978,7 @@ int
 vsf_sysutil_open_file(const char* p_filename,
                       const enum EVSFSysUtilOpenMode mode)
 {
-  return open(p_filename, vsf_sysutil_translate_openmode(mode));
+  return open(p_filename, vsf_sysutil_translate_openmode(mode) | O_NONBLOCK);
 }
 
 int
@@ -956,13 +991,29 @@ vsf_sysutil_create_file(const char* p_filename)
 int
 vsf_sysutil_create_overwrite_file(const char* p_filename)
 {
-  return open(p_filename, O_CREAT | O_TRUNC | O_WRONLY | O_APPEND, 0666);
+  return open(p_filename, O_CREAT | O_TRUNC | O_WRONLY |
+                          O_APPEND | O_NONBLOCK, 0666);
 }
 
 int
 vsf_sysutil_create_or_open_file(const char* p_filename, unsigned int mode)
 {
-  return open(p_filename, O_CREAT | O_WRONLY | O_APPEND, mode);
+  return open(p_filename, O_CREAT | O_WRONLY | O_APPEND | O_NONBLOCK, mode);
+}
+
+void
+vsf_sysutil_dupfd2(int old_fd, int new_fd)
+{
+  int retval;
+  if (old_fd == new_fd)
+  {
+    return;
+  }
+  retval = dup2(old_fd, new_fd);
+  if (retval != new_fd)
+  {
+    die("dup2");
+  }
 }
 
 void
@@ -1112,15 +1163,23 @@ vsf_sysutil_statbuf_get_perms(const struct vsf_sysutil_statbuf* p_statbuf)
 }
 
 const char*
-vsf_sysutil_statbuf_get_date(const struct vsf_sysutil_statbuf* p_statbuf)
+vsf_sysutil_statbuf_get_date(const struct vsf_sysutil_statbuf* p_statbuf,
+                             int use_localtime)
 {
-  static char datebuf[128];
+  static char datebuf[64];
   int retval;
   struct tm* p_tm;
   const struct stat* p_stat = (const struct stat*) p_statbuf;
   long local_time = vsf_sysutil_get_cached_time_sec();
   const char* p_date_format = "%b %d %H:%M";
-  p_tm = gmtime(&p_stat->st_mtime);
+  if (!use_localtime)
+  {
+    p_tm = gmtime(&p_stat->st_mtime);
+  }
+  else
+  {
+    p_tm = localtime(&p_stat->st_mtime);
+  }
   /* Is this a future or 6 months old date? If so, we drop to year format */
   if (p_stat->st_mtime > local_time ||
       (local_time - p_stat->st_mtime) > 60*60*24*182)
@@ -1138,12 +1197,22 @@ vsf_sysutil_statbuf_get_date(const struct vsf_sysutil_statbuf* p_statbuf)
 
 const char*
 vsf_sysutil_statbuf_get_numeric_date(
-  const struct vsf_sysutil_statbuf* p_statbuf)
+  const struct vsf_sysutil_statbuf* p_statbuf,
+  int use_localtime)
 {
   static char datebuf[15];
   const struct stat* p_stat = (const struct stat*) p_statbuf;
-  struct tm* p_tm = gmtime(&p_stat->st_mtime);
-  int retval = strftime(datebuf, sizeof(datebuf), "%Y%m%d%H%M%S", p_tm);
+  struct tm* p_tm;
+  int retval;
+  if (!use_localtime)
+  {
+    p_tm = gmtime(&p_stat->st_mtime);
+  }
+  else
+  {
+    p_tm = localtime(&p_stat->st_mtime);
+  }
+  retval = strftime(datebuf, sizeof(datebuf), "%Y%m%d%H%M%S", p_tm);
   if (retval == 0)
   {
     die("strftime");
@@ -1151,7 +1220,7 @@ vsf_sysutil_statbuf_get_numeric_date(
   return datebuf;
 }
 
-unsigned long
+filesize_t
 vsf_sysutil_statbuf_get_size(const struct vsf_sysutil_statbuf* p_statbuf)
 {
   const struct stat* p_stat = (const struct stat*) p_statbuf;
@@ -1159,7 +1228,7 @@ vsf_sysutil_statbuf_get_size(const struct vsf_sysutil_statbuf* p_statbuf)
   {
     die("invalid inode size in vsf_sysutil_statbuf_get_size");
   }
-  return (unsigned long) p_stat->st_size;
+  return p_stat->st_size;
 }
 
 int
@@ -1300,6 +1369,9 @@ vsf_sysutil_get_error(void)
     case EINTR:
       retval = kVSFSysUtilErrINTR;
       break;
+    case EINVAL:
+      retval = kVSFSysUtilErrINVAL;
+      break;
   }
   return retval;
 }
@@ -1315,7 +1387,7 @@ vsf_sysutil_get_ipv4_sock(void)
   return retval;
 }
 
-const struct vsf_sysutil_socketpair_retval
+struct vsf_sysutil_socketpair_retval
 vsf_sysutil_unix_dgram_socketpair(void)
 {
   struct vsf_sysutil_socketpair_retval retval;
@@ -1356,7 +1428,10 @@ vsf_sysutil_accept_timeout(int fd, struct vsf_sysutil_sockaddr** p_sockptr,
   fd_set accept_fdset;
   struct timeval timeout;
   unsigned int socklen = sizeof(remote_addr);
-  vsf_sysutil_sockaddr_clear(p_sockptr);
+  if (p_sockptr)
+  {
+    vsf_sysutil_sockaddr_clear(p_sockptr);
+  }
   if (wait_seconds > 0)
   {
     FD_ZERO(&accept_fdset);
@@ -1388,8 +1463,11 @@ vsf_sysutil_accept_timeout(int fd, struct vsf_sysutil_sockaddr** p_sockptr,
   {
     die("can only support ipv4 currently");
   }
-  *p_sockptr = vsf_sysutil_malloc(sizeof(remote_addr));
-  vsf_sysutil_memcpy(*p_sockptr, &remote_addr, sizeof(remote_addr));
+  if (p_sockptr)
+  {
+    *p_sockptr = vsf_sysutil_malloc(sizeof(remote_addr));
+    vsf_sysutil_memcpy(*p_sockptr, &remote_addr, sizeof(remote_addr));
+  }
   return retval;
 }
 
@@ -1531,6 +1609,14 @@ vsf_sysutil_sockaddr_get_ipaddr(const struct vsf_sysutil_sockaddr* p_sockptr)
   return retval;
 }
 
+struct vsf_sysutil_ipv4addr
+vsf_sysutil_sockaddr_get_any(void)
+{
+  struct vsf_sysutil_ipv4addr retval;
+  vsf_sysutil_memclr(&retval, sizeof(retval));
+  return retval;
+}
+
 struct vsf_sysutil_ipv4port
 vsf_sysutil_sockaddr_get_port(const struct vsf_sysutil_sockaddr* p_sockptr)
 {
@@ -1575,6 +1661,21 @@ vsf_sysutil_inet_ntoa(const struct vsf_sysutil_sockaddr* p_sockptr)
 {
   const struct sockaddr_in* p_sockaddr = (const struct sockaddr_in*) p_sockptr;
   return inet_ntoa(p_sockaddr->sin_addr);
+}
+
+int
+vsf_sysutil_inet_aton(const char* p_text, struct vsf_sysutil_ipv4addr* p_addr)
+{
+  struct in_addr sin_addr;
+  if (inet_aton(p_text, &sin_addr))
+  {
+    vsf_sysutil_memcpy(p_addr, &sin_addr.s_addr, sizeof(*p_addr));
+    return 1;
+  }
+  else
+  {
+    return 0;
+  }
 }
 
 struct vsf_sysutil_user*
@@ -1703,6 +1804,64 @@ vsf_sysutil_setgid_numeric(int gid)
   }
 }
 
+int
+vsf_sysutil_geteuid(void)
+{
+  int retval = geteuid();
+  if (retval < 0)
+  {
+    die("geteuid");
+  }
+  return retval;
+}
+
+int
+vsf_sysutil_getegid(void)
+{
+  int retval = getegid();
+  if (retval < 0)
+  {
+    die("getegid");
+  }
+  return retval;
+}
+
+void
+vsf_sysutil_seteuid(const struct vsf_sysutil_user* p_user)
+{
+  const struct passwd* p_passwd = (const struct passwd*) p_user;
+  vsf_sysutil_seteuid_numeric(p_passwd->pw_uid);
+}
+
+void
+vsf_sysutil_setegid(const struct vsf_sysutil_user* p_user)
+{
+  const struct passwd* p_passwd = (const struct passwd*) p_user;
+  vsf_sysutil_setegid_numeric(p_passwd->pw_gid);
+}
+
+void
+vsf_sysutil_seteuid_numeric(int uid)
+{
+  /* setreuid() would seem to be more portable than seteuid() */
+  int retval = setreuid(-1, uid);
+  if (retval != 0)
+  {
+    die("seteuid");
+  }
+}
+
+void
+vsf_sysutil_setegid_numeric(int gid)
+{
+  /* setregid() would seem to be more portable than setegid() */
+  int retval = setregid(-1, gid);
+  if (retval != 0)
+  {
+    die("setegid");
+  }
+}
+
 void
 vsf_sysutil_clear_supp_groups(void)
 {
@@ -1768,7 +1927,7 @@ vsf_sysutil_tzset(void)
 const char*
 vsf_sysutil_get_current_date(void)
 {
-  static char datebuf[128];
+  static char datebuf[64];
   time_t curr_time;
   const struct tm* p_tm;
   vsf_sysutil_update_cached_time();

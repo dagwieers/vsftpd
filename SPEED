@@ -1,3 +1,5 @@
+- See also BENCHMARKS
+
 This FTPd should be very performant. The reasons for this are below, followed
 by specific benchmarks as and when I get them.
 
@@ -15,7 +17,7 @@ of the fork(), exec(), ELF loader startup, etc.
 It is not all good news, of course. Potential sources of poor performance
 include
 
-1) Overhead of two processes per session (in common configurations).
+1) Overhead of two processes per session (in some common configurations).
 
 2) Excessive heap usage hidden behind the string API.
 

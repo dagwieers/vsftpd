@@ -1,6 +1,6 @@
 Summary: vsftpd - Very Secure Ftp Daemon
 Name: vsftpd
-Version: 0.9.2
+Version: 1.1.0
 Release: rh7_2
 Copyright: GPL
 Group: System Environment/Daemons
@@ -24,7 +24,7 @@ make
 
 %install
 [ "$RPM_BUILD_ROOT" != "/" ] && rm -rf $RPM_BUILD_ROOT
-mkdir -p $RPM_BUILD_ROOT/usr/sbin
+mkdir -p $RPM_BUILD_ROOT/usr/local/sbin
 mkdir -p $RPM_BUILD_ROOT/usr/share/empty
 mkdir -p $RPM_BUILD_ROOT/etc
 mkdir -p $RPM_BUILD_ROOT/etc/xinetd.d
@@ -32,7 +32,7 @@ mkdir -p $RPM_BUILD_ROOT/etc/pam.d
 mkdir -p $RPM_BUILD_ROOT%{_mandir}/man5
 mkdir -p $RPM_BUILD_ROOT%{_mandir}/man8
 mkdir -p $RPM_BUILD_ROOT/etc/logrotate.d
-install -m 755 vsftpd  $RPM_BUILD_ROOT/usr/sbin/vsftpd
+install -m 755 vsftpd  $RPM_BUILD_ROOT/usr/local/sbin/vsftpd
 install -m 600 vsftpd.conf $RPM_BUILD_ROOT/etc/vsftpd.conf
 install -m 644 RedHat/vsftpd.pam $RPM_BUILD_ROOT/etc/pam.d/ftp
 install -m 644 xinetd.d/vsftpd $RPM_BUILD_ROOT/etc/xinetd.d/vsftpd
@@ -45,7 +45,7 @@ install -m 644 RedHat/vsftpd.log $RPM_BUILD_ROOT/etc/logrotate.d/vsftpd.log
 
 %files
 %defattr(-,root,root)
-/usr/sbin/vsftpd
+/usr/local/sbin/vsftpd
 %dir /usr/share/empty
 %config /etc/vsftpd.conf
 %config /etc/xinetd.d/vsftpd

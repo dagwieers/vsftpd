@@ -13,8 +13,9 @@
 #define VSFTP_DIR_BUFSIZE       16384
 #define VSFTP_PATH_MAX          4096
 #define VSFTP_CONF_FILE_MAX     100000
-
+#define VSFTP_LISTEN_BACKLOG    32
 #define VSFTP_SECURE_UMASK      077
+#define VSFTP_ROOT_UID          0
 
 #endif /* VSF_DEFS_H */
 

@@ -36,9 +36,16 @@ vsf_one_process_start(struct vsf_session* p_sess)
   }
   {
     struct mystr user_name = INIT_MYSTR;
+    struct mystr chdir_str = INIT_MYSTR;
     str_alloc_text(&user_name, tunable_ftp_username);
-    vsf_secutil_change_credentials(&user_name, 0, 1, 1, caps);
+    if (tunable_anon_root)
+    {
+      str_alloc_text(&chdir_str, tunable_anon_root);
+    }
+    vsf_secutil_change_credentials(&user_name, 0, &chdir_str, caps,
+        VSF_SECUTIL_OPTION_CHROOT | VSF_SECUTIL_OPTION_USE_GROUPS);
     str_free(&user_name);
+    str_free(&chdir_str);
   }
   init_connection(p_sess);
 }

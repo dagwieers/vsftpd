@@ -135,7 +135,7 @@ vsf_log_do_log_wuftpd_format(struct vsf_session* p_sess, struct mystr* p_str,
   str_append_str(p_str, &p_sess->remote_ip_str);
   str_append_char(p_str, ' ');
   /* Bytes transferred */
-  str_append_ulong(p_str, p_sess->transfer_size);
+  str_append_filesize_t(p_str, p_sess->transfer_size);
   str_append_char(p_str, ' ');
   /* Filename */
   str_append_str(p_str, &p_sess->log_str);
@@ -259,7 +259,7 @@ vsf_log_do_log_vsftpd_format(struct vsf_session* p_sess, struct mystr* p_str,
     if (p_sess->transfer_size)
     {
       str_append_text(p_str, ", ");
-      str_append_ulong(p_str, p_sess->transfer_size);
+      str_append_filesize_t(p_str, p_sess->transfer_size);
       str_append_text(p_str, " bytes");
     }
     if (vsf_log_type_is_transfer(what))
