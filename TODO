@@ -4,12 +4,18 @@ CRITICAL
 - Improve FAQ, docs (ongoing..)
 - Integrated test suite (I'm so lazy..)
 
-- libcrypt build error
-- FreeBSD build error
-
 NOT SO CRITICAL
 ===============
 
+- SITE GROUP support.
+- SITE UTIME?
+- And session timeout too :( (not working with SSL).
+- lock the files being modified?
+- Send until EOF is really reached (not the case with sendfile mode).
+- Still reports FlashFXP broken when trying to do FXP.
+- Add negation support to regex handler. Doc what regex is supported in man
+page.
+- Separate public / private key files for SSL support.
 - Fix SIGHUP config file reload to correctly reset _removed_ settings to
 their default values.
 - Allow listener to listen on multiple IPs; bonus points if the different
@@ -24,7 +30,7 @@ used.
 - option to chroot to home dir and THEN apply init_dir
 - pasv_addr_file option (patch from Adam Luter)
 - Sweedish characters showing as ? in the log.
-
+- Test vsftpd with pam_opie (issues with challenge/response vs. FTP protocol?)
 - separate upload/download max rates
 - select() is assuming Linux behaviour (not threatening stability)
 - add example global bandwidth limiting.
@@ -36,15 +42,12 @@ ON THE BACK BURNER
 
 - MLST, MLSD
 - LPRT, LPSV
-- lock the files being modified?
 - Small race: signal might come in just before we start a blocking call
 - log logout (pam session support provides this for locals)
 - Limits on GIDs allowed to authenticate?
 - Dynamic login info e.g. you are user XXX of YYY.
 - Handle SIGINT.
 - Session byte transfer counts in STAT output.
-- OOPS: capset issue with some 2.6 kernel / distro combinations (cannot
-reproduce; kernel bug?)
 - Mac OS X setgroups() issue (report of success with 10.3.4, maybe OS X bug
 has been fixed?)
 - Fix for systems with no IPv6 (e.g. Solaris 7) (I'm only getting limited

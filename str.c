@@ -129,7 +129,9 @@ str_free(struct mystr* p_str)
 void
 str_empty(struct mystr* p_str)
 {
-  p_str->len = 0;
+  /* Ensure a buffer is allocated. */
+  (void) str_getbuf(p_str);
+  str_trunc(p_str, 0);
 }
 
 void

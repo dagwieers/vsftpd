@@ -77,7 +77,7 @@ items are pilfering of all publicly readable files, and also attempting to
 execute any publicly executable suid-root programs to try and elevate
 privilege.
 
-Now imaging the same compromised process with a chroot() to an empty directory.
+Now imagine the same compromised process with a chroot() to an empty directory.
 The attackers options to do unpleasant things are substantially diminished.
 
 No, chroot() is not the ideal way to do what we have just accomplished, but

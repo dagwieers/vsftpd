@@ -622,6 +622,7 @@ static int do_sendfile(const int out_fd, const int in_fd,
   static char* p_recvbuf;
   unsigned int total_written = 0;
   int retval;
+  enum EVSFSysUtilError error;
   (void) start_pos;
 #if defined(VSF_SYSDEP_HAVE_LINUX_SENDFILE) || \
     defined(VSF_SYSDEP_HAVE_FREEBSD_SENDFILE) || \
@@ -690,15 +691,16 @@ static int do_sendfile(const int out_fd, const int in_fd,
           retval = sendfile(out_fd, in_fd, start_pos, num_send, NULL, 0);
         }
   #endif /* VSF_SYSDEP_HAVE_LINUX_SENDFILE */
+        error = vsf_sysutil_get_error();
         vsf_sysutil_check_pending_actions(kVSFSysUtilIO, retval, out_fd);
       }
       while (vsf_sysutil_retval_is_error(retval) &&
-             vsf_sysutil_get_error() == kVSFSysUtilErrINTR);
+             error == kVSFSysUtilErrINTR);
       if (!s_sendfile_checked)
       {
         s_sendfile_checked = 1;
         if (!vsf_sysutil_retval_is_error(retval) ||
-            vsf_sysutil_get_error() != kVSFSysUtilErrNOSYS)
+            error != kVSFSysUtilErrNOSYS)
         {
           s_runtime_sendfile_works = 1;
         }
@@ -707,9 +709,8 @@ static int do_sendfile(const int out_fd, const int in_fd,
       {
         return retval;
       }
-      if (s_runtime_sendfile_works &&
-          vsf_sysutil_get_error() != kVSFSysUtilErrINVAL &&
-          vsf_sysutil_get_error() != kVSFSysUtilErrOPNOTSUPP)
+      if (s_runtime_sendfile_works && error != kVSFSysUtilErrINVAL &&
+          error != kVSFSysUtilErrOPNOTSUPP)
       {
         return retval;
       }

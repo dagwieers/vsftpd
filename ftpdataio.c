@@ -59,8 +59,8 @@ vsf_ftpdataio_dispose_transfer_fd(struct vsf_session* p_sess)
   {
     bug("no data descriptor in vsf_ftpdataio_dispose_transfer_fd");
   }
-  /* Clear the data connection alarm */
-  vsf_sysutil_clear_alarm();
+  /* Reset the data connection alarm so it runs anew with the blocking close */
+  start_data_alarm(p_sess);
   vsf_sysutil_uninstall_io_handler();
   if (p_sess->p_data_ssl != 0)
   {
@@ -74,6 +74,7 @@ vsf_ftpdataio_dispose_transfer_fd(struct vsf_session* p_sess)
     vsf_sysutil_deactivate_linger_failok(p_sess->data_fd);
     (void) vsf_sysutil_close_failok(p_sess->data_fd);
   }
+  vsf_sysutil_clear_alarm();
   p_sess->data_fd = -1;
 }
 
@@ -244,7 +245,7 @@ handle_io(int retval, int fd, void* p_private)
   elapsed = (double) (curr_sec - p_sess->bw_send_start_sec);
   elapsed += (double) (curr_usec - p_sess->bw_send_start_usec) /
              (double) 1000000;
-  if (elapsed == (double) 0)
+  if (elapsed <= (double) 0)
   {
     elapsed = (double) 0.01;
   }
@@ -463,14 +464,12 @@ do_file_send_rwloop(struct vsf_session* p_sess, int file_fd, int is_ascii)
     int retval = vsf_sysutil_read(file_fd, p_readbuf, chunk_size);
     if (vsf_sysutil_retval_is_error(retval))
     {
-      vsf_cmdio_write(p_sess, FTP_BADSENDFILE, "Failure reading local file.");
       ret_struct.retval = -1;
       return ret_struct;
     }
     else if (retval == 0)
     {
       /* Success - cool */
-      vsf_cmdio_write(p_sess, FTP_TRANSFEROK, "File send OK.");
       return ret_struct;
     }
     if (is_ascii)
@@ -486,9 +485,7 @@ do_file_send_rwloop(struct vsf_session* p_sess, int file_fd, int is_ascii)
     if (vsf_sysutil_retval_is_error(retval) ||
         (unsigned int) retval != num_to_write)
     {
-      vsf_cmdio_write(p_sess, FTP_BADSENDNET,
-                      "Failure writing network stream.");
-      ret_struct.retval = -1;
+      ret_struct.retval = -2;
       return ret_struct;
     }
     ret_struct.transferred += (unsigned int) retval;
@@ -515,18 +512,14 @@ do_file_send_sendfile(struct vsf_session* p_sess, int net_fd, int file_fd,
   ret_struct.transferred = bytes_sent;
   if (vsf_sysutil_retval_is_error(retval))
   {
-    vsf_cmdio_write(p_sess, FTP_BADSENDNET, "Failure writing network stream.");
-    ret_struct.retval = -1;
+    ret_struct.retval = -2;
     return ret_struct;
   }
   else if (bytes_sent != bytes_to_send)
   {
-    vsf_cmdio_write(p_sess, FTP_BADSENDFILE,
-                    "Failure writing network stream.");
-    ret_struct.retval = -1;
+    ret_struct.retval = -2;
     return ret_struct;
   }
-  vsf_cmdio_write(p_sess, FTP_TRANSFEROK, "File send OK.");
   return ret_struct; 
 }
 
@@ -561,24 +554,28 @@ do_file_recv(struct vsf_session* p_sess, int file_fd, int is_ascii)
   unsigned int num_to_write;
   struct vsf_transfer_ret ret_struct = { 0, 0 };
   unsigned int chunk_size = get_chunk_size();
+  int prev_cr = 0;
   if (p_recvbuf == 0)
   {
-    vsf_secbuf_alloc(&p_recvbuf, VSFTP_DATA_BUFSIZE);
+    /* Now that we do ASCII conversion properly, the plus one is to cater for
+     * the fact we may need to stick a '\r' at the front of the buffer if the
+     * last buffer fragment eneded in a '\r' and the current buffer fragment
+     * does not start with a '\n'.
+     */
+    vsf_secbuf_alloc(&p_recvbuf, VSFTP_DATA_BUFSIZE + 1);
   }
   while (1)
   {
-    int retval = ftp_read_data(p_sess, p_recvbuf, chunk_size);
+    const char* p_writebuf = p_recvbuf + 1;
+    int retval = ftp_read_data(p_sess, p_recvbuf + 1, chunk_size);
     if (vsf_sysutil_retval_is_error(retval))
     {
-      vsf_cmdio_write(p_sess, FTP_BADSENDNET,
-                      "Failure reading network stream.");
-      ret_struct.retval = -1;
+      ret_struct.retval = -2;
       return ret_struct;
     }
-    else if (retval == 0)
+    else if (retval == 0 && !prev_cr)
     {
       /* Transfer done, nifty */
-      vsf_cmdio_write(p_sess, FTP_TRANSFEROK, "File receive OK.");
       return ret_struct;
     }
     num_to_write = (unsigned int) retval;
@@ -589,15 +586,16 @@ do_file_recv(struct vsf_session* p_sess, int file_fd, int is_ascii)
        * buffer for source and destination is safe, because the ASCII ->
        * binary transform only ever results in a smaller file.
        */
-      num_to_write = vsf_ascii_ascii_to_bin(p_recvbuf, p_recvbuf,
-                                            num_to_write);
+      struct ascii_to_bin_ret ret =
+        vsf_ascii_ascii_to_bin(p_recvbuf, num_to_write, prev_cr);
+      num_to_write = ret.stored;
+      prev_cr = ret.last_was_cr;
+      p_writebuf = ret.p_buf;
     }
-    retval = vsf_sysutil_write_loop(file_fd, p_recvbuf, num_to_write);
+    retval = vsf_sysutil_write_loop(file_fd, p_writebuf, num_to_write);
     if (vsf_sysutil_retval_is_error(retval) ||
         (unsigned int) retval != num_to_write)
     {
-      vsf_cmdio_write(p_sess, FTP_BADSENDFILE,
-                      "Failure writing to local file.");
       ret_struct.retval = -1;
       return ret_struct;
     }

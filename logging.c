@@ -336,7 +336,12 @@ vsf_log_do_log_vsftpd_format(struct vsf_session* p_sess, struct mystr* p_str,
                         p_sess->log_start_usec;
       double time_delta = (double) delta_sec + ((double) delta_usec /
                                                 (double) 1000000);
-      double kbyte_rate =
+      double kbyte_rate;
+      if (time_delta <= 0)
+      {
+        time_delta = 0.1;
+      }
+      kbyte_rate =
         ((double) p_sess->transfer_size / time_delta) / (double) 1024;
       str_append_text(p_str, ", ");
       str_append_double(p_str, kbyte_rate);

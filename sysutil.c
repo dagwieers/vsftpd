@@ -20,6 +20,7 @@
 #define _FILE_OFFSET_BITS 64
 #define _LARGEFILE_SOURCE 1
 #define _LARGEFILE64_SOURCE 1
+#define _LARGE_FILES 1
 
 /* For Linux, this adds nothing :-) */
 #include "port/porting_junk.h"
@@ -328,8 +329,9 @@ vsf_sysutil_read(const int fd, void* p_buf, const unsigned int size)
   while (1)
   {
     int retval = read(fd, p_buf, size);
+    int saved_errno = errno;
     vsf_sysutil_check_pending_actions(kVSFSysUtilIO, retval, fd);
-    if (retval < 0 && errno == EINTR)
+    if (retval < 0 && saved_errno == EINTR)
     {
       continue;
     }
@@ -343,8 +345,9 @@ vsf_sysutil_write(const int fd, const void* p_buf, const unsigned int size)
   while (1)
   {
     int retval = write(fd, p_buf, size);
+    int saved_errno = errno;
     vsf_sysutil_check_pending_actions(kVSFSysUtilIO, retval, fd);
-    if (retval < 0 && errno == EINTR)
+    if (retval < 0 && saved_errno == EINTR)
     {
       continue;
     }
@@ -681,7 +684,7 @@ vsf_sysutil_activate_linger(int fd)
   int retval;
   struct linger the_linger;
   the_linger.l_onoff = 1;
-  the_linger.l_linger = 5 * 60;
+  the_linger.l_linger = INT_MAX;
   retval = setsockopt(fd, SOL_SOCKET, SO_LINGER, &the_linger,
                       sizeof(the_linger));
   if (retval != 0)
@@ -696,8 +699,7 @@ vsf_sysutil_deactivate_linger_failok(int fd)
   struct linger the_linger;
   the_linger.l_onoff = 0;
   the_linger.l_linger = 0;
-  (void) setsockopt(fd, SOL_SOCKET, SO_LINGER, &the_linger,
-                    sizeof(the_linger));
+  (void) setsockopt(fd, SOL_SOCKET, SO_LINGER, &the_linger, sizeof(the_linger));
 }
 
 void
@@ -740,8 +742,9 @@ vsf_sysutil_recv_peek(const int fd, void* p_buf, unsigned int len)
   while (1)
   {
     int retval = recv(fd, p_buf, len, MSG_PEEK);
+    int saved_errno = errno;
     vsf_sysutil_check_pending_actions(kVSFSysUtilIO, retval, fd);
-    if (retval < 0 && errno == EINTR)
+    if (retval < 0 && saved_errno == EINTR)
     {
       continue;
     }
@@ -1447,6 +1450,7 @@ vsf_sysutil_lock_file(int fd)
 {
   struct flock the_lock;
   int retval;
+  int saved_errno;
   vsf_sysutil_memclr(&the_lock, sizeof(the_lock));
   the_lock.l_type = F_WRLCK;
   the_lock.l_whence = SEEK_SET;
@@ -1455,9 +1459,10 @@ vsf_sysutil_lock_file(int fd)
   do
   {
     retval = fcntl(fd, F_SETLKW, &the_lock);
+    saved_errno = errno;
     vsf_sysutil_check_pending_actions(kVSFSysUtilUnknown, 0, 0);
   }
-  while (retval < 0 && errno == EINTR);
+  while (retval < 0 && saved_errno == EINTR);
   return retval;
 }
 
@@ -1602,6 +1607,7 @@ vsf_sysutil_accept_timeout(int fd, struct vsf_sysutil_sockaddr* p_sockaddr,
 {
   struct vsf_sysutil_sockaddr remote_addr;
   int retval;
+  int saved_errno;
   fd_set accept_fdset;
   struct timeval timeout;
   unsigned int socklen = sizeof(remote_addr);
@@ -1618,8 +1624,9 @@ vsf_sysutil_accept_timeout(int fd, struct vsf_sysutil_sockaddr* p_sockaddr,
     do
     {
       retval = select(fd + 1, &accept_fdset, NULL, NULL, &timeout);
+      saved_errno = errno;
       vsf_sysutil_check_pending_actions(kVSFSysUtilUnknown, 0, 0);
-    } while (retval < 0 && errno == EINTR);
+    } while (retval < 0 && saved_errno == EINTR);
     if (retval == 0)
     {
       errno = EAGAIN;
@@ -1667,6 +1674,7 @@ vsf_sysutil_connect_timeout(int fd, const struct vsf_sysutil_sockaddr* p_addr,
   const struct sockaddr* p_sockaddr = &p_addr->u.u_sockaddr;
   unsigned int addrlen = 0;
   int retval;
+  int saved_errno;
   if (p_sockaddr->sa_family == AF_INET)
   {
     addrlen = sizeof(p_addr->u.u_sockaddr_in);
@@ -1695,9 +1703,10 @@ vsf_sysutil_connect_timeout(int fd, const struct vsf_sysutil_sockaddr* p_addr,
     do
     {
       retval = select(fd + 1, NULL, &connect_fdset, NULL, &timeout);
+      saved_errno = errno;
       vsf_sysutil_check_pending_actions(kVSFSysUtilUnknown, 0, 0);
     }
-    while (retval < 0 && errno == EINTR);
+    while (retval < 0 && saved_errno == EINTR);
     if (retval == 0)
     {
       retval = -1;
@@ -2426,6 +2435,7 @@ void
 vsf_sysutil_sleep(double seconds)
 {
   int retval;
+  int saved_errno;
   double fractional;
   time_t secs;
   struct timespec ts;
@@ -2436,8 +2446,9 @@ vsf_sysutil_sleep(double seconds)
   do
   {
     retval = nanosleep(&ts, &ts);
+    saved_errno = errno;
     vsf_sysutil_check_pending_actions(kVSFSysUtilUnknown, 0, 0);
-  } while (retval == -1 && errno == EINTR);
+  } while (retval == -1 && saved_errno == EINTR);
 }
 
 char*

@@ -11,8 +11,8 @@ struct vsf_session;
 /* vsf_ftpdataio_dispose_transfer_fd()
  * PURPOSE
  * Close down the remote data transfer file descriptor. If unsent data reamins
- * on the connection, this method blocks until it is transferred. There is an
- * upper limit of 5 minutes.
+ * on the connection, this method blocks until it is transferred (or the data
+ * timeout goes off, or the connection is severed).
  * PARAMETERS
  * p_sess       - the current FTP session object
  */
@@ -63,6 +63,7 @@ int vsf_ftpdataio_post_mark_connect(struct vsf_session* p_sess);
  * RETURNS
  * A structure, containing
  * retval       - 0 for success, failure otherwise
+ *                (-1 = local problem -2 = remote problem)
  * transferred  - number of bytes transferred
  */
 struct vsf_transfer_ret

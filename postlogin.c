@@ -67,7 +67,7 @@ static void handle_dir_common(struct vsf_session* p_sess, int full_details,
 static void prepend_path_to_filename(struct mystr* p_str);
 static int get_remote_transfer_fd(struct vsf_session* p_sess,
                                   const char* p_status_msg);
-static int dispose_remote_transfer_fd(struct vsf_session* p_sess);
+static void check_abor(struct vsf_session* p_sess);
 static void handle_sigurg(void* p_private);
 static void handle_upload_common(struct vsf_session* p_sess, int is_append,
                                  int is_unique);
@@ -612,7 +612,6 @@ handle_retr(struct vsf_session* p_sess)
   static struct mystr s_mark_str;
   static struct vsf_sysutil_statbuf* s_p_statbuf;
   struct vsf_transfer_ret trans_ret;
-  int retval;
   int remote_fd;
   int opened_file;
   int is_ascii = 0;
@@ -686,13 +685,29 @@ handle_retr(struct vsf_session* p_sess)
   }
   trans_ret = vsf_ftpdataio_transfer_file(p_sess, remote_fd,
                                           opened_file, 0, is_ascii);
+  vsf_ftpdataio_dispose_transfer_fd(p_sess);
   p_sess->transfer_size = trans_ret.transferred;
-  retval = dispose_remote_transfer_fd(p_sess);
   /* Log _after_ the blocking dispose call, so we get transfer times right */
-  if (trans_ret.retval == 0 && retval == 0)
+  if (trans_ret.retval == 0)
   {
     vsf_log_do_log(p_sess, 1);
   }
+  /* Emit status message _after_ blocking dispose call to avoid buggy FTP
+   * clients truncating the transfer.
+   */
+  if (trans_ret.retval == -1)
+  {
+    vsf_cmdio_write(p_sess, FTP_BADSENDFILE, "Failure reading local file.");
+  }
+  else if (trans_ret.retval == -2)
+  {
+    vsf_cmdio_write(p_sess, FTP_BADSENDNET, "Failure writing network stream.");
+  }
+  else
+  {
+    vsf_cmdio_write(p_sess, FTP_TRANSFEROK, "File send OK.");
+  }
+  check_abor(p_sess);
 port_pasv_cleanup_out:
   port_cleanup(p_sess);
   pasv_cleanup(p_sess);
@@ -813,6 +828,10 @@ handle_dir_common(struct vsf_session* p_sess, int full_details, int stat_cmd)
                                         &s_dir_name_str, &s_option_str,
                                         &s_filter_str, full_details);
   }
+  if (!stat_cmd)
+  {
+    vsf_ftpdataio_dispose_transfer_fd(p_sess);
+  }
   if (stat_cmd)
   {
     vsf_cmdio_write(p_sess, FTP_STATFILE_OK, "End of status");
@@ -830,10 +849,7 @@ handle_dir_common(struct vsf_session* p_sess, int full_details, int stat_cmd)
   {
     vsf_cmdio_write(p_sess, FTP_BADSENDNET, "Failure writing network stream.");
   }
-  if (!stat_cmd)
-  {
-    (void) dispose_remote_transfer_fd(p_sess);
-  }
+  check_abor(p_sess);
 dir_close_out:
   if (p_dir)
   {
@@ -943,7 +959,6 @@ handle_upload_common(struct vsf_session* p_sess, int is_append, int is_unique)
   struct vsf_transfer_ret trans_ret;
   int new_file_fd;
   int remote_fd;
-  int retval;
   filesize_t offset = p_sess->restart_pos;
   p_sess->restart_pos = 0;
   if (!data_transfer_checks_ok(p_sess))
@@ -1035,14 +1050,26 @@ handle_upload_common(struct vsf_session* p_sess, int is_append, int is_unique)
     trans_ret = vsf_ftpdataio_transfer_file(p_sess, remote_fd,
                                             new_file_fd, 1, 0);
   }
+  vsf_ftpdataio_dispose_transfer_fd(p_sess);
   p_sess->transfer_size = trans_ret.transferred;
   /* XXX - handle failure, delete file? */
-  retval = dispose_remote_transfer_fd(p_sess);
-  /* Log _after_ the blocking dispose call, so we get transfer times right */
-  if (trans_ret.retval == 0 && retval == 0)
+  if (trans_ret.retval == 0)
   {
     vsf_log_do_log(p_sess, 1);
   }
+  if (trans_ret.retval == -1)
+  {
+    vsf_cmdio_write(p_sess, FTP_BADSENDFILE, "Failure writing to local file.");
+  }
+  else if (trans_ret.retval == -2)
+  {
+    vsf_cmdio_write(p_sess, FTP_BADSENDNET, "Failure reading network stream.");
+  }
+  else
+  {
+    vsf_cmdio_write(p_sess, FTP_TRANSFEROK, "File receive OK.");
+  }
+  check_abor(p_sess);
 port_pasv_cleanup_out:
   port_cleanup(p_sess);
   pasv_cleanup(p_sess);
@@ -1327,18 +1354,15 @@ get_remote_transfer_fd(struct vsf_session* p_sess, const char* p_status_msg)
   return remote_fd;
 }
 
-static int
-dispose_remote_transfer_fd(struct vsf_session* p_sess)
+static void
+check_abor(struct vsf_session* p_sess)
 {
-  vsf_ftpdataio_dispose_transfer_fd(p_sess);
   /* If the client sent ABOR, respond to it here */
   if (p_sess->abor_received)
   {
     p_sess->abor_received = 0;
     vsf_cmdio_write(p_sess, FTP_ABOROK, "ABOR successful.");
-    return -1;
   }
-  return 0;
 }
 
 static void

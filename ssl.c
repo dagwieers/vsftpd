@@ -203,13 +203,19 @@ ssl_getline(const struct vsf_session* p_sess, struct mystr* p_str,
 int
 ssl_read(void* p_ssl, char* p_buf, unsigned int len)
 {
-  return SSL_read((SSL*) p_ssl, p_buf, len);
+  int retval = SSL_read((SSL*) p_ssl, p_buf, len);
+  int fd = SSL_get_fd((SSL*) p_ssl);
+  vsf_sysutil_check_pending_actions(kVSFSysUtilIO, retval, fd);
+  return retval;
 }
 
 int
 ssl_write(void* p_ssl, const char* p_buf, unsigned int len)
 {
-  return SSL_write((SSL*) p_ssl, p_buf, len);
+  int retval = SSL_write((SSL*) p_ssl, p_buf, len);
+  int fd = SSL_get_fd((SSL*) p_ssl);
+  vsf_sysutil_check_pending_actions(kVSFSysUtilIO, retval, fd);
+  return retval;
 }
 
 int

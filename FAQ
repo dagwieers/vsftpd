@@ -182,7 +182,7 @@ A) You shouldn't see this with v1.2.1 or newer versions of vsftpd. Older
 versions of vsftpd can give this error if the user tries to download
 something from an unusual filesystem (e.g. FAT), which don't support
 performance features used by vsftpd. With vsftpd-1.1.3 and newer there is a
-confif workaround, use_sendfile=NO.
+config workaround, use_sendfile=NO.
 
 Q) Help! I'm using the pam_userdb login module and the login hangs.
 A) This could be a bad interaction with glibc version 2.3 and PAM. A Debian
@@ -215,6 +215,24 @@ A) Yes, as of v2.0.0, this is supported for the control and data connections
 need to activate the ssl_enable setting. NOTE there are security considerations
 with this support. Please make sure to read the ssl_enable section in the
 vsftpd.conf.5 man page thoroughly before using.
+
+Q) Help! I'm using FlashFXP and getting truncated files on download.
+A) FlashFXP is buggy - particularly with SSL transfers. Upgrade to v3.0RC4
+or newer, which is reported to be fixed.
+
+Q) Help! I'm trying to build vsftpd, and I get an error along the lines of
+"krb5.h: no such file or directory".
+A) Yes, seems to be a problem with some RedHat setups. See
+http://bugzilla.redhat.com/bugzilla/show_bug.cgi?id=111301 for details and
+suggested workarounds.
+
+Q) Help! I'm getting the error "OOPS: capset" when I try to connect to vsftpd.
+A) This is an issue with SELinux enabled distributions. The solution is to
+make sure the capability kernel module is loaded.
+
+Q) Help! I'm getting the error "ftp: netin: Interrupted system call".
+A) Seems to be a bug in ftp-tls, particularly with SSL transfers with
+bandwidth limiting in effect.
 
 Q) Blah.. blah..
 A) For a good idea of what vsftpd can do, read the vsftpd.conf.5 man page

@@ -819,3 +819,32 @@ compliant; timezone should be a variable not a function).
 At this point: v2.0.1 released!
 ===============================
 
+- Fix FAQ typo, thanks to Jose Santiago Oyervides Gonzalez
+<jose.oyervides@elnorte.com>.
+- Emit data transfer status messages (success / failure) after flushing and
+waiting for the full data transfer to reach the client. This should help work
+around buggy FTP clients such as FlashFXP, which is known to truncate files
+incorrectly.
+(v2.0.2pre1)
+- Make str_empty actually allocate an empty string.
+- Change the ASCII receive code to ONLY rip out \r if it is just before a \n;
+someone finally complained about this.
+(v2.0.2pre2)
+- Enable AIX Large File Support #define from Tomas gren <stric@cs.umu.se>.
+- Add a couple of FAQ entries.
+- Fix time delta code areas to cope with negative deltas, which will occur
+if the clock is adjusted backwards. Thanks to Andrew Anderson
+<andrew@redhat.com> for a great report.
+- Fix "errno" checks to be robust in multiple places; previously, calls to
+failing library calls could be made inbetween the original library call and
+the "errno" reads. Thanks to Andrew Anderson <andrew@redhat.com> for a great
+report.
+- Make bandwidth limiter work with SSL data connections.
+(v2.0.2pre3)
+- Note that the SSL / bandwidth limiter bug fixed a much more serious bug:
+SSL data connection dropouts after data_connection_timeout seconds.
+- Typo fixes.
+
+At this point: v2.0.2 released! (need to get the SSL dropout fix out)
+=====================================================================
+
