@@ -14,7 +14,11 @@ enum EVSFLogEntryType
   kVSFLogEntryLogin,
   kVSFLogEntryFTPInput,
   kVSFLogEntryFTPOutput,
-  kVSFLogEntryConnection
+  kVSFLogEntryConnection,
+  kVSFLogEntryDelete,
+  kVSFLogEntryRename,
+  kVSFLogEntryRmdir,
+  kVSFLogEntryChmod
 };
 
 /* vsf_log_init()
@@ -36,6 +40,14 @@ void vsf_log_init(struct vsf_session* p_sess);
  */
 void vsf_log_start_entry(struct vsf_session* p_sess,
                          enum EVSFLogEntryType what);
+
+/* vsf_log_entry_pending()
+ * PURPOSE
+ * Determine whether a log entry has been started and not yet closed.
+ * RETURNS
+ * 0 if no log entry is pending; 1 if one is.
+ */
+int vsf_log_entry_pending(struct vsf_session* p_sess);
 
 /* vsf_log_do_log()
  * PURPOSE

@@ -3,32 +3,27 @@ CRITICAL
 
 - Improve FAQ, docs (ongoing..)
 - Integrated test suite (I'm so lazy..)
-- Allow easy disabling of log file lock (Solaris / Veritas Cluster Service bug?)
 
 NOT SO CRITICAL
 ===============
 
-- Consider CWD ~
-- Log DELE (and chmod, rnto, etc.)
+- Fix SIGHUP config file reload to correctly reset _removed_ settings to
+their default values.
+- Allow listener to listen on multiple IPs; bonus points if the different
+IPs can have different configs.
+- Upload file size limits.
+- Allow groups to be listed in user lists.
 - Allow space in username.
-- Max OSX setgroups() issue.
 - Minor: background should happen after listen has completed so that failure
 can result in a non-zero exit code.
 - Better reporting of failed uploads due to out of device space or quota all
 used.
-- OpenSSL support.
-- Fix for systems with no IPv6 (e.g. Solaris 7).
-- PASV auto address guessing?
 - option to chroot to home dir and THEN apply init_dir
 - pasv_addr_file option (patch from Adam Luter)
 - Sweedish characters showing as ? in the log.
-- Handle SIGINT.
-- More stuff in the STAT output (session stats, etc. Perhaps even an "admin"
-mode which dumps session details?).
 
 - separate upload/download max rates
 - select() is assuming Linux behaviour (not threatening stability)
-- some FTP clients are trying to use MDTM to _set_ timestamps?
 - add example global bandwidth limiting.
 - put anon FTP users in wtmp too?
 - switch to new signal model
@@ -36,10 +31,21 @@ mode which dumps session details?).
 ON THE BACK BURNER
 ==================
 
+- MLST, MLSD
+- LPRT, LPSV
 - lock the files being modified?
 - Small race: signal might come in just before we start a blocking call
 - log logout (pam session support provides this for locals)
 - Limits on GIDs allowed to authenticate?
+- Dynamic login info e.g. you are user XXX of YYY.
+- Handle SIGINT.
+- Session byte transfer counts in STAT output.
+- OOPS: capset issue with some 2.6 kernel / distro combinations (cannot
+reproduce; kernel bug?)
+- Mac OS X setgroups() issue (report of success with 10.3.4, maybe OS X bug
+has been fixed?)
+- Fix for systems with no IPv6 (e.g. Solaris 7) (I'm only getting limited
+numbers of these reports)
 
 NOT PLANNED
 ===========

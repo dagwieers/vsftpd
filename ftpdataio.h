@@ -40,6 +40,17 @@ int vsf_ftpdataio_get_pasv_fd(struct vsf_session* p_sess);
  */
 int vsf_ftpdataio_get_port_fd(struct vsf_session* p_sess);
 
+/* vsf_ftpdataio_post_mark_connect()
+ * PURPOSE
+ * Perform any post-150-status-mark setup on the data connection. For example,
+ * the negotiation of SSL.
+ * PARAMETERS
+ * p_sess       - the current FTP session object
+ * RETURNS
+ * 1 on success, 0 otherwise.
+ */
+int vsf_ftpdataio_post_mark_connect(struct vsf_session* p_sess);
+
 /* vsf_ftpdataio_transfer_file()
  * PURPOSE
  * Send data between the network and a local file. Send and receive are
@@ -69,15 +80,15 @@ struct vsf_transfer_ret vsf_ftpdataio_transfer_file(
  * client.
  * PARAMETERS
  * p_sess         - the current session object
- * remote_fd      - the file descriptor of the remote data connection
+ * is_control     - whether to send on the control connection or data connection
  * p_dir          - the local directory object
  * p_base_dir_str - the directory we opened relative to the current one
  * p_option_str   - the options list provided to "ls"
  * p_filter_str   - the filter string provided to "ls"
  * is_verbose     - set to 0 if NLST used, 1 if LIST used
  */
-int vsf_ftpdataio_transfer_dir(struct vsf_session* p_sess,
-                               int remote_fd, struct vsf_sysutil_dir* p_dir,
+int vsf_ftpdataio_transfer_dir(struct vsf_session* p_sess, int is_control,
+                               struct vsf_sysutil_dir* p_dir,
                                const struct mystr* p_base_dir_str,
                                const struct mystr* p_option_str,
                                const struct mystr* p_filter_str,

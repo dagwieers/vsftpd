@@ -41,6 +41,13 @@ str_write_loop(const struct mystr* p_str, const int fd)
 }
 
 int
+str_read_loop(struct mystr* p_str, const int fd)
+{
+  return vsf_sysutil_read_loop(
+    fd, (char*) str_getbuf(p_str), str_getlen(p_str));
+}
+
+int
 str_mkdir(const struct mystr* p_str, const unsigned int mode)
 {
   return vsf_sysutil_mkdir(str_getbuf(p_str), mode);

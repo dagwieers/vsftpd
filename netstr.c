@@ -15,9 +15,6 @@
 #include "utility.h"
 #include "sysutil.h"
 
-static int str_netfd_write_common(const struct mystr* p_str, int fd,
-                                  int noblock);
-
 void
 str_netfd_alloc(struct mystr* p_str, int fd, char term, char* p_readbuf,
                 unsigned int maxlen)
@@ -85,41 +82,35 @@ str_netfd_alloc(struct mystr* p_str, int fd, char term, char* p_readbuf,
   } /* END: while(1) */
 }
 
-static int
-str_netfd_write_common(const struct mystr* p_str, int fd, int noblock)
+int
+str_netfd_write(const struct mystr* p_str, int fd)
 {
   int ret = 0;
   int retval;
   unsigned int str_len = str_getlen(p_str);
   if (str_len == 0)
   {
-    bug("zero str_len in str_netfd_write_common");
-  }
-  if (noblock)
-  {
-    vsf_sysutil_activate_noblock(fd);
+    bug("zero str_len in str_netfd_write");
   }
   retval = str_write_loop(p_str, fd);
   if (vsf_sysutil_retval_is_error(retval) || (unsigned int) retval != str_len)
   {
     ret = -1;
   }
-  if (noblock)
-  {
-    vsf_sysutil_deactivate_noblock(fd);
-  }
   return ret;
 }
 
 int
-str_netfd_write(const struct mystr* p_str, int fd)
+str_netfd_read(struct mystr* p_str, int fd, unsigned int len)
 {
-  return str_netfd_write_common(p_str, fd, 0);
-}
-
-int
-str_netfd_write_noblock(const struct mystr* p_str, int fd)
-{
-  return str_netfd_write_common(p_str, fd, 1);
+  int retval;
+  str_reserve(p_str, len);
+  str_trunc(p_str, len);
+  retval = str_read_loop(p_str, fd);
+  if (vsf_sysutil_retval_is_error(retval) || (unsigned int) retval != len)
+  {
+    return -1;
+  }
+  return retval;
 }
 

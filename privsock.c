@@ -18,115 +18,115 @@
 #include "netstr.h"
 #include "sysutil.h"
 #include "sysdeputil.h"
-#include "secbuf.h"
 #include "session.h"
 
 void
 priv_sock_init(struct vsf_session* p_sess)
 {
   const struct vsf_sysutil_socketpair_retval retval =
-    vsf_sysutil_unix_dgram_socketpair();
-  if (p_sess->privsock_inited)
-  {
-    bug("priv_sock_init called twice");
-  }
+    vsf_sysutil_unix_stream_socketpair();
   p_sess->parent_fd = retval.socket_one;
   p_sess->child_fd = retval.socket_two;
-  p_sess->privsock_inited = 1;
 }
 
 void
-priv_sock_send_cmd(struct vsf_session* p_sess, char cmd)
+priv_sock_send_cmd(int fd, char cmd)
 {
-  /* DGRAM socket -> message boundaries retained -> use plain write */
-  int retval = vsf_sysutil_write(p_sess->child_fd, &cmd, sizeof(cmd));
+  int retval = vsf_sysutil_write_loop(fd, &cmd, sizeof(cmd));
   if (retval != sizeof(cmd))
   {
-    die("vsf_sysutil_write");
+    die("priv_sock_send_cmd");
   }
 }
 
 void
-priv_sock_send_str(struct vsf_session* p_sess, const struct mystr* p_str)
+priv_sock_send_str(int fd, const struct mystr* p_str)
 {
-  struct mystr null_term_str = INIT_MYSTR;
-  str_copy(&null_term_str, p_str);
-  str_append_char(&null_term_str, '\0');
-  str_netfd_write(&null_term_str, p_sess->child_fd);
-  str_free(&null_term_str);
+  priv_sock_send_int(fd, (int) str_getlen(p_str));
+  str_netfd_write(p_str, fd);
 }
 
 char
-priv_sock_get_result(struct vsf_session* p_sess)
+priv_sock_get_result(int fd)
 {
   char res;
-  /* DGRAM socket -> message boundaries retained -> use plain read */
-  int retval = vsf_sysutil_read(p_sess->child_fd, &res, sizeof(res));
+  int retval = vsf_sysutil_read_loop(fd, &res, sizeof(res));
   if (retval != sizeof(res))
   {
-    die("vsf_sysutil_read");
+    die("priv_sock_get_result");
   }
   return res;
 }
 
 char
-priv_sock_get_cmd(struct vsf_session* p_sess)
+priv_sock_get_cmd(int fd)
 {
   char res;
-  /* DGRAM socket -> message boundaries retained -> use plain read */
-  int retval = vsf_sysutil_read(p_sess->parent_fd, &res, sizeof(res));
+  int retval = vsf_sysutil_read_loop(fd, &res, sizeof(res));
   if (retval != sizeof(res))
   {
-    die("vsf_sysutil_read");
+    die("priv_sock_get_cmd");
   }
   return res;
 }
 
 void
-priv_sock_get_str(struct vsf_session* p_sess, struct mystr* p_dest)
+priv_sock_get_str(int fd, struct mystr* p_dest)
 {
-  static char* s_p_privsock_str_buf;
-  if (s_p_privsock_str_buf == 0)
+  int retval;
+  unsigned int len = (unsigned int) priv_sock_get_int(fd);
+  if (len > VSFTP_PRIVSOCK_MAXSTR)
   {
-    vsf_secbuf_alloc(&s_p_privsock_str_buf, VSFTP_PRIVSOCK_MAXSTR);
+    die("priv_sock_get_str: too big");
   }
-  /* XXX - alert - will return truncated string if sender embedded a \0 */
-  str_netfd_alloc(p_dest, p_sess->parent_fd, '\0', s_p_privsock_str_buf,
-                  VSFTP_PRIVSOCK_MAXSTR);
+  retval = str_netfd_read(p_dest, fd, len);
+  if ((unsigned int) retval != len)
+  {
+    die("priv_sock_get_str: read error");
+  }
 }
 
 void
-priv_sock_send_result(struct vsf_session* p_sess, char res)
+priv_sock_send_result(int fd, char res)
 {
-  /* DGRAM socket -> message boundaries retained -> use plain write */
-  int retval = vsf_sysutil_write(p_sess->parent_fd, &res, sizeof(res));
+  int retval = vsf_sysutil_write_loop(fd, &res, sizeof(res));
   if (retval != sizeof(res))
   {
-    die("vsf_sysutil_write");
+    die("priv_sock_send_result");
   }
 }
 
 void
-priv_sock_child_send_fd(struct vsf_session* p_sess, int fd)
+priv_sock_send_fd(int fd, int send_fd)
 {
-  vsf_sysutil_send_fd(p_sess->child_fd, fd);
+  vsf_sysutil_send_fd(fd, send_fd);
+}
+
+int
+priv_sock_recv_fd(int fd)
+{
+  return vsf_sysutil_recv_fd(fd);
 }
 
 void
-priv_sock_parent_send_fd(struct vsf_session* p_sess, int fd)
+priv_sock_send_int(int fd, int the_int)
 {
-  vsf_sysutil_send_fd(p_sess->parent_fd, fd);
+  int retval = vsf_sysutil_write_loop(fd, &the_int, sizeof(the_int));
+  if (retval != sizeof(the_int))
+  {
+    die("priv_sock_send_int");
+  }
 }
 
 int
-priv_sock_parent_recv_fd(struct vsf_session* p_sess)
+priv_sock_get_int(int fd)
 {
-  return vsf_sysutil_recv_fd(p_sess->parent_fd);
-}
-
-int
-priv_sock_child_recv_fd(struct vsf_session* p_sess)
-{
-  return vsf_sysutil_recv_fd(p_sess->child_fd);
+  int the_int;
+  int retval = vsf_sysutil_read_loop(fd, &the_int, sizeof(the_int));
+  if (retval != sizeof(the_int))
+  {
+    die("priv_sock_get_int");
+  }
+  return the_int;
 }
 

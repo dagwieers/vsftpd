@@ -95,6 +95,16 @@ vsf_log_line(struct vsf_session* p_sess, enum EVSFLogEntryType what,
   vsf_log_common(p_sess, 1, what, p_str);
 }
 
+int
+vsf_log_entry_pending(struct vsf_session* p_sess)
+{
+  if (p_sess->log_type == 0)
+  {
+    return 0;
+  }
+  return 1;
+}
+
 void
 vsf_log_do_log(struct vsf_session* p_sess, int succeeded)
 {
@@ -136,16 +146,22 @@ vsf_log_common(struct vsf_session* p_sess, int succeeded,
 static void
 vsf_log_do_log_to_file(int fd, struct mystr* p_str)
 {
-  int retval = vsf_sysutil_lock_file(fd);
-  if (vsf_sysutil_retval_is_error(retval))
+  if (!tunable_no_log_lock)
   {
-    return;
+    int retval = vsf_sysutil_lock_file(fd);
+    if (vsf_sysutil_retval_is_error(retval))
+    {
+      return;
+    }
   }
   str_replace_unprintable(p_str, '?');
   str_append_char(p_str, '\n');
   /* Ignore write failure; maybe the disk filled etc. */
   (void) str_write_loop(p_str, fd);
-  vsf_sysutil_unlock_file(fd);
+  if (!tunable_no_log_lock)
+  {
+    vsf_sysutil_unlock_file(fd);
+  }
 }
 
 static void
@@ -272,6 +288,18 @@ vsf_log_do_log_vsftpd_format(struct vsf_session* p_sess, struct mystr* p_str,
       break;
     case kVSFLogEntryConnection:
       str_append_text(p_str, "CONNECT");
+      break;
+    case kVSFLogEntryDelete:
+      str_append_text(p_str, "DELETE");
+      break;
+    case kVSFLogEntryRename:
+      str_append_text(p_str, "RENAME");
+      break;
+    case kVSFLogEntryRmdir:
+      str_append_text(p_str, "RMDIR");
+      break;
+    case kVSFLogEntryChmod:
+      str_append_text(p_str, "CHMOD");
       break;
     default:
       bug("bad entry_type in vsf_log_do_log");

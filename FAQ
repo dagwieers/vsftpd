@@ -27,8 +27,9 @@ be writable by the ftp user. A way to fix this is:
 chown root ~ftp; chmod -w ~ftp
 
 Q) Help! I'm getting the error message "str_getpwnam".
-A) The most likely cause of this is that the "nobody" user does not exist on
-your system. vsftpd needs this user to run bits of itself with no privilege.
+A) The most likely cause of this is that the user that is configured as the
+'nopriv_user' setting (often 'nobody') does not exist on your system. vsftpd
+needs this user to run bits of itself with no privilege.
 
 Q) Help! Local users cannot log in.
 A) There are various possible problems.
@@ -197,6 +198,23 @@ A2) Solaris large file support wasn't fixed until v1.2.2.
 A3) FreeBSD large file support wasn't fixed until v1.2.2.
 A4) The early Linux 2.6 kernels had a bug in this area - use v2.6.6 or newer.
 A5) Are you sure your FTP _client_ correctly supports large files?
+
+Q) Help! The built-in vsftpd listener is hanging or crashing!
+A) A bug in this area is fixed in vsftpd v1.2.2. The problem has always existed
+but seems to frequently trigger only on certain platforms. For example,
+Fedora Core 1 - the suspected trigger is a glibc-2.3 platform, possibly in
+combination with a NPTL-enabled kernel.
+
+Q) Help! I'm using Solaris / Veritas and vsftpd is hanging!
+A) Suspected bug with the Solaris / Veritas combination. With vsftpd-1.2.3
+there is a possible workaround: no_log_lock=YES in your vsftpd.conf.5.
+
+Q) Does vsftpd support SSL / TLS based encryption?
+A) Yes, as of v2.0.0, this is supported for the control and data connections
+(hurrah). You need a build of vsftpd with this support enabled, and then you
+need to activate the ssl_enable setting. NOTE there are security considerations
+with this support. Please make sure to read the ssl_enable section in the
+vsftpd.conf.5 man page thoroughly before using.
 
 Q) Blah.. blah..
 A) For a good idea of what vsftpd can do, read the vsftpd.conf.5 man page

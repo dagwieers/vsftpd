@@ -53,6 +53,15 @@ extern int tunable_dirlist_enable;            /* Can see any dirs? */
 extern int tunable_chmod_enable;              /* Is CHMOD allowed? (local) */
 extern int tunable_secure_email_list_enable;  /* Require specific anon email */
 extern int tunable_run_as_launching_user;     /* Runs as launching user */
+extern int tunable_no_log_lock;               /* Don't lock log files */
+extern int tunable_ssl_enable;                /* Allow SSL/TLS AUTH */
+extern int tunable_allow_anon_ssl;            /* Allow anonymous use of SSL */
+extern int tunable_force_local_logins_ssl;    /* Require local logins use SSL */
+extern int tunable_force_local_data_ssl;      /* Require local data uses SSL */
+extern int tunable_sslv2;                     /* Allow SSLv2 */
+extern int tunable_sslv3;                     /* Allow SSLv3 */
+extern int tunable_tlsv1;                     /* Allow TLSv1 */
+extern int tunable_tilde_user_enable;         /* Support e.g. ~chris */
 
 /* Integer/numeric defines */
 extern unsigned int tunable_accept_timeout;
@@ -98,6 +107,9 @@ extern const char* tunable_hide_file;
 extern const char* tunable_deny_file;
 extern const char* tunable_user_sub_token;
 extern const char* tunable_email_password_file;
+extern const char* tunable_rsa_cert_file;
+extern const char* tunable_dsa_cert_file;
+extern const char* tunable_ssl_ciphers;
 
 #endif /* VSF_TUNABLES_H */
 

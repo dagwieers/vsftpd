@@ -23,30 +23,32 @@ struct mystr;
 void str_netfd_alloc(struct mystr* p_str, int fd, char term,
                      char* p_readbuf, unsigned int maxlen);
 
+/* str_netfd_read()
+ * PURPOSE
+ * Fills contents of a string buffer object from a (typically network) file
+ * descriptor.
+ * PARAMETERS
+ * p_str        - the string object to be filled
+ * fd           - the file descriptor to read from
+ * len          - the number of bytes to read
+ * RETURNS
+ * Number read on success, -1 on failure. The read is considered a failure
+ * unless the full requested byte count is read.
+ */
+int str_netfd_read(struct mystr* p_str, int fd, unsigned int len);
+
 /* str_netfd_write()
  * PURPOSE
- * Write the contents of a string buffer object out to a network file
- * descriptor. Failure will cause this call to exit the program.
+ * Write the contents of a string buffer object out to a (typically network)
+ * file descriptor.
  * PARAMETERS
  * p_str        - the string object to send
- * fd           - the file descriptor of the remote network socket
+ * fd           - the file descriptor to write to
  * RETURNS
- * 0 on success, -1 on failure
+ * Number written on success, -1 on failure. The write is considered a failure
+ * unless the full string buffer object is written.
  */
 int str_netfd_write(const struct mystr* p_str, int fd);
-
-/* str_netfd_write_noblock()
- * PURPOSE
- * Write the contents of a string buffer object out to a network file
- * descriptor. This call will NOT BLOCK. Furthermore, any errors encountered
- * will be ignored.
- * PARAMETERS
- * p_str        - the string object to send
- * fd           - the file descriptor of the remote network socket
- * RETURNS
- * 0 on success, -1 on failure
- */
-int str_netfd_write_noblock(const struct mystr* p_str, int fd);
 
 #endif /* VSFTP_NETSTR_H */
 

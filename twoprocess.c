@@ -15,7 +15,6 @@
 #include "session.h"
 #include "privsock.h"
 #include "secutil.h"
-#include "sysutil.h"
 #include "filestr.h"
 #include "str.h"
 #include "sysstr.h"
@@ -23,10 +22,18 @@
 #include "tunables.h"
 #include "defs.h"
 #include "parseconf.h"
+#include "ssl.h"
+#include "readwrite.h"
+#include "sysutil.h"
+#include "sysdeputil.h"
+
+// XXX
+#include <openssl/ssl.h>
 
 static void drop_all_privs(void);
 static void handle_sigchld(int duff);
 static void process_login_req(struct vsf_session* p_sess);
+static void process_ssl_slave_req(struct vsf_session* p_sess);
 static void common_do_login(struct vsf_session* p_sess,
                             const struct mystr* p_user_str, int do_chroot,
                             int anon);
@@ -62,6 +69,13 @@ vsf_two_process_start(struct vsf_session* p_sess)
 {
   /* Create the comms channel between privileged parent and no-priv child */
   priv_sock_init(p_sess);
+  if (tunable_ssl_enable)
+  {
+    /* Create the comms channel between the no-priv SSL child and the low-priv
+     * protocol handling child.
+     */
+    ssl_comm_channel_init(p_sess);
+  }
   vsf_sysutil_install_async_sighandler(kVSFSysUtilSigCHLD, handle_sigchld);
   {
     int newpid = vsf_sysutil_fork();
@@ -77,6 +91,11 @@ vsf_two_process_start(struct vsf_session* p_sess)
   /* Child process - time to lose as much privilege as possible and do the
    * login processing
    */
+  vsf_sysutil_close(p_sess->parent_fd);
+  if (tunable_ssl_enable)
+  {
+    vsf_sysutil_close(p_sess->ssl_consumer_fd);
+  }
   if (tunable_local_enable && tunable_userlist_enable)
   {
     int retval = str_fileread(&p_sess->userlist_str, tunable_userlist_file,
@@ -119,17 +138,33 @@ vsf_two_process_login(struct vsf_session* p_sess,
                       const struct mystr* p_pass_str)
 {
   char result;
-  priv_sock_send_cmd(p_sess, PRIV_SOCK_LOGIN);
-  priv_sock_send_str(p_sess, &p_sess->user_str);
-  priv_sock_send_str(p_sess, p_pass_str);
-  result = priv_sock_get_result(p_sess);
+  priv_sock_send_cmd(p_sess->child_fd, PRIV_SOCK_LOGIN);
+  priv_sock_send_str(p_sess->child_fd, &p_sess->user_str);
+  priv_sock_send_str(p_sess->child_fd, p_pass_str);
+  priv_sock_send_int(p_sess->child_fd, p_sess->control_use_ssl);
+  priv_sock_send_int(p_sess->child_fd, p_sess->data_use_ssl);
+  result = priv_sock_get_result(p_sess->child_fd);
   if (result == PRIV_SOCK_RESULT_OK)
   {
     /* Miracle. We don't emit the success message here. That is left to
      * process_post_login().
-     * Exit normally, parent will wait for this and launch new child
+     * Exit normally, unless we are remaining as the SSL read / write child.
      */
-    vsf_sysutil_exit(0);
+    if (!p_sess->control_use_ssl)
+    {
+      vsf_sysutil_exit(0);
+    }
+    else
+    {
+      vsf_sysutil_clear_alarm();
+      vsf_sysutil_close(p_sess->child_fd);
+      if (tunable_setproctitle_enable)
+      {
+        vsf_sysutil_setproctitle("SSL handler");
+      }
+      process_ssl_slave_req(p_sess);
+    }
+    /* NOTREACHED */
   }
   else if (result == PRIV_SOCK_RESULT_BAD)
   {
@@ -146,22 +181,22 @@ int
 vsf_two_process_get_priv_data_sock(struct vsf_session* p_sess)
 {
   char res;
-  priv_sock_send_cmd(p_sess, PRIV_SOCK_GET_DATA_SOCK);
-  res = priv_sock_get_result(p_sess);
+  priv_sock_send_cmd(p_sess->child_fd, PRIV_SOCK_GET_DATA_SOCK);
+  res = priv_sock_get_result(p_sess->child_fd);
   if (res != PRIV_SOCK_RESULT_OK)
   {
     die("could not get privileged socket");
   }
-  return priv_sock_child_recv_fd(p_sess);
+  return priv_sock_recv_fd(p_sess->child_fd);
 }
 
 void
 vsf_two_process_chown_upload(struct vsf_session* p_sess, int fd)
 {
   char res;
-  priv_sock_send_cmd(p_sess, PRIV_SOCK_CHOWN);
-  priv_sock_child_send_fd(p_sess, fd);
-  res = priv_sock_get_result(p_sess);
+  priv_sock_send_cmd(p_sess->child_fd, PRIV_SOCK_CHOWN);
+  priv_sock_send_fd(p_sess->child_fd, fd);
+  res = priv_sock_get_result(p_sess->child_fd);
   if (res != PRIV_SOCK_RESULT_OK)
   {
     die("unexpected failure in vsf_two_process_chown_upload");
@@ -175,7 +210,7 @@ process_login_req(struct vsf_session* p_sess)
   char cmd;
   vsf_sysutil_unblock_sig(kVSFSysUtilSigCHLD);
   /* Blocks */
-  cmd = priv_sock_get_cmd(p_sess);
+  cmd = priv_sock_get_cmd(p_sess->parent_fd);
   vsf_sysutil_block_sig(kVSFSysUtilSigCHLD);
   if (cmd != PRIV_SOCK_LOGIN)
   {
@@ -184,15 +219,22 @@ process_login_req(struct vsf_session* p_sess)
   /* Get username and password - we must distrust these */
   {
     struct mystr password_str = INIT_MYSTR;
-    priv_sock_get_str(p_sess, &p_sess->user_str);
-    priv_sock_get_str(p_sess, &password_str);
+    priv_sock_get_str(p_sess->parent_fd, &p_sess->user_str);
+    priv_sock_get_str(p_sess->parent_fd, &password_str);
+    p_sess->control_use_ssl = priv_sock_get_int(p_sess->parent_fd);
+    p_sess->data_use_ssl = priv_sock_get_int(p_sess->parent_fd);
+    if (!tunable_ssl_enable)
+    {
+      p_sess->control_use_ssl = 0;
+      p_sess->data_use_ssl = 0;
+    }
     e_login_result = vsf_privop_do_login(p_sess, &password_str);
     str_free(&password_str);
   }
   switch (e_login_result)
   {
     case kVSFLoginFail:
-      priv_sock_send_result(p_sess, PRIV_SOCK_RESULT_BAD);
+      priv_sock_send_result(p_sess->parent_fd, PRIV_SOCK_RESULT_BAD);
       return;
       break;
     case kVSFLoginAnon:
@@ -241,6 +283,31 @@ process_login_req(struct vsf_session* p_sess)
 }
 
 static void
+process_ssl_slave_req(struct vsf_session* p_sess)
+{
+  while (1)
+  {
+    char cmd = priv_sock_get_cmd(p_sess->ssl_slave_fd);
+    int retval;
+    if (cmd == PRIV_SOCK_GET_USER_CMD)
+    {
+      ftp_getline(p_sess, &p_sess->ftp_cmd_str, p_sess->p_control_line_buf);
+      priv_sock_send_str(p_sess->ssl_slave_fd, &p_sess->ftp_cmd_str);
+    }
+    else if (cmd == PRIV_SOCK_WRITE_USER_RESP)
+    {
+      priv_sock_get_str(p_sess->ssl_slave_fd, &p_sess->ftp_cmd_str);
+      retval = ftp_write_str(p_sess, &p_sess->ftp_cmd_str, kVSFRWControl);
+      priv_sock_send_int(p_sess->ssl_slave_fd, retval);
+    }
+    else
+    {
+      die("bad request in process_ssl_slave_req");
+    }
+  }
+}
+
+static void
 common_do_login(struct vsf_session* p_sess, const struct mystr* p_user_str,
                 int do_chroot, int anon)
 {
@@ -248,9 +315,16 @@ common_do_login(struct vsf_session* p_sess, const struct mystr* p_user_str,
   const struct mystr* p_orig_user_str = p_user_str;
   int newpid;
   vsf_sysutil_install_null_sighandler(kVSFSysUtilSigCHLD);
-  /* Asks the pre-login child to go away (by exiting) */
-  priv_sock_send_result(p_sess, PRIV_SOCK_RESULT_OK);
-  (void) vsf_sysutil_wait();
+  /* Tells the pre-login child all is OK (it may exit in response) */
+  priv_sock_send_result(p_sess->parent_fd, PRIV_SOCK_RESULT_OK);
+  if (!p_sess->control_use_ssl)
+  {
+    (void) vsf_sysutil_wait();
+  }
+  else
+  {
+    p_sess->ssl_slave_active = 1;
+  }
   /* Absorb the SIGCHLD */
   vsf_sysutil_unblock_sig(kVSFSysUtilSigCHLD);
   /* Handle loading per-user config options */
@@ -267,6 +341,11 @@ common_do_login(struct vsf_session* p_sess, const struct mystr* p_user_str,
     struct mystr userdir_str = INIT_MYSTR;
     unsigned int secutil_option = VSF_SECUTIL_OPTION_USE_GROUPS;
     /* Child - drop privs and start proper FTP! */
+    vsf_sysutil_close(p_sess->parent_fd);
+    if (tunable_ssl_enable)
+    {
+      vsf_sysutil_close(p_sess->ssl_slave_fd);
+    }
     if (tunable_guest_enable && !anon)
     {
       /* Remap to the guest user */
@@ -310,6 +389,11 @@ common_do_login(struct vsf_session* p_sess, const struct mystr* p_user_str,
     bug("should not get here: common_do_login");
   }
   /* Parent */
+  if (tunable_ssl_enable)
+  {
+    vsf_sysutil_close(p_sess->ssl_consumer_fd);
+    /* Keep the SSL slave fd around so we can shutdown() upon exit */
+  }
   vsf_priv_parent_postlogin(p_sess);
   bug("should not get here in common_do_login");
 }

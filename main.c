@@ -21,6 +21,7 @@
 #include "standalone.h"
 #include "tcpwrap.h"
 #include "vsftpver.h"
+#include "ssl.h"
 
 /*
  * Forward decls of helper functions
@@ -36,7 +37,7 @@ main(int argc, const char* argv[])
   struct vsf_session the_session =
   {
     /* Control connection */
-    0, 0,
+    0, 0, 0,
     /* Data connection */
     -1, 0, -1, 0, 0, 0, 0,
     /* Login */
@@ -54,9 +55,13 @@ main(int argc, const char* argv[])
     /* Buffers */
     INIT_MYSTR, INIT_MYSTR,
     /* Parent <-> child comms */
-    0, -1, -1,
+    -1, -1,
     /* Number of clients */
-    0, 0
+    0, 0,
+    /* Home directory */
+    INIT_MYSTR,
+    /* Secure connection state */
+    0, 0, 0, 0, 0, 0, -1, -1
   };
   int config_specified = 0;
   const char* p_config_name = VSFTP_DEFAULT_CONFIG;
@@ -109,6 +114,13 @@ main(int argc, const char* argv[])
     /* Warning -- warning -- may nuke argv, environ */
     vsf_sysutil_setproctitle_init(argc, argv);
   }
+  /* Initialize the SSL system here if needed - saves the overhead of each
+   *  child doing this itself.
+   */
+  if (tunable_ssl_enable)
+  {
+    ssl_init(&the_session);
+  }
   if (tunable_listen || tunable_listen_ipv6)
   {
     /* Standalone mode */
@@ -150,6 +162,11 @@ main(int argc, const char* argv[])
     {
       vsf_parseconf_load_file(p_load_conf, 1);
     }
+  }
+  /* SSL may have been enabled by a per-IP configuration.. */
+  if (tunable_ssl_enable)
+  {
+    ssl_init(&the_session);
   }
   if (tunable_deny_email_enable)
   {

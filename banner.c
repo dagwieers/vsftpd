@@ -21,7 +21,7 @@
 
 /* Definitions */
 #define VSFTP_MAX_VISIT_REMEMBER 100
-#define VSFTP_MAX_MSGFILE_SIZE 1000
+#define VSFTP_MAX_MSGFILE_SIZE 4000
 
 void
 vsf_banner_dir_changed(struct vsf_session* p_sess, int ftpcode)

@@ -14,6 +14,7 @@
 #include "secbuf.h"
 #include "defs.h"
 #include "tunables.h"
+#include "builddefs.h"
 
 /* For Linux, this adds nothing :-) */
 #include "port/porting_junk.h"
@@ -46,7 +47,9 @@
 #undef VSF_SYSDEP_HAVE_HPUX_SETPROCTITLE
 #undef VSF_SYSDEP_HAVE_MAP_ANON
 #undef VSF_SYSDEP_NEED_OLD_FD_PASSING
-#define VSF_SYSDEP_HAVE_PAM
+#ifdef VSF_BUILD_PAM
+  #define VSF_SYSDEP_HAVE_PAM
+#endif
 #define VSF_SYSDEP_HAVE_SHADOW
 #define VSF_SYSDEP_HAVE_USERSHELL
 #define VSF_SYSDEP_HAVE_LIBCAP

@@ -18,9 +18,10 @@
 #include "utility.h"
 #include "logging.h"
 #include "session.h"
+#include "readwrite.h"
 
 /* Internal functions */
-static void ftp_getline(struct mystr* p_str);
+static void control_getline(struct mystr* p_str, struct vsf_session* p_sess);
 static void ftp_write_text_common(struct vsf_session* p_sess, int status,
                                   const char* p_text, int noblock, char sep);
 static void ftp_write_str_common(struct vsf_session* p_sess, int status,
@@ -67,10 +68,10 @@ vsf_cmdio_write_raw(struct vsf_session* p_sess, const char* p_text)
   {
     vsf_log_line(p_sess, kVSFLogEntryFTPOutput, &s_the_str);
   }
-  retval = str_netfd_write(&s_the_str, VSFTP_COMMAND_FD);
+  retval = ftp_write_str(p_sess, &s_the_str, kVSFRWControl);
   if (retval != 0)
   {
-    die("str_netfd_write");
+    die("ftp_write_str");
   }
 }
 
@@ -111,6 +112,7 @@ ftp_write_str_common(struct vsf_session* p_sess, int status, char sep,
 {
   static struct mystr s_write_buf_str;
   static struct mystr s_text_mangle_str;
+  int retval;
   if (tunable_log_ftp_protocol)
   {
     str_alloc_ulong(&s_write_buf_str, (unsigned long) status);
@@ -131,15 +133,16 @@ ftp_write_str_common(struct vsf_session* p_sess, int status, char sep,
   str_append_text(&s_write_buf_str, "\r\n");
   if (noblock)
   {
-    (void) str_netfd_write_noblock(&s_write_buf_str, VSFTP_COMMAND_FD);
+    vsf_sysutil_activate_noblock(VSFTP_COMMAND_FD);
   }
-  else
+  retval = ftp_write_str(p_sess, &s_write_buf_str, kVSFRWControl);
+  if (retval != 0 && !noblock)
   {
-    int retval = str_netfd_write(&s_write_buf_str, VSFTP_COMMAND_FD);
-    if (retval != 0)
-    {
-      die("str_netfd_write");
-    }
+    die("ftp_write");
+  }
+  if (noblock)
+  {
+    vsf_sysutil_deactivate_noblock(VSFTP_COMMAND_FD);
   }
 }
 
@@ -164,7 +167,7 @@ vsf_cmdio_get_cmd_and_arg(struct vsf_session* p_sess, struct mystr* p_cmd_str,
     vsf_cmdio_set_alarm(p_sess);
   }
   /* Blocks */
-  ftp_getline(p_cmd_str);
+  control_getline(p_cmd_str, p_sess);
   str_split_char(p_cmd_str, p_arg_str, ' ');
   str_upper(p_cmd_str);
   if (tunable_log_ftp_protocol)
@@ -188,15 +191,13 @@ vsf_cmdio_get_cmd_and_arg(struct vsf_session* p_sess, struct mystr* p_cmd_str,
 }
 
 static void
-ftp_getline(struct mystr* p_str)
+control_getline(struct mystr* p_str, struct vsf_session* p_sess)
 {
-  static char* s_p_readline_buf;
-  if (s_p_readline_buf == 0)
+  if (p_sess->p_control_line_buf == 0)
   {
-    vsf_secbuf_alloc(&s_p_readline_buf, VSFTP_MAX_COMMAND_LINE);
+    vsf_secbuf_alloc(&p_sess->p_control_line_buf, VSFTP_MAX_COMMAND_LINE);
   }
-  str_netfd_alloc(p_str, VSFTP_COMMAND_FD, '\n', s_p_readline_buf,
-                  VSFTP_MAX_COMMAND_LINE);
+  ftp_getline(p_sess, p_str, p_sess->p_control_line_buf);
   /* As mandated by the FTP specifications.. */
   str_replace_char(p_str, '\0', '\n');
   /* If the last character is a \r, strip it */

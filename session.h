@@ -20,6 +20,7 @@ struct vsf_session
   /* Details of the control connection */
   struct vsf_sysutil_sockaddr* p_local_addr;
   struct vsf_sysutil_sockaddr* p_remote_addr;
+  char* p_control_line_buf;
 
   /* Details of the data connection */
   int pasv_listen_fd;
@@ -72,13 +73,23 @@ struct vsf_session
   struct mystr ftp_arg_str;
 
   /* Parent<->child comms channel */
-  int privsock_inited;
   int parent_fd;
   int child_fd;
 
   /* Other details */
   unsigned int num_clients;
   unsigned int num_this_ip;
+  struct mystr home_str;
+
+  /* Secure connections state */
+  int control_use_ssl;
+  int data_use_ssl;
+  void* p_ssl_ctx;
+  void* p_control_ssl;
+  void* p_data_ssl;
+  int ssl_slave_active;
+  int ssl_slave_fd;
+  int ssl_consumer_fd;
 };
 
 #endif /* VSF_SESSION_H */

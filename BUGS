@@ -17,7 +17,6 @@ the file _after_ ASCII linefeed mangling?
 but I rip them out unconditionally.
 - Security model: vsf_privop_get_ftp_port_sock() should probably do the
 connect() to the remote location itself.
-- If a user's homedir doesn't exist, we ungracefully exit with "OOPS: chdir"
 - If someone has one of the timeouts (command, data) setup, but not the other,
 then timeout will behave whackily.
 

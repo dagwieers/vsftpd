@@ -27,24 +27,29 @@
 #include "oneprocess.h"
 #include "twoprocess.h"
 #include "ls.h"
-#include "netstr.h"
+#include "ssl.h"
+#include "readwrite.h"
 
 static void init_data_sock_params(struct vsf_session* p_sess, int sock_fd);
-static struct vsf_transfer_ret do_file_send_binary(struct vsf_session* p_sess,
-                                                   int net_fd, int file_fd);
-static struct vsf_transfer_ret do_file_send_ascii(struct vsf_session* p_sess,
-                                                  int net_fd, int file_fd);
+static filesize_t calc_num_send(int file_fd, filesize_t init_offset);
+static struct vsf_transfer_ret do_file_send_sendfile(
+  struct vsf_session* p_sess, int net_fd, int file_fd,
+  filesize_t curr_file_offset, filesize_t bytes_to_send);
+static struct vsf_transfer_ret do_file_send_rwloop(
+  struct vsf_session* p_sess, int file_fd, int is_ascii);
 static struct vsf_transfer_ret do_file_recv(
-  struct vsf_session* p_sess, int net_fd, int file_fd, int is_ascii);
+  struct vsf_session* p_sess, int file_fd, int is_ascii);
 static void handle_sigalrm(void* p_private);
 static void start_data_alarm(struct vsf_session* p_sess);
 static void handle_io(int retval, int fd, void* p_private);
 static int transfer_dir_internal(
-  struct vsf_session* p_sess, const int remote_fd,
-  struct vsf_sysutil_dir* p_dir, const struct mystr* p_base_dir_str,
-  const struct mystr* p_option_str, const struct mystr* p_filter_str,
-  int is_verbose);
-static int write_dir_list(struct mystr_list* p_dir_list, int remote_fd);
+  struct vsf_session* p_sess, int is_control, struct vsf_sysutil_dir* p_dir,
+  const struct mystr* p_base_dir_str, const struct mystr* p_option_str,
+  const struct mystr* p_filter_str, int is_verbose);
+static int write_dir_list(struct vsf_session* p_sess,
+                          struct mystr_list* p_dir_list,
+                          enum EVSFRWTarget target);
+static unsigned int get_chunk_size();
 
 void
 vsf_ftpdataio_dispose_transfer_fd(struct vsf_session* p_sess)
@@ -57,6 +62,10 @@ vsf_ftpdataio_dispose_transfer_fd(struct vsf_session* p_sess)
   /* Clear the data connection alarm */
   vsf_sysutil_clear_alarm();
   vsf_sysutil_uninstall_io_handler();
+  if (p_sess->p_data_ssl != 0)
+  {
+    ssl_data_close(p_sess);
+  }
   /* This close() blocks because we set SO_LINGER */
   retval = vsf_sysutil_close_failok(p_sess->data_fd);
   if (vsf_sysutil_retval_is_error(retval))
@@ -144,6 +153,21 @@ vsf_ftpdataio_get_port_fd(struct vsf_session* p_sess)
   }
   init_data_sock_params(p_sess, remote_fd);
   return remote_fd;
+}
+
+int
+vsf_ftpdataio_post_mark_connect(struct vsf_session* p_sess)
+{
+  if (p_sess->data_use_ssl)
+  {
+    if (!ssl_accept(p_sess, p_sess->data_fd))
+    {
+      vsf_cmdio_write(
+        p_sess, FTP_DATATLSBAD, "Secure connection negotiation failed.");
+      return 0;
+    }
+  }
+  return 1;
 }
 
 static void
@@ -241,19 +265,19 @@ handle_io(int retval, int fd, void* p_private)
 }
 
 int
-vsf_ftpdataio_transfer_dir(struct vsf_session* p_sess, const int remote_fd,
+vsf_ftpdataio_transfer_dir(struct vsf_session* p_sess, int is_control,
                            struct vsf_sysutil_dir* p_dir,
                            const struct mystr* p_base_dir_str,
                            const struct mystr* p_option_str,
                            const struct mystr* p_filter_str,
                            int is_verbose)
 {
-  return transfer_dir_internal(p_sess, remote_fd, p_dir, p_base_dir_str,
+  return transfer_dir_internal(p_sess, is_control, p_dir, p_base_dir_str,
                                p_option_str, p_filter_str, is_verbose);
 }
 
 static int
-transfer_dir_internal(struct vsf_session* p_sess, const int remote_fd,
+transfer_dir_internal(struct vsf_session* p_sess, int is_control,
                       struct vsf_sysutil_dir* p_dir,
                       const struct mystr* p_base_dir_str,
                       const struct mystr* p_option_str,
@@ -266,6 +290,11 @@ transfer_dir_internal(struct vsf_session* p_sess, const int remote_fd,
   struct mystr_list* p_subdir_list = 0;
   struct str_locate_result loc_result = str_locate_char(p_option_str, 'R');
   int failed = 0;
+  enum EVSFRWTarget target = kVSFRWData;
+  if (is_control)
+  {
+    target = kVSFRWControl;
+  }
   if (loc_result.found && tunable_ls_recurse_enable)
   {
     p_subdir_list = &subdir_list;
@@ -277,7 +306,7 @@ transfer_dir_internal(struct vsf_session* p_sess, const int remote_fd,
     int retval;
     str_copy(&dir_prefix_str, p_base_dir_str);
     str_append_text(&dir_prefix_str, ":\r\n");
-    retval = str_netfd_write(&dir_prefix_str, remote_fd);
+    retval = ftp_write_str(p_sess, &dir_prefix_str, target);
     if (retval != 0)
     {
       failed = 1;
@@ -285,7 +314,7 @@ transfer_dir_internal(struct vsf_session* p_sess, const int remote_fd,
   }
   if (!failed)
   {
-    failed = write_dir_list(&dir_list, remote_fd);
+    failed = write_dir_list(p_sess, &dir_list, target);
   }
   /* Recurse into the subdirectories if required... */
   if (!failed)
@@ -314,13 +343,13 @@ transfer_dir_internal(struct vsf_session* p_sess, const int remote_fd,
         continue;
       }
       str_alloc_text(&dir_prefix_str, "\r\n");
-      retval = str_netfd_write(&dir_prefix_str, remote_fd);
+      retval = ftp_write_str(p_sess, &dir_prefix_str, target);
       if (retval != 0)
       {
         failed = 1;
         break;
       }
-      retval = transfer_dir_internal(p_sess, remote_fd, p_subdir, &sub_str,
+      retval = transfer_dir_internal(p_sess, is_control, p_subdir, &sub_str,
                                      p_option_str, p_filter_str, is_verbose);
       vsf_sysutil_closedir(p_subdir);
       if (retval != 0)
@@ -346,7 +375,8 @@ transfer_dir_internal(struct vsf_session* p_sess, const int remote_fd,
 
 /* XXX - really, this should be refactored into a "buffered writer" object */
 static int
-write_dir_list(struct mystr_list* p_dir_list, int remote_fd)
+write_dir_list(struct vsf_session* p_sess, struct mystr_list* p_dir_list,
+               enum EVSFRWTarget target)
 {
   /* This function writes out a list of strings to the client, over the
    * data socket. We now coalesce the strings into fewer write() syscalls,
@@ -366,7 +396,7 @@ write_dir_list(struct mystr_list* p_dir_list, int remote_fd)
             VSFTP_DIR_BUFSIZE)
     {
       /* Writeout needed - we're either at the end, or we filled the buffer */
-      int writeret = str_netfd_write(&buf_str, remote_fd);
+      int writeret = ftp_write_str(p_sess, &buf_str, target);
       if (writeret != 0)
       {
         retval = 1;
@@ -385,33 +415,32 @@ vsf_ftpdataio_transfer_file(struct vsf_session* p_sess, int remote_fd,
 {
   if (!is_recv)
   {
-    if (is_ascii)
+    if (is_ascii || p_sess->data_use_ssl)
     {
-      return do_file_send_ascii(p_sess, remote_fd, file_fd);
+      return do_file_send_rwloop(p_sess, file_fd, is_ascii);
     }
     else
     {
-      return do_file_send_binary(p_sess, remote_fd, file_fd);
+      filesize_t curr_offset = vsf_sysutil_get_file_offset(file_fd);
+      filesize_t num_send = calc_num_send(file_fd, curr_offset);
+      return do_file_send_sendfile(
+        p_sess, remote_fd, file_fd, curr_offset, num_send);
     }
   }
   else
   {
-    return do_file_recv(p_sess, remote_fd, file_fd, is_ascii);
+    return do_file_recv(p_sess, file_fd, is_ascii);
   }
 }
 
 static struct vsf_transfer_ret
-do_file_send_ascii(struct vsf_session* p_sess, int net_fd, int file_fd)
+do_file_send_rwloop(struct vsf_session* p_sess, int file_fd, int is_ascii)
 {
   static char* p_readbuf;
   static char* p_asciibuf;
   struct vsf_transfer_ret ret_struct = { 0, 0 };
-  unsigned int chunk_size = VSFTP_DATA_BUFSIZE;
-  if (tunable_trans_chunk_size < VSFTP_DATA_BUFSIZE &&
-      tunable_trans_chunk_size >= 4096)
-  {
-    chunk_size = tunable_trans_chunk_size;
-  }
+  unsigned int chunk_size = get_chunk_size();
+  char* p_writefrom_buf;
   if (p_readbuf == 0)
   {
     /* NOTE!! * 2 factor because we can double the data by doing our ASCII
@@ -419,6 +448,14 @@ do_file_send_ascii(struct vsf_session* p_sess, int net_fd, int file_fd)
      */
     vsf_secbuf_alloc(&p_asciibuf, VSFTP_DATA_BUFSIZE * 2);
     vsf_secbuf_alloc(&p_readbuf, VSFTP_DATA_BUFSIZE);
+  }
+  if (is_ascii)
+  {
+    p_writefrom_buf = p_asciibuf;
+  }
+  else
+  {
+    p_writefrom_buf = p_readbuf;
   }
   while (1)
   {
@@ -436,9 +473,16 @@ do_file_send_ascii(struct vsf_session* p_sess, int net_fd, int file_fd)
       vsf_cmdio_write(p_sess, FTP_TRANSFEROK, "File send OK.");
       return ret_struct;
     }
-    num_to_write = vsf_ascii_bin_to_ascii(p_readbuf, p_asciibuf,
-                                          (unsigned int) retval);
-    retval = vsf_sysutil_write_loop(net_fd, p_asciibuf, num_to_write);
+    if (is_ascii)
+    {
+      num_to_write = vsf_ascii_bin_to_ascii(p_readbuf, p_asciibuf,
+                                            (unsigned int) retval);
+    }
+    else
+    {
+      num_to_write = (unsigned int) retval;
+    }
+    retval = ftp_write_data(p_sess, p_writefrom_buf, num_to_write);
     if (vsf_sysutil_retval_is_error(retval) ||
         (unsigned int) retval != num_to_write)
     {
@@ -452,47 +496,17 @@ do_file_send_ascii(struct vsf_session* p_sess, int net_fd, int file_fd)
 }
 
 static struct vsf_transfer_ret
-do_file_send_binary(struct vsf_session* p_sess, int net_fd, int file_fd)
+do_file_send_sendfile(struct vsf_session* p_sess, int net_fd, int file_fd,
+                      filesize_t curr_file_offset, filesize_t bytes_to_send)
 {
-  static struct vsf_sysutil_statbuf* s_p_statbuf;
   int retval;
-  filesize_t bytes_to_send;
-  filesize_t init_file_offset;
-  filesize_t curr_file_offset;
-  filesize_t bytes_sent;
-  unsigned int chunk_size;
+  unsigned int chunk_size = 0;
   struct vsf_transfer_ret ret_struct = { 0, 0 };
-  /* Work out how many bytes to send based on file size minus current offset */
-  /* NOTE - if we're being pedantic here are two duplicated syscalls */
-  vsf_sysutil_fstat(file_fd, &s_p_statbuf);
-  bytes_to_send = vsf_sysutil_statbuf_get_size(s_p_statbuf);
-  init_file_offset = vsf_sysutil_get_file_offset(file_fd);
-  if (init_file_offset < 0 || bytes_to_send < 0)
-  {
-    die("do_file_send_binary: negative file offset or send count");
-  }
-  curr_file_offset = init_file_offset;
-  /* Don't underflow if some bonehead sets a REST greater than the file size */
-  if (init_file_offset > bytes_to_send)
-  {
-    bytes_to_send = 0;
-  }
-  else
-  {
-    bytes_to_send -= init_file_offset;
-  }
+  filesize_t init_file_offset = curr_file_offset;
+  filesize_t bytes_sent;
   if (p_sess->bw_rate_max)
   {
-    chunk_size = VSFTP_DATA_BUFSIZE;
-    if (tunable_trans_chunk_size < VSFTP_DATA_BUFSIZE &&
-        tunable_trans_chunk_size >= 4096)
-    {
-      chunk_size = tunable_trans_chunk_size;
-    }
-  }
-  else
-  {
-    chunk_size = 0;
+    chunk_size = get_chunk_size();
   }
   /* Just because I can ;-) */
   retval = vsf_sysutil_sendfile(net_fd, file_fd, &curr_file_offset,
@@ -516,25 +530,44 @@ do_file_send_binary(struct vsf_session* p_sess, int net_fd, int file_fd)
   return ret_struct; 
 }
 
+static filesize_t
+calc_num_send(int file_fd, filesize_t init_offset)
+{
+  static struct vsf_sysutil_statbuf* s_p_statbuf;
+  filesize_t bytes_to_send;
+  /* Work out how many bytes to send based on file size minus current offset */
+  vsf_sysutil_fstat(file_fd, &s_p_statbuf);
+  bytes_to_send = vsf_sysutil_statbuf_get_size(s_p_statbuf);
+  if (init_offset < 0 || bytes_to_send < 0)
+  {
+    die("calc_num_send: negative file offset or send count");
+  }
+  /* Don't underflow if some bonehead sets a REST greater than the file size */
+  if (init_offset > bytes_to_send)
+  {
+    bytes_to_send = 0;
+  }
+  else
+  {
+    bytes_to_send -= init_offset;
+  }
+  return bytes_to_send;
+}
+
 static struct vsf_transfer_ret
-do_file_recv(struct vsf_session* p_sess, int net_fd, int file_fd, int is_ascii)
+do_file_recv(struct vsf_session* p_sess, int file_fd, int is_ascii)
 {
   static char* p_recvbuf;
   unsigned int num_to_write;
   struct vsf_transfer_ret ret_struct = { 0, 0 };
-  unsigned int chunk_size = VSFTP_DATA_BUFSIZE;
+  unsigned int chunk_size = get_chunk_size();
   if (p_recvbuf == 0)
   {
     vsf_secbuf_alloc(&p_recvbuf, VSFTP_DATA_BUFSIZE);
   }
-  if (tunable_trans_chunk_size < VSFTP_DATA_BUFSIZE &&
-      tunable_trans_chunk_size >= 4096)
-  {
-    chunk_size = tunable_trans_chunk_size;
-  }
   while (1)
   {
-    int retval = vsf_sysutil_read(net_fd, p_recvbuf, chunk_size);
+    int retval = ftp_read_data(p_sess, p_recvbuf, chunk_size);
     if (vsf_sysutil_retval_is_error(retval))
     {
       vsf_cmdio_write(p_sess, FTP_BADSENDNET,
@@ -569,5 +602,21 @@ do_file_recv(struct vsf_session* p_sess, int net_fd, int file_fd, int is_ascii)
       return ret_struct;
     }
   }
+}
+
+static unsigned int
+get_chunk_size()
+{
+  unsigned int ret = VSFTP_DATA_BUFSIZE;
+  if (tunable_trans_chunk_size < VSFTP_DATA_BUFSIZE &&
+      tunable_trans_chunk_size > 0)
+  {
+    ret = tunable_trans_chunk_size;
+    if (ret < 4096)
+    {
+      ret = 4096;
+    }
+  }
+  return ret;
 }
 

@@ -20,6 +20,8 @@
 #include "session.h"
 #include "banner.h"
 #include "logging.h"
+#include "ssl.h"
+#include "features.h"
 
 /* Functions used */
 static void emit_greeting(struct vsf_session* p_sess);
@@ -112,6 +114,22 @@ parse_username_password(struct vsf_session* p_sess)
       vsf_cmdio_write(p_sess, FTP_GOODBYE, "Goodbye.");
       vsf_sysutil_exit(0);
     }
+    else if (str_equal_text(&p_sess->ftp_cmd_str, "FEAT"))
+    {
+      handle_feat(p_sess);
+    }
+    else if (tunable_ssl_enable && str_equal_text(&p_sess->ftp_cmd_str, "AUTH"))
+    {
+      handle_auth(p_sess);
+    }
+    else if (tunable_ssl_enable && str_equal_text(&p_sess->ftp_cmd_str, "PBSZ"))
+    {
+      handle_pbsz(p_sess);
+    }
+    else if (tunable_ssl_enable && str_equal_text(&p_sess->ftp_cmd_str, "PROT"))
+    {
+      handle_prot(p_sess);
+    }
     else
     {
       vsf_cmdio_write(p_sess, FTP_LOGINERR,
@@ -137,8 +155,23 @@ handle_user_command(struct vsf_session* p_sess)
   }
   if (!tunable_local_enable && !is_anon)
   {
-    vsf_cmdio_write(p_sess, FTP_LOGINERR,
-                    "This FTP server is anonymous only.");
+    vsf_cmdio_write(
+      p_sess, FTP_LOGINERR, "This FTP server is anonymous only.");
+    str_empty(&p_sess->user_str);
+    return;
+  }
+  if (is_anon && p_sess->control_use_ssl && !tunable_allow_anon_ssl)
+  {
+    vsf_cmdio_write(
+      p_sess, FTP_LOGINERR, "Anonymous sessions may not use encryption.");
+    str_empty(&p_sess->user_str);
+    return;
+  }
+  if (tunable_ssl_enable && !is_anon && !p_sess->control_use_ssl &&
+      tunable_force_local_logins_ssl)
+  {
+    vsf_cmdio_write(
+      p_sess, FTP_LOGINERR, "Non-anonymous sessions must use encryption.");
     str_empty(&p_sess->user_str);
     return;
   }

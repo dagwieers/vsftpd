@@ -135,9 +135,9 @@ str_empty(struct mystr* p_str)
 void
 str_trunc(struct mystr* p_str, unsigned int trunc_len)
 {
-  if (trunc_len >= p_str->len)
+  if (trunc_len >= p_str->alloc_bytes)
   {
-    bug("trunc_len not smaller than len in str_trunc");
+    bug("trunc_len not smaller than alloc_bytes in str_trunc");
   }
   p_str->len = trunc_len;
   p_str->p_buf[p_str->len] = '\0';
@@ -146,11 +146,14 @@ str_trunc(struct mystr* p_str, unsigned int trunc_len)
 void
 str_reserve(struct mystr* p_str, unsigned int res_len)
 {
+  /* Reserve space for the trailing zero as well. */
+  res_len++;
   if (res_len > p_str->alloc_bytes)
   {
     p_str->p_buf = vsf_sysutil_realloc(p_str->p_buf, res_len);
     p_str->alloc_bytes = res_len;
   }
+  p_str->p_buf[res_len - 1] = '\0';
 }
 
 int

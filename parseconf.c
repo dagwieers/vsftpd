@@ -85,6 +85,15 @@ parseconf_bool_array[] =
   { "chmod_enable", &tunable_chmod_enable },
   { "secure_email_list_enable", &tunable_secure_email_list_enable },
   { "run_as_launching_user", &tunable_run_as_launching_user },
+  { "no_log_lock", &tunable_no_log_lock },
+  { "ssl_enable", &tunable_ssl_enable },
+  { "allow_anon_ssl", &tunable_allow_anon_ssl },
+  { "force_local_logins_ssl", &tunable_force_local_logins_ssl },
+  { "force_local_data_ssl", &tunable_force_local_data_ssl },
+  { "ssl_sslv2", &tunable_sslv2 },
+  { "ssl_sslv3", &tunable_sslv3 },
+  { "ssl_tlsv1", &tunable_tlsv1 },
+  { "tilde_user_enable", &tunable_tilde_user_enable },
   { 0, 0 }
 };
 
@@ -146,6 +155,9 @@ parseconf_str_array[] =
   { "deny_file", &tunable_deny_file },
   { "user_sub_token", &tunable_user_sub_token },
   { "email_password_file", &tunable_email_password_file },
+  { "rsa_cert_file", &tunable_rsa_cert_file },
+  { "dsa_cert_file", &tunable_dsa_cert_file },
+  { "ssl_ciphers", &tunable_ssl_ciphers },
   { 0, 0 }
 };
 

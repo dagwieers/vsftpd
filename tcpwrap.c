@@ -9,19 +9,14 @@
 
 #include "tcpwrap.h"
 #include "builddefs.h"
+#include "utility.h"
 
-#ifndef VSF_BUILD_TCPWRAPPERS
+#ifdef VSF_BUILD_TCPWRAPPERS
+  #include <tcpd.h>
+#endif
 
-int
-vsf_tcp_wrapper_ok(int remote_fd)
-{
-  (void) remote_fd;
-  return 1;
-}
+#ifdef VSF_BUILD_TCPWRAPPERS
 
-#else /* VSF_BUILD_TCPWRAPPERS = yes */
-
-#include <tcpd.h>
 #include <sys/syslog.h>
 
 int deny_severity = LOG_WARNING;
@@ -38,6 +33,16 @@ vsf_tcp_wrapper_ok(int remote_fd)
     return 0;
   }
   return 1;
+}
+
+#else /* VSF_BUILD_TCPWRAPPERS */
+
+int
+vsf_tcp_wrapper_ok(int remote_fd)
+{
+  (void) remote_fd;
+  die("tcp_wrappers is set to YES but no tcp wrapper support compiled in");
+  return 0;
 }
 
 #endif /* VSF_BUILD_TCPWRAPPERS */

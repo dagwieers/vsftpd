@@ -152,7 +152,7 @@ Tested platforms (well, it builds)
 the platforms listed below, and often older ones, should work fine.
 - RedHat Linux
 - RedHat Enterprise Linux
-- Solaris / GNU tools (note - Solaris 8 or newer recommended)
+- Solaris / GNU tools (Solaris 8 or newer)
 - SuSE Linux
 - Debian Linux
 - OpenBSD
@@ -160,4 +160,5 @@ the platforms listed below, and often older ones, should work fine.
 - NetBSD
 - HP-UX / GNU tools
 - IRIX / GNU tools
+- Mac OS X (note; older versions have setgroups() problem. 10.3.4 reported OK)
 

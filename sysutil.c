@@ -50,6 +50,7 @@
 #include <netinet/tcp.h>
 #include <limits.h>
 #include <syslog.h>
+#include <utime.h>
 
 /* Private variables to this file */
 /* Current umask() */
@@ -899,6 +900,12 @@ vsf_sysutil_isalnum(int the_char)
   return isalnum(the_char);
 }
 
+int
+vsf_sysutil_isdigit(int the_char)
+{
+  return isdigit(the_char);
+}
+
 char*
 vsf_sysutil_getcwd(char* p_dest, const unsigned int buf_size)
 {
@@ -1540,11 +1547,11 @@ vsf_sysutil_get_ipv6_sock(void)
 }
 
 struct vsf_sysutil_socketpair_retval
-vsf_sysutil_unix_dgram_socketpair(void)
+vsf_sysutil_unix_stream_socketpair(void)
 {
   struct vsf_sysutil_socketpair_retval retval;
   int the_sockets[2];
-  int sys_retval = socketpair(PF_UNIX, SOCK_DGRAM, 0, the_sockets);
+  int sys_retval = socketpair(PF_UNIX, SOCK_STREAM, 0, the_sockets);
   if (sys_retval != 0)
   {
     die("socketpair");
@@ -2447,5 +2454,52 @@ vsf_sysutil_syslog(const char* p_text, int severe)
     prio = LOG_WARNING;
   }
   syslog(prio, "%s", p_text);
+}
+
+long
+vsf_sysutil_parse_time(const char* p_text)
+{
+  struct tm the_time;
+  unsigned int len = vsf_sysutil_strlen(p_text);
+  vsf_sysutil_memclr(&the_time, sizeof(the_time));
+  if (len >= 8)
+  {
+    char yr[5];
+    char mon[3];
+    char day[3];
+    vsf_sysutil_strcpy(yr, p_text, 5);
+    vsf_sysutil_strcpy(mon, p_text + 4, 3);
+    vsf_sysutil_strcpy(day, p_text + 6, 3);
+    the_time.tm_year = vsf_sysutil_atoi(yr) - 1900;
+    the_time.tm_mon = vsf_sysutil_atoi(mon) - 1;
+    the_time.tm_mday = vsf_sysutil_atoi(day);
+  }
+  if (len >= 14)
+  {
+    char hr[3];
+    char mins[3];
+    char sec[3];
+    vsf_sysutil_strcpy(hr, p_text + 8, 3);
+    vsf_sysutil_strcpy(mins, p_text + 10, 3);
+    vsf_sysutil_strcpy(sec, p_text + 12, 3);
+    the_time.tm_hour = vsf_sysutil_atoi(hr);
+    the_time.tm_min = vsf_sysutil_atoi(mins);
+    the_time.tm_sec = vsf_sysutil_atoi(sec);
+  }
+  return mktime(&the_time);
+}
+
+int
+vsf_sysutil_setmodtime(const char* p_file, long the_time, int is_localtime)
+{
+  struct utimbuf new_times;
+  if (!is_localtime)
+  {
+    the_time -= timezone;
+  }
+  vsf_sysutil_memclr(&new_times, sizeof(new_times));
+  new_times.actime = the_time;
+  new_times.modtime = the_time;
+  return utime(p_file, &new_times);
 }
 

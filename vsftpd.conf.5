@@ -34,6 +34,14 @@ or
 .BR NO .
 
 .TP
+.B allow_anon_ssl
+Only applies if
+.BR ssl_enable
+is active. If set to YES, anonymous users will be allowed to use secured SSL
+connections.
+
+Default: NO
+.TP
 .B anon_mkdir_write_enable
 If set to YES, anonymous users will be permitted to create new directories
 under certain conditions. For this to work, the option
@@ -197,6 +205,22 @@ excludes the "." and ".." entries.
 
 Default: NO
 .TP
+.B force_local_data_ssl
+Only applies if
+.BR ssl_enable
+is activated. If activated, all non-anonymous logins are forced to use a secure
+SSL connection in order to send and receive data on data connections.
+
+Default: YES
+.TP
+.B force_local_logins_ssl
+Only applies if
+.BR ssl_enable
+is activated. If activated, all non-anonymous logins are forced to use a secure
+SSL connection in order to send the password.
+
+Default: YES
+.TP
 .B guest_enable
 If enabled, all non-anonymous logins are classed as "guest" logins. A guest
 login is remapped to the user specified in the
@@ -248,6 +272,14 @@ Default: NO
 .B no_anon_password
 When enabled, this prevents vsftpd from asking for an anonymous password -
 the anonymous user will log straight in.
+
+Default: NO
+.TP
+.B no_log_lock
+When enabled, this prevents vsftpd from taking a file lock when writing to log
+files. This option should generally not be enabled. It exists to workaround
+operating system bugs such as the Solaris / Veritas filesystem combination
+which has been observed to sometimes exhibit hangs trying to lock log files.
 
 Default: NO
 .TP
@@ -336,7 +368,7 @@ logging, and you wish to give vsftpd more opportunity to run with less
 processes and / or less privilege. NOTE - utmp and wtmp support is only
 provided with PAM enabled builds.
 
-Default: YES
+Default: NO
 .TP
 .B setproctitle_enable
 If enabled, vsftpd will try and show session status information in the system
@@ -345,6 +377,41 @@ to reflect what a vsftpd session is doing (idle, downloading etc). You
 probably want to leave this off for security purposes.
 
 Default: NO
+.TP
+.B ssl_enable
+If enabled, and vsftpd was compiled against OpenSSL, vsftpd will support secure
+connections via SSL. This applies to the control connection (including login)
+and also data connections. You'll need a client with SSL support too. NOTE!!
+Beware enabling this option. Only enable it if you need it. vsftpd can make no
+guarantees about the security of the OpenSSL libraries. By enabling this
+option, you are declaring that you trust the security of your installed
+OpenSSL library.
+
+Default: NO
+.TP
+.B ssl_sslv2
+Only applies if
+.BR ssl_enable
+is activated. If enabled, this option will permit SSL v2 protocol connections.
+TLS v1 connections are preferred.
+
+Default: NO
+.TP
+.B ssl_sslv3
+Only applies if
+.BR ssl_enable
+is activated. If enabled, this option will permit SSL v2 protocol connections.
+TLS v1 connections are preferred.
+
+Default: NO
+.TP
+.B ssl_tlsv1
+Only applies if
+.BR ssl_enable
+is activated. If enabled, this option will permit TLS v1 protocol connections.
+TLS v1 connections are preferred.
+
+Default: YES
 .TP
 .B syslog_enable
 If enabled, then any log output which would have gone to /var/log/vsftpd.log
@@ -368,8 +435,18 @@ by default for performance reasons.
 
 Default: NO
 .TP
+.B tilde_user_enable
+If enabled, vsftpd will try and resolve pathnames such as ~chris/pics, i.e. a
+tilde followed by a username. Note that vsftpd will always resolve the
+pathnames ~ and ~/something (in this case the ~ resolves to the initial
+login directory). Note that ~user paths will only resolve if the file
+.BR /etc/passwd
+may be found within the _current_ chroot() jail.
+
+Default: NO
+.TP
 .B use_localtime
-If enabled, vsftpd will display directory listings with the the time in your
+If enabled, vsftpd will display directory listings with the time in your
 local time zone. The default is to display GMT. The times returned by the
 MDTM FTP command are also affected by this option.
 
@@ -618,6 +695,12 @@ deny_file={*.mp3,*.mov,.private}
 
 Default: (none)
 .TP
+.B dsa_cert_file
+This option specifies the location of the DSA certificate to use for SSL
+encrypted connections.
+
+Default: (none - an RSA certificate suffices)
+.TP
 .B email_password_file
 This option can be used to provide an alternate file for usage by the
 .BR secure_email_list_enable
@@ -686,7 +769,7 @@ is enabled.
 Default: .message
 .TP
 .B nopriv_user
-This is the name of the user that is used by vsftpd when it want to be
+This is the name of the user that is used by vsftpd when it wants to be
 totally unprivileged. Note that this should be a dedicated user, rather
 than nobody. The user nobody tends to be used for rather a lot of important
 things on most machines.
@@ -704,12 +787,28 @@ response to the PASV command. Provide a numeric IP address.
 
 Default: (none - the address is taken from the incoming connected socket)
 .TP
+.B rsa_cert_file
+This option specifies the location of the RSA certificate to use for SSL
+encrypted connections.
+
+Default: /usr/share/ssl/certs/vsftpd.pem
+.TP
 .B secure_chroot_dir
 This option should be the name of a directory which is empty. Also, the
 directory should not be writable by the ftp user. This directory is used
 as a secure chroot() jail at times vsftpd does not require filesystem access.
 
 Default: /usr/share/empty
+.TP
+.B ssl_ciphers
+This option can be used to select which SSL ciphers vsftpd will allow for
+encrpyted SSL connections. See the
+.BR ciphers
+man page for further details. Note that restricting ciphers can be a useful
+security precaution as it prevents malicious remote parties forcing a cipher
+which they have found problems with.
+
+Default: DES-CBC3-SHA
 .TP
 .B user_config_dir
 This powerful option allows the override of any config option specified in

@@ -195,6 +195,7 @@ int vsf_sysutil_toupper(int the_char);
 int vsf_sysutil_isspace(int the_char);
 int vsf_sysutil_isprint(int the_char);
 int vsf_sysutil_isalnum(int the_char);
+int vsf_sysutil_isdigit(int the_char);
 
 /* Socket handling */
 struct vsf_sysutil_sockaddr;
@@ -234,7 +235,7 @@ const void* vsf_sysutil_sockaddr_ipv6_v4(
 int vsf_sysutil_get_ipv4_sock(void);
 int vsf_sysutil_get_ipv6_sock(void);
 struct vsf_sysutil_socketpair_retval
-  vsf_sysutil_unix_dgram_socketpair(void);
+  vsf_sysutil_unix_stream_socketpair(void);
 int vsf_sysutil_bind(int fd, const struct vsf_sysutil_sockaddr* p_sockptr);
 void vsf_sysutil_listen(int fd, const unsigned int backlog);
 void vsf_sysutil_getsockname(int fd, struct vsf_sysutil_sockaddr** p_sockptr);
@@ -319,7 +320,9 @@ void vsf_sysutil_chroot(const char* p_root_path);
 void vsf_sysutil_update_cached_time(void);
 long vsf_sysutil_get_cached_time_sec(void);
 long vsf_sysutil_get_cached_time_usec(void);
+long vsf_sysutil_parse_time(const char* p_text);
 void vsf_sysutil_sleep(double seconds);
+int vsf_sysutil_setmodtime(const char* p_file, long the_time, int is_localtime);
 
 #endif /* VSF_SYSUTIL_H */
 

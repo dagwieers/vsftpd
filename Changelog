@@ -766,3 +766,39 @@ deny_file of *..* is useful.
 At this point: v1.2.2 released! (need to get the listener fix out)
 ==================================================================
 
+- Improve logging (log deletes, renames, chmods, etc. as requested by users).
+- Add no_log_lock to work around Solaris / Veritas locking hangs.
+- Add EPRT, EPSV, PASV and TVFS to FEAT response.
+- Implement use of MDTM to set timestamps.
+- Recognize FEAT prior to login.
+- Add OpenSSL (AUTH TLS / SSL) support for encrypted control and data
+connections! Hurrah.
+- Increase max size of .message files to 4000 characters, thanks to Eric
+Pancer <epancer@security.depaul.edu> for the report.
+- Add easy builddefs.h ability to disable PAM builds even when PAM is installed.
+- Report vsftpd version in STAT output.
+- Add REFS file.
+- Change parent<->child socket comms from DGRAM to STREAM for increased
+reliability. The main benefit is should the parent be killed (or crash out)
+then the child won't block on a read() that will never return.
+- Make str_reserve reserve space for the trailing zero as well, so we don't
+cause a reallocation if we exactly fill the buffer.
+- Optimize the sending of strings over the parent<->child comms links.
+- Improve the build system so tcp_wrappers, PAM and OpenSSL can be forcibly
+compiled out.
+- Fix vsftpd.conf.5 typos, thanks to Dmitry V. Levin <ldv@altlinux.org>.
+- If trans_chunk_size is between 1 and 4096, use 4096 rather than ignoring
+totally. Thanks to Brad <brad@intradonline.com>.
+- Lose Makefile.sun and README.solaris special cases.
+- Add SSL / TLS info to SECURITY texts.
+- Add README.ssl
+- Add documentation for new SSL options to vsftpd.conf.5.
+- Add support for CWD ~ (and in general support ~ at start of any filename).
+Also support stuff like ~chris/pics, if tilde_user_enable=YES is set. Note that
+all of this is for very very broken clients :-(
+- Fix compile warnings.
+- Update INSTALL with (recent) OS X as a working platform.
+
+At this point: v2.0.0 released!
+===============================
+

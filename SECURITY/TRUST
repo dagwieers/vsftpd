@@ -101,6 +101,13 @@ named "sysutil.c", and "sysdeputil.c" (for the more variable/system dependent
 calls). This provides a convenient audit point for ascertaining which calls
 vsftpd trusts.
 
+vsftpd-2.0.0 introduces SSL / TLS support using OpenSSL. OpenSSL is a massive
+quantity of code which is essentially parsing complex protocol under the full
+control of remote malicious clients. SSL / TLS is disabled by default, both
+at compile time and run time. This forces packagers and administrators to make
+the decision that they trust the OpenSSL library. I personally haven't yet
+formed an opinion on whether I consider the OpenSSL code trustworthy.
+
 
 Summary
 =======

@@ -14,101 +14,103 @@ void priv_sock_init(struct vsf_session* p_sess);
 
 /* priv_sock_send_cmd()
  * PURPOSE
- * Sends a command to the privileged side of the channel.
+ * Sends a command, typically to the privileged side of the channel.
  * PARAMETERS
- * p_sess       - the current session object
+ * fd           - the fd on which to send the command
  * cmd          - the command to send
  */
-void priv_sock_send_cmd(struct vsf_session* p_sess, char cmd);
+void priv_sock_send_cmd(int fd, char cmd);
 
 /* priv_sock_send_str()
  * PURPOSE
- * Sends a string to the privileged side of the channel.
+ * Sends a string to the other side of the channel.
  * PARAMETERS
- * p_sess       - the current session object
+ * fd           - the fd on which to send the string
  * p_str        - the string to send
  */
-void priv_sock_send_str(struct vsf_session* p_sess, const struct mystr* p_str);
+void priv_sock_send_str(int fd, const struct mystr* p_str);
 
 /* priv_sock_get_result()
  * PURPOSE
- * Receives a response from the privileged side of the channel.
+ * Receives a response, typically from the privileged side of the channel.
  * PARAMETERS
- * p_sess       - the current session object
+ * fd           - the fd on which to receive the response
  * RETURNS
  * The response code.
  */
-char priv_sock_get_result(struct vsf_session* p_sess);
+char priv_sock_get_result(int fd);
 
 /* priv_sock_get_cmd()
  * PURPOSE
- * Receives a command on the privileged side of the channel.
+ * Receives a command, typically on the privileged side of the channel.
  * PARAMETERS
- * p_sess       - the current session object
+ * fd           - the fd on which to receive the command.
  * RETURNS
  * The command that was sent.
  */
-char priv_sock_get_cmd(struct vsf_session* p_sess);
+char priv_sock_get_cmd(int fd);
 
 /* priv_sock_get_str()
  * PURPOSE
- * Receives a string on the privileged side of the channel.
+ * Receives a string from the other side of the channel.
  * PARAMETERS
- * p_sess       - the current session object
+ * fd           - the fd on which to receive the string
  * p_dest       - where to copy the received string
  */
-void priv_sock_get_str(struct vsf_session* p_sess, struct mystr* p_dest);
+void priv_sock_get_str(int fd, struct mystr* p_dest);
 
 /* priv_sock_send_result()
  * PURPOSE
- * Sends a command result to the unprivileged side of the channel.
+ * Sends a command result, typically to the unprivileged side of the channel.
  * PARAMETERS
- * p_sess       - the current session object
+ * fd           - the fd on which to send the result
  * res          - the result to send
  */
-void priv_sock_send_result(struct vsf_session* p_sess, char res);
+void priv_sock_send_result(int fd, char res);
 
-/* priv_sock_child_send_fd()
+/* priv_sock_send_fd()
  * PURPOSE
- * Sends a file descriptor to the privileged side of the channel.
+ * Sends a file descriptor to the other side of the channel.
  * PARAMETERS
- * p_sess       - the current session object
- * fd           - the descriptor to send
+ * fd           - the fd on which to send the descriptor 
+ * send_fd      - the descriptor to send
  */
-void priv_sock_child_send_fd(struct vsf_session* p_sess, int fd);
+void priv_sock_send_fd(int fd, int send_fd);
 
-/* priv_sock_parent_recv_fd()
+/* priv_sock_recv_fd()
  * PURPOSE
- * Receives a file descriptor on the privileged side of the channel.
+ * Receives a file descriptor from the other side of the channel.
  * PARAMETERS
- * p_sess       - the current session object
+ * fd           - the fd on which to receive the descriptor
  * RETURNS
  * The received file descriptor
  */
-int priv_sock_parent_recv_fd(struct vsf_session* p_sess);
+int priv_sock_recv_fd(int fd);
 
-/* priv_sock_parent_send_fd()
+/* priv_sock_send_int()
  * PURPOSE
- * Sends a file descriptor to the unprivileged side of the channel.
+ * Sends an integer to the other side of the channel.
  * PARAMETERS
- * p_sess       - the current session object
- * fd           - the descriptor to send
+ * fd           - the fd on which to send the integer
+ * the_int      - the integer to send
  */
-void priv_sock_parent_send_fd(struct vsf_session* p_sess, int fd);
+void priv_sock_send_int(int fd, int the_int);
 
-/* priv_sock_child_recv_fd()
+/* priv_sock_get_int()
  * PURPOSE
- * Receives a file descriptor on the unprivileged side of the channel.
+ * Receives an integer from the other side of the channel.
  * PARAMETERS
- * p_sess       - the current session object
+ * fd           - the fd on which to receive the integer
  * RETURNS
- * The received file descriptor
+ * The integer that was sent.
  */
-int priv_sock_child_recv_fd(struct vsf_session* p_sess);
+int priv_sock_get_int(int fd);
 
 #define PRIV_SOCK_LOGIN             1
 #define PRIV_SOCK_CHOWN             2
 #define PRIV_SOCK_GET_DATA_SOCK     3
+#define PRIV_SOCK_GET_USER_CMD      4
+#define PRIV_SOCK_WRITE_USER_RESP   5
 
 #define PRIV_SOCK_RESULT_OK         1
 #define PRIV_SOCK_RESULT_BAD        2

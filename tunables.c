@@ -57,6 +57,15 @@ int tunable_dirlist_enable = 1;
 int tunable_chmod_enable = 1;
 int tunable_secure_email_list_enable = 0;
 int tunable_run_as_launching_user = 0;
+int tunable_no_log_lock = 0;
+int tunable_ssl_enable = 0;
+int tunable_allow_anon_ssl = 0;
+int tunable_force_local_logins_ssl = 1;
+int tunable_force_local_data_ssl = 1;
+int tunable_sslv2 = 0;
+int tunable_sslv3 = 0;
+int tunable_tlsv1 = 1;
+int tunable_tilde_user_enable = 0;
 
 unsigned int tunable_accept_timeout = 60;
 unsigned int tunable_connect_timeout = 60;
@@ -103,4 +112,7 @@ const char* tunable_hide_file = 0;
 const char* tunable_deny_file = 0;
 const char* tunable_user_sub_token = 0;
 const char* tunable_email_password_file = "/etc/vsftpd.email_passwords";
+const char* tunable_rsa_cert_file = "/usr/share/ssl/certs/vsftpd.pem";
+const char* tunable_dsa_cert_file = 0;
+const char* tunable_ssl_ciphers = "DES-CBC3-SHA";
 
