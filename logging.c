@@ -204,7 +204,8 @@ vsf_log_do_log_vsftpd_format(struct vsf_session* p_sess, struct mystr* p_str,
     str_append_text(p_str, "] ");
   }
   /* And the action */
-  if (what != kVSFLogEntryFTPInput && what != kVSFLogEntryFTPOutput)
+  if (what != kVSFLogEntryFTPInput && what != kVSFLogEntryFTPOutput &&
+      what != kVSFLogEntryConnection)
   {
     if (succeeded)
     {
@@ -234,6 +235,9 @@ vsf_log_do_log_vsftpd_format(struct vsf_session* p_sess, struct mystr* p_str,
       break;
     case kVSFLogEntryFTPOutput:
       str_append_text(p_str, "FTP response");
+      break;
+    case kVSFLogEntryConnection:
+      str_append_text(p_str, "CONNECT");
       break;
     default:
       bug("bad entry_type in vsf_log_do_log");

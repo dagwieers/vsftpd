@@ -54,7 +54,7 @@ main(int argc, const char* argv[])
     /* Parent <-> child comms */
     0, -1, -1,
     /* Number of clients */
-    -1
+    0, 0
   };
   int config_specified = 0;
   const char* p_config_name = VSFTP_DEFAULT_CONFIG;
@@ -103,7 +103,9 @@ main(int argc, const char* argv[])
   if (tunable_listen)
   {
     /* Standalone mode */
-    the_session.num_clients = vsf_standalone_main();
+    struct vsf_client_launch ret = vsf_standalone_main();
+    the_session.num_clients = ret.num_children;
+    the_session.num_this_ip = ret.num_this_ip;
   }
   /* Sanity checks - exit with a graceful error message if our STDIN is not
    * a socket. Also check various config options don't collide.

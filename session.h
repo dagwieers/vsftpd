@@ -72,7 +72,8 @@ struct vsf_session
   int child_fd;
 
   /* Other details */
-  int num_clients;
+  unsigned int num_clients;
+  unsigned int num_this_ip;
 };
 
 #endif /* VSF_SESSION_H */

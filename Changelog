@@ -613,3 +613,13 @@ broken log parsers.
 At this point: 1.1.1 package released
 -------------------------------------
 
+- Add per-IP connection limits in standalone mode.
+- Add logging of refused connect due to global or IP connection limits.
+- (Many thanks for testing and suggestions from Rob van Nieuwkerk
+<robn@verdi.et.tudelft.nl> and Adrian Reber <adrian@lisas.de>.
+- Make connection limit exceeded messages nonblocking.
+- Don't exit the listener if fork fails.
+
+At this point: 1.1.2 package released
+-------------------------------------
+

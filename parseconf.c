@@ -94,6 +94,7 @@ parseconf_uint_array[] =
   { "listen_port", &tunable_listen_port },
   { "max_clients", &tunable_max_clients },
   { "file_open_mode", &tunable_file_open_mode },
+  { "max_per_ip", &tunable_max_per_ip },
   { 0, 0 }
 };
 

@@ -61,6 +61,7 @@ unsigned int tunable_listen_port = 21;
 unsigned int tunable_max_clients = 0;
 /* -rw-rw-rw- */
 unsigned int tunable_file_open_mode = 0666;
+unsigned int tunable_max_per_ip = 0;
 
 const char* tunable_secure_chroot_dir = "/usr/share/empty";
 const char* tunable_ftp_username = "ftp";

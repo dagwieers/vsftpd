@@ -440,12 +440,19 @@ vsf_sysutil_getpid(void)
 int
 vsf_sysutil_fork(void)
 {
-  int retval = fork();
+  int retval = vsf_sysutil_fork_failok();
   if (retval < 0)
   {
     die("fork");
   }
-  else if (retval == 0)
+  return retval;
+}
+
+int
+vsf_sysutil_fork_failok(void)
+{
+  int retval = fork();
+  if (retval == 0)
   {
     s_current_pid = -1;
   }
@@ -485,8 +492,12 @@ vsf_sysutil_wait_reap_one(void)
     /* No more children */
     return 0;
   }
+  if (retval < 0)
+  {
+    die("waitpid");
+  }
   /* Got one */
-  return 1;
+  return retval;
 }
 
 int
@@ -1477,6 +1488,7 @@ vsf_sysutil_accept_timeout(int fd, struct vsf_sysutil_sockaddr** p_sockptr,
     }
   }
   retval = accept(fd, (struct sockaddr*) &remote_addr, &socklen);
+  vsf_sysutil_check_pending_actions(kVSFSysUtilUnknown, 0, 0);
   if (retval < 0)
   {
     return retval;

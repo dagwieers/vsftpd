@@ -9,7 +9,7 @@ Step 1) Build vsftpd.
 Switch to the directory created when you unpacked the vsftpd .tar.gz file.
 e.g.:
 
-cd vsftpd-1.1.1
+cd vsftpd-1.1.2
 
 Just type "make" (and mail me to fix it if it doesn't build ;-).
 This should produce you a vsftpd binary. You can test for this, e.g.:

@@ -13,7 +13,8 @@ enum EVSFLogEntryType
   kVSFLogEntryMkdir,
   kVSFLogEntryLogin,
   kVSFLogEntryFTPInput,
-  kVSFLogEntryFTPOutput
+  kVSFLogEntryFTPOutput,
+  kVSFLogEntryConnection
 };
 
 /* vsf_log_init()

@@ -32,6 +32,7 @@
 #define FTP_IDLE_TIMEOUT      421
 #define FTP_DATA_TIMEOUT      421
 #define FTP_TOO_MANY_USERS    421
+#define FTP_IP_LIMIT          421
 #define FTP_BADSENDCONN       425
 #define FTP_BADSENDNET        426
 #define FTP_BADSENDFILE       451

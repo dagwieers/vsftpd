@@ -154,6 +154,7 @@ void vsf_sysutil_free(void* p_ptr);
 /* Process creation/exit/process handling */
 unsigned int vsf_sysutil_getpid(void);
 int vsf_sysutil_fork(void);
+int vsf_sysutil_fork_failok(void);
 void vsf_sysutil_exit(int exit_code);
 struct vsf_sysutil_wait_retval
 {

@@ -19,6 +19,7 @@
 #include "sysutil.h"
 #include "session.h"
 #include "banner.h"
+#include "logging.h"
 
 /* Functions used */
 static void emit_greeting(struct vsf_session* p_sess);
@@ -44,12 +45,25 @@ init_connection(struct vsf_session* p_sess)
 static void
 emit_greeting(struct vsf_session* p_sess)
 {
-  /* Check for client limit (standalone mode only) */
+  struct mystr str_log_line = INIT_MYSTR;
+  /* Check for client limits (standalone mode only) */
   if (tunable_max_clients > 0 &&
-      p_sess->num_clients > (int)tunable_max_clients)
+      p_sess->num_clients > tunable_max_clients)
   {
-    vsf_cmdio_write(p_sess, FTP_TOO_MANY_USERS,
+    str_alloc_text(&str_log_line, "Connection refused: too many sessions.");
+    vsf_log_line(p_sess, kVSFLogEntryConnection, &str_log_line);
+    vsf_cmdio_write_noblock(p_sess, FTP_TOO_MANY_USERS,
                     "There are too many connected users, please try later.");
+    vsf_sysutil_exit(0);
+  }
+  if (tunable_max_per_ip > 0 &&
+      p_sess->num_this_ip > tunable_max_per_ip)
+  {
+    str_alloc_text(&str_log_line,
+                   "Connection refused: too many sessions for this address.");
+    vsf_log_line(p_sess, kVSFLogEntryConnection, &str_log_line);
+    vsf_cmdio_write_noblock(p_sess, FTP_IP_LIMIT,
+        "There are too many connections from your internet address.");
     vsf_sysutil_exit(0);
   }
   if (!str_isempty(&p_sess->banner_str))

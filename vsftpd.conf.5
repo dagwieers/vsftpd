@@ -398,6 +398,13 @@ may be connected. Any additional clients connecting will get an error message.
 
 Default: 0 (unlimited)
 .TP
+.B max_per_ip
+If vsftpd is in standalone mode, this is the maximum number of clients which
+may be connected from the same source internet address. A client will get an
+error message if they go over this limit.
+
+Default: 0 (unlimited)
+.TP
 .B pasv_max_port
 The maximum port to allocate for PASV style data connections. Can be used to
 specify a narrow port range to assist firewalling.

@@ -10,7 +10,7 @@ NOT SO CRITICAL
 - separate upload/download max rates
 - select() is assuming Linux behaviour (not threatening stability)
 - IPv6 support
-- enhance standalone support (IP filtering, per-IP limits)
+- enhance standalone support (IP filtering? - tcp_wrappers?)
 
 ON THE BACK BURNER
 ==================

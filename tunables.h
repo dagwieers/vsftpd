@@ -55,6 +55,7 @@ extern unsigned int tunable_local_max_rate;
 extern unsigned int tunable_listen_port;
 extern unsigned int tunable_max_clients;
 extern unsigned int tunable_file_open_mode;
+extern unsigned int tunable_max_per_ip;
 
 /* String defines */
 extern const char* tunable_secure_chroot_dir;
