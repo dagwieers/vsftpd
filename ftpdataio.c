@@ -177,9 +177,8 @@ handle_sigalrm(void* p_private)
   struct vsf_session* p_sess = (struct vsf_session*) p_private;
   if (!p_sess->data_progress)
   {
-    vsf_cmdio_write_noblock(p_sess, FTP_DATA_TIMEOUT,
-                            "Data timeout. Reconnect. Sorry.");
-    vsf_sysutil_exit(0);
+    vsf_cmdio_write_exit(p_sess, FTP_DATA_TIMEOUT,
+                         "Data timeout. Reconnect. Sorry.");
   }
   p_sess->data_progress = 0;
   start_data_alarm(p_sess);

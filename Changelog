@@ -848,3 +848,13 @@ SSL data connection dropouts after data_connection_timeout seconds.
 At this point: v2.0.2 released! (need to get the SSL dropout fix out)
 =====================================================================
 
+- Document what regex expressions are supported in the man page.
+- New settings rsa_private_key_file and dsa_private_key_file to allow
+separate files for the certificates and private keys.
+- Initial, simple fix for timed out processes not exiting when SSL is in use.
+Better fix (which reports timeout to client properly) to follow.
+- Add which setsockopt option failed to die("setsockopt") calls.
+- Fix when running on recent OpenBSDs - OpenBSD change broke vsftpd. Lower
+linger timeout from INT_MAX to 32767 (SHORT_MAX).
+(v2.0.3pre1)
+

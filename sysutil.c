@@ -620,7 +620,7 @@ vsf_sysutil_activate_keepalive(int fd)
                           sizeof(keepalive));
   if (retval != 0)
   {
-    die("setsockopt");
+    die("setsockopt: keepalive");
   }
 }
 
@@ -632,7 +632,7 @@ vsf_sysutil_activate_reuseaddr(int fd)
                           sizeof(reuseaddr));
   if (retval != 0)
   {
-    die("setsockopt");
+    die("setsockopt: reuseaddr");
   }
 }
 
@@ -644,7 +644,7 @@ vsf_sysutil_set_nodelay(int fd)
                           sizeof(nodelay));
   if (retval != 0)
   {
-    die("setsockopt");
+    die("setsockopt: nodelay");
   }
 }
 
@@ -666,7 +666,7 @@ vsf_sysutil_activate_oobinline(int fd)
                           sizeof(oob_inline));
   if (retval != 0)
   {
-    die("setsockopt");
+    die("setsockopt: oobinline");
   }
 }
 
@@ -683,13 +683,14 @@ vsf_sysutil_activate_linger(int fd)
 {
   int retval;
   struct linger the_linger;
+  vsf_sysutil_memclr(&the_linger, sizeof(the_linger));
   the_linger.l_onoff = 1;
-  the_linger.l_linger = INT_MAX;
+  the_linger.l_linger = 32767;
   retval = setsockopt(fd, SOL_SOCKET, SO_LINGER, &the_linger,
                       sizeof(the_linger));
   if (retval != 0)
   {
-    die("setsockopt");
+    die("setsockopt: linger");
   }
 }
 
@@ -1787,6 +1788,16 @@ vsf_sysutil_shutdown_failok(int fd)
   #define SHUT_RDWR 2
   #endif
   (void) shutdown(fd, SHUT_RDWR);
+}
+
+void
+vsf_sysutil_shutdown_read_failok(int fd)
+{
+  /* SHUT_RD is a relatively new addition */
+  #ifndef SHUT_RD
+  #define SHUT_RD 0
+  #endif
+  (void) shutdown(fd, SHUT_RD);
 }
 
 void

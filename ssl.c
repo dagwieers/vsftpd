@@ -65,28 +65,36 @@ ssl_init(struct vsf_session* p_sess)
     SSL_CTX_set_options(p_ctx, options);
     if (tunable_rsa_cert_file)
     {
+      const char* p_key = tunable_rsa_private_key_file;
+      if (!p_key)
+      {
+        p_key = tunable_rsa_cert_file;
+      }
       if (SSL_CTX_use_certificate_file(
         p_ctx, tunable_rsa_cert_file, X509_FILETYPE_PEM) != 1)
       {
-        die("SSL: cannot load RSA key");
+        die("SSL: cannot load RSA certificate");
       }
-      if (SSL_CTX_use_PrivateKey_file(
-        p_ctx, tunable_rsa_cert_file, X509_FILETYPE_PEM) != 1)
+      if (SSL_CTX_use_PrivateKey_file(p_ctx, p_key, X509_FILETYPE_PEM) != 1)
       {
-        die("SSL: cannot load RSA key");
+        die("SSL: cannot load RSA private key");
       }
     }
     if (tunable_dsa_cert_file)
     {
+      const char* p_key = tunable_dsa_private_key_file;
+      if (!p_key)
+      {
+        p_key = tunable_dsa_cert_file;
+      }
       if (SSL_CTX_use_certificate_file(
         p_ctx, tunable_dsa_cert_file, X509_FILETYPE_PEM) != 1)
       {
-        die("SSL: cannot load DSA key");
+        die("SSL: cannot load DSA certificate");
       }
-      if (SSL_CTX_use_PrivateKey_file(
-        p_ctx, tunable_dsa_cert_file, X509_FILETYPE_PEM) != 1)
+      if (SSL_CTX_use_PrivateKey_file(p_ctx, p_key, X509_FILETYPE_PEM) != 1)
       {
-        die("SSL: cannot load DSA key");
+        die("SSL: cannot load DSA private key");
       }
     }
     if (SSL_CTX_set_cipher_list(p_ctx, tunable_ssl_ciphers) != 1)

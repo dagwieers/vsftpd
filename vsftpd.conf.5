@@ -690,8 +690,11 @@ Note that vsftpd's regular expression matching code is a simple implementation
 which is a subset of full regular expression functionality. Because of this,
 you will need to carefully and exhaustively test any application of this
 option. And you are recommended to use filesystem permissions for any
-important security policies due to their greater reliability. Example:
-deny_file={*.mp3,*.mov,.private}
+important security policies due to their greater reliability. Supported
+regex syntax is any number of *, ? and unnested {,} operators. Regex
+matching is only supported on the last component of a path, e.g. a/b/? is
+supported but a/?/c is not.
+Example: deny_file={*.mp3,*.mov,.private}
 
 Default: (none)
 .TP
@@ -700,6 +703,13 @@ This option specifies the location of the DSA certificate to use for SSL
 encrypted connections.
 
 Default: (none - an RSA certificate suffices)
+.TP
+.B dsa_private_key_file
+This option specifies the location of the DSA private key to use for SSL
+encrypted connections. If this option is not set, the private key is expected
+to be in the same file as the certificate.
+
+Default: (none)
 .TP
 .B email_password_file
 This option can be used to provide an alternate file for usage by the
@@ -736,6 +746,9 @@ names to actually use. Items will be hidden if their names contain the string
 given by hide_file, or if they match the regular expression specified by
 hide_file. Note that vsftpd's regular expression matching code is a simple
 implementation which is a subset of full regular expression functionality.
+See
+.BR deny_file
+for details of exactly what regex syntax is supported.
 Example: hide_file={*.mp3,.hidden,hide*,h?}
 
 Default: (none)
@@ -792,6 +805,13 @@ This option specifies the location of the RSA certificate to use for SSL
 encrypted connections.
 
 Default: /usr/share/ssl/certs/vsftpd.pem
+.TP
+.B rsa_private_key_file
+This option specifies the location of the RSA private key to use for SSL
+encrypted connections. If this option is not set, the private key is expected
+to be in the same file as the certificate.
+
+Default: (none)
 .TP
 .B secure_chroot_dir
 This option should be the name of a directory which is empty. Also, the

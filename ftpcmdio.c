@@ -41,8 +41,7 @@ static void
 handle_alarm_timeout(void* p_private)
 {
   struct vsf_session* p_sess = (struct vsf_session*) p_private;
-  vsf_cmdio_write_noblock(p_sess, FTP_IDLE_TIMEOUT, "Timeout.");
-  vsf_sysutil_exit(0);
+  vsf_cmdio_write_exit(p_sess, FTP_IDLE_TIMEOUT, "Timeout.");
 }
 
 void
@@ -76,10 +75,15 @@ vsf_cmdio_write_raw(struct vsf_session* p_sess, const char* p_text)
 }
 
 void
-vsf_cmdio_write_noblock(struct vsf_session* p_sess, int status,
-                        const char* p_text)
+vsf_cmdio_write_exit(struct vsf_session* p_sess, int status, const char* p_text)
 {
+  /* Unblock any readers on the dying control channel. This is needed for SSL
+   * connections, where the SSL control channel slave is in a separate
+   * process.
+   */
+  vsf_sysutil_shutdown_read_failok(VSFTP_COMMAND_FD);
   ftp_write_text_common(p_sess, status, p_text, 1, ' ');
+  vsf_sysutil_exit(0);
 }
 
 static void

@@ -3,19 +3,19 @@ CRITICAL
 
 - Improve FAQ, docs (ongoing..)
 - Integrated test suite (I'm so lazy..)
+- Sweedish, Russian etc. characters showing as ? in the log - many complaints.
+
+- SIGALRM at prelogin stage with SSL not safe w.r.t. re-entrancy.
+- Check re-entrancy of usage of vsf_sysutil_exit_func.
+- And session timeout too :( (not working with SSL).
+- Send until EOF is really reached (not the case with sendfile mode).
 
 NOT SO CRITICAL
 ===============
 
-- SITE GROUP support.
-- SITE UTIME?
-- And session timeout too :( (not working with SSL).
 - lock the files being modified?
-- Send until EOF is really reached (not the case with sendfile mode).
 - Still reports FlashFXP broken when trying to do FXP.
-- Add negation support to regex handler. Doc what regex is supported in man
-page.
-- Separate public / private key files for SSL support.
+- Add negation, other support to regex handler.
 - Fix SIGHUP config file reload to correctly reset _removed_ settings to
 their default values.
 - Allow listener to listen on multiple IPs; bonus points if the different
@@ -29,12 +29,9 @@ can result in a non-zero exit code.
 used.
 - option to chroot to home dir and THEN apply init_dir
 - pasv_addr_file option (patch from Adam Luter)
-- Sweedish characters showing as ? in the log.
-- Test vsftpd with pam_opie (issues with challenge/response vs. FTP protocol?)
 - separate upload/download max rates
 - select() is assuming Linux behaviour (not threatening stability)
 - add example global bandwidth limiting.
-- put anon FTP users in wtmp too?
 - switch to new signal model
 
 ON THE BACK BURNER
@@ -53,6 +50,10 @@ has been fixed?)
 - Fix for systems with no IPv6 (e.g. Solaris 7) (I'm only getting limited
 numbers of these reports)
 - Look into using GnuTLS in place of OpenSSL (more compatible license).
+- put anon FTP users in wtmp too?
+- Test vsftpd with pam_opie (issues with challenge/response vs. FTP protocol?)
+- SITE GROUP support.
+- SITE UTIME?
 
 NOT PLANNED
 ===========

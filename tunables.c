@@ -115,4 +115,6 @@ const char* tunable_email_password_file = "/etc/vsftpd.email_passwords";
 const char* tunable_rsa_cert_file = "/usr/share/ssl/certs/vsftpd.pem";
 const char* tunable_dsa_cert_file = 0;
 const char* tunable_ssl_ciphers = "DES-CBC3-SHA";
+const char* tunable_rsa_private_key_file = 0;
+const char* tunable_dsa_private_key_file = 0;
 

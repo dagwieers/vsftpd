@@ -45,14 +45,13 @@ void vsf_cmdio_write_hyphen(struct vsf_session* p_sess, int status,
  */
 void vsf_cmdio_write_raw(struct vsf_session* p_sess, const char* p_text);
 
-/* vsf_cmdio_write_noblock()
+/* vsf_cmdio_write_exit()
  * PURPOSE
- * The same as vsf_cmdio_write(), apart from the fact we _guarantee_ not to
- * block (ditching output if neccessary). This is useful for messages as
- * we exit, to avoid getting stuck on exit.
+ * The same as vsf_cmdio_write(), and then the calling process is exited. The
+ * write is _guaranteed_ to not block (ditching output if neccessary).
  */
-void vsf_cmdio_write_noblock(struct vsf_session* p_sess, int status,
-                             const char* p_text);
+void vsf_cmdio_write_exit(struct vsf_session* p_sess, int status,
+                          const char* p_text);
 
 /* vsf_cmdio_write_str()
  * PURPOSE
