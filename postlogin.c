@@ -424,15 +424,8 @@ handle_cwd(struct vsf_session* p_sess)
 static void
 handle_cdup(struct vsf_session* p_sess)
 {
-  int retval = vsf_sysutil_chdir("..");
-  if (retval == 0)
-  {
-    vsf_cmdio_write(p_sess, FTP_CWDOK, "Directory successfully changed.");
-  }
-  else
-  {
-    vsf_cmdio_write(p_sess, FTP_FILEFAIL, "Failed to change directory.");
-  }
+  str_alloc_text(&p_sess->ftp_arg_str, "..");
+  handle_cwd(p_sess);
 }
 
 static int

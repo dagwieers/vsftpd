@@ -16,10 +16,10 @@
 #include "utility.h"
 #include "tunables.h"
 
-/* Activate 64-bit file support on Linux/32bit */
+/* Activate 64-bit file support on Linux/32bit plus others */
 #define _FILE_OFFSET_BITS 64
-/* And Solaris.. */
-/*#define _LARGEFILE64_SOURCE 1*/
+#define _LARGEFILE_SOURCE 1
+#define _LARGEFILE64_SOURCE 1
 
 /* For Linux, this adds nothing :-) */
 #include "port/porting_junk.h"
@@ -93,8 +93,7 @@ static int vsf_sysutil_translate_memprot(
 static int vsf_sysutil_translate_openmode(
   const enum EVSFSysUtilOpenMode mode);
 static void vsf_sysutil_alloc_statbuf(struct vsf_sysutil_statbuf** p_ptr);
-static void vsf_sysutil_sockaddr_alloc(
-  struct vsf_sysutil_sockaddr** p_sockptr);
+void vsf_sysutil_sockaddr_alloc(struct vsf_sysutil_sockaddr** p_sockptr);
 
 static void
 vsf_sysutil_common_sighandler(int signum)
@@ -1403,7 +1402,7 @@ vsf_sysutil_statbuf_get_sortkey_mtime(
    * more recent dates appear later in the alphabet! Most notably, we must
    * make sure we pad to the same length with 0's 
    */
-  snprintf(intbuf, sizeof(intbuf), "%030ld", p_stat->st_mtime);
+  snprintf(intbuf, sizeof(intbuf), "%030ld", (long) p_stat->st_mtime);
   return intbuf;
 }
 
@@ -1585,8 +1584,11 @@ vsf_sysutil_listen(int fd, const unsigned int backlog)
   }
 }
 
+/* Warning: callers of this function assume it does NOT make use of any
+ * non re-entrant calls such as malloc().
+ */
 int
-vsf_sysutil_accept_timeout(int fd, struct vsf_sysutil_sockaddr** p_sockptr,
+vsf_sysutil_accept_timeout(int fd, struct vsf_sysutil_sockaddr* p_sockaddr,
                            unsigned int wait_seconds)
 {
   struct vsf_sysutil_sockaddr remote_addr;
@@ -1594,9 +1596,9 @@ vsf_sysutil_accept_timeout(int fd, struct vsf_sysutil_sockaddr** p_sockptr,
   fd_set accept_fdset;
   struct timeval timeout;
   unsigned int socklen = sizeof(remote_addr);
-  if (p_sockptr)
+  if (p_sockaddr)
   {
-    vsf_sysutil_sockaddr_clear(p_sockptr);
+    vsf_sysutil_memclr(p_sockaddr, sizeof(*p_sockaddr));
   }
   if (wait_seconds > 0)
   {
@@ -1631,19 +1633,18 @@ vsf_sysutil_accept_timeout(int fd, struct vsf_sysutil_sockaddr** p_sockptr,
   {
     die("can only support ipv4 and ipv6 currently");
   }
-  if (p_sockptr)
+  if (p_sockaddr)
   {
-    vsf_sysutil_sockaddr_alloc(p_sockptr);
     if (remote_addr.u.u_sockaddr.sa_family == AF_INET)
     {
       vsf_sysutil_memclr(&remote_addr.u.u_sockaddr_in.sin_zero,
                          sizeof(remote_addr.u.u_sockaddr_in.sin_zero));
-      vsf_sysutil_memcpy(*p_sockptr, &remote_addr.u.u_sockaddr_in,
+      vsf_sysutil_memcpy(p_sockaddr, &remote_addr.u.u_sockaddr_in,
                          sizeof(remote_addr.u.u_sockaddr_in));
     }
     else
     {
-      vsf_sysutil_memcpy(*p_sockptr, &remote_addr.u.u_sockaddr_in6,
+      vsf_sysutil_memcpy(p_sockaddr, &remote_addr.u.u_sockaddr_in6,
                          sizeof(remote_addr.u.u_sockaddr_in6));
     }
   }
@@ -1780,7 +1781,7 @@ vsf_sysutil_sockaddr_clear(struct vsf_sysutil_sockaddr** p_sockptr)
   }
 }
 
-static void
+void
 vsf_sysutil_sockaddr_alloc(struct vsf_sysutil_sockaddr** p_sockptr)
 {
   vsf_sysutil_sockaddr_clear(p_sockptr);

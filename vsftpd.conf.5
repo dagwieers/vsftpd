@@ -1,6 +1,6 @@
 .TH VSFTPD.CONF 5
 .SH NAME
-vsftpd.conf, the config file for vsftpd
+vsftpd.conf \- config file for vsftpd
 .SH DESCRIPTION
 vsftpd.conf may be used to control various aspects of vsftpd's behaviour. By
 default, vsftpd looks for this file at the location
@@ -295,6 +295,23 @@ Default: YES
 Set to YES if you want to disable the PORT security check that ensures that
 outgoing data connections can only connect to the client. Only enable if
 you know what you are doing!
+
+Default: NO
+.TP
+.B run_as_launching_user
+Set to YES if you want vsftpd to run as the user which launched vsftpd. This is
+useful where root access is not available. MASSIVE WARNING! Do NOT enable this
+option unless you totally know what you are doing, as naive use of this option
+can create massive security problems. Specifically, vsftpd does not / cannot
+use chroot technology to restrict file access when this option is set (even if
+launched by root). A poor substitute could be to use a
+.BR deny_file
+setting such as {/*,*..*}, but the reliability of this cannot compare to
+chroot, and should not be relied on.
+If using this option, many restrictions on other options
+apply. For example, options requiring privilege such as non-anonymous logins,
+upload ownership changing, connecting from port 20 and listen ports less than
+1024 are not expected to work. Other options may be impacted.
 
 Default: NO
 .TP

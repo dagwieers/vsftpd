@@ -56,6 +56,7 @@ int tunable_download_enable = 1;
 int tunable_dirlist_enable = 1;
 int tunable_chmod_enable = 1;
 int tunable_secure_email_list_enable = 0;
+int tunable_run_as_launching_user = 0;
 
 unsigned int tunable_accept_timeout = 60;
 unsigned int tunable_connect_timeout = 60;

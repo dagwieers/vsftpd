@@ -148,24 +148,16 @@ Other notes
 ===========
 
 Tested platforms (well, it builds)
-- Any modern, well featured platform should work fine! More recent versions of
-the platforms listed below should be fine.
-- RedHat Linux 8.0
-- RedHat Linux 7.3
-- RedHat Linux 7.2
-- RedHat Linux 7.0
-- RedHat Linux 6.1
-- RedHat Linux 6.2
-- RedHat Linux 5.2
-- Solaris 8 / GNU tools
-- SuSE 6.4
-- SuSE 6.0
-- Debian 2.2
-- OpenBSD 2.8
-- FreeBSD 4.2
-- FreeBSD 3.5
-- HP-UX 11.11 / GNU tools
-- HP-UX 10.20 / GNU tools
-- Solaris 2.6
-- IRIX 6.5.11 / GNU tools
+- Any modern, well featured platform should work fine! Recent versions of
+the platforms listed below, and often older ones, should work fine.
+- RedHat Linux
+- RedHat Enterprise Linux
+- Solaris / GNU tools (note - Solaris 8 or newer recommended)
+- SuSE Linux
+- Debian Linux
+- OpenBSD
+- FreeBSD
+- NetBSD
+- HP-UX / GNU tools
+- IRIX / GNU tools
 

@@ -42,3 +42,11 @@ bug(const char* p_text)
   vsf_sysutil_exit(1);
 }
 
+void
+vsf_exit(const char* p_text)
+{
+  (void) vsf_sysutil_write_loop(VSFTP_COMMAND_FD, p_text,
+                                vsf_sysutil_strlen(p_text));
+  vsf_sysutil_exit(0);
+}
+

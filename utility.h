@@ -31,5 +31,14 @@ void die2(const char* p_text1, const char* p_text2);
  *       */
 void bug(const char* p_text);
 
+/* vsf_exit()
+ * PURPOSE
+ * Terminate execution of the process, writing out the specified text string
+ * in the process.
+ * PARAMETERS
+ * p_text       - text string describing why the process is exiting
+ */
+void vsf_exit(const char* p_text);
+
 #endif
 

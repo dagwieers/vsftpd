@@ -743,3 +743,26 @@ of RH bugzilla #89765. (The more serious part was fixed with v1.2.0).
 At this point: v1.2.1 released!
 ===============================
 
+- Fix FreeBSD 5.1/5.2 issue with time_t being long long on that platform.
+Thanks to Matthias Andree <matthias.andree@gmx.de>.
+- Tweak vsftpd.conf.5 to avoid automated mails from ESR ;-)
+- Remove vsftpd spec files, they are old and buggy.
+- Add -v flag which just outputs the version and exits.
+- Fix nasty issue resulting in listener instability under extreme load (root
+cause was re-entering malloc/free). Many thanks to Olivier Baudron
+<olivier.baudron@m4x.org> for an excellent report.
+(v1.2.2pre1)
+- Fix build with modern glibc-2.3 and no libcap on Linux.
+- Fix 64-bit file support on Solaris.
+(v1.2.2pre2)
+- Add initial support for running as the user which launched vsftpd, i.e. no
+root needed. Warning - easy to create insecurity if you use this without
+knowing what you are doing.
+- For above run-as-launching-user support: make CDUP re-use CWD code so that
+deny_file of *..* is useful.
+- Attempt fix of 64-bit file support on FreeBSD (may need another go).
+- Update INSTALL to refer to more modern platforms.
+
+At this point: v1.2.2 released! (need to get the listener fix out)
+==================================================================
+

@@ -175,6 +175,29 @@ However, you many get tripped up by vsftpd's security precautions on IP
 addresses. In order to relax these precautions, have a look in the
 vsftpd.conf.5 for pasv_promiscuous (and the less advisable port_promiscuous).
 
+Q) Help! I'm getting the error "426 Failure writing network stream." on
+downloads.
+A) You shouldn't see this with v1.2.1 or newer versions of vsftpd. Older
+versions of vsftpd can give this error if the user tries to download
+something from an unusual filesystem (e.g. FAT), which don't support
+performance features used by vsftpd. With vsftpd-1.1.3 and newer there is a
+confif workaround, use_sendfile=NO.
+
+Q) Help! I'm using the pam_userdb login module and the login hangs.
+A) This could be a bad interaction with glibc version 2.3 and PAM. A Debian
+user reported this. The initial report is here:
+http://lists.debian.org/debian-glibc/2003/debian-glibc-200309/msg00310.html
+
+Q) Help! Does vsftpd support large files (>2Gb?).
+A) Yes, it does.
+
+Q) Help! Well, large file support doesn't seem to be working, then!
+A1) Large file support first appeared in v1.1.0.
+A2) Solaris large file support wasn't fixed until v1.2.2.
+A3) FreeBSD large file support wasn't fixed until v1.2.2.
+A4) The early Linux 2.6 kernels had a bug in this area - use v2.6.6 or newer.
+A5) Are you sure your FTP _client_ correctly supports large files?
+
 Q) Blah.. blah..
 A) For a good idea of what vsftpd can do, read the vsftpd.conf.5 man page
 and the EXAMPLES.

@@ -3,10 +3,19 @@ CRITICAL
 
 - Improve FAQ, docs (ongoing..)
 - Integrated test suite (I'm so lazy..)
+- Allow easy disabling of log file lock (Solaris / Veritas Cluster Service bug?)
 
 NOT SO CRITICAL
 ===============
 
+- Consider CWD ~
+- Log DELE (and chmod, rnto, etc.)
+- Allow space in username.
+- Max OSX setgroups() issue.
+- Minor: background should happen after listen has completed so that failure
+can result in a non-zero exit code.
+- Better reporting of failed uploads due to out of device space or quota all
+used.
 - OpenSSL support.
 - Fix for systems with no IPv6 (e.g. Solaris 7).
 - PASV auto address guessing?

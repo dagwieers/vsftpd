@@ -84,6 +84,7 @@ parseconf_bool_array[] =
   { "dirlist_enable", &tunable_dirlist_enable },
   { "chmod_enable", &tunable_chmod_enable },
   { "secure_email_list_enable", &tunable_secure_email_list_enable },
+  { "run_as_launching_user", &tunable_run_as_launching_user },
   { 0, 0 }
 };
 

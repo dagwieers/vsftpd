@@ -7,6 +7,11 @@
 /* This bogon prevents _XPG4_2 breaking the include of signal.h! */
 #define __EXTENSIONS__
 
+/* Safe to always enable 64-bit file support. */
+#define _FILE_OFFSET_BITS 64
+#define _LARGEFILE_SOURCE 1
+#define _LARGEFILE64_SOURCE 1
+
 /* Need dirfd() */
 #include "dirfd_extras.h"
 

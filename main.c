@@ -20,6 +20,7 @@
 #include "twoprocess.h"
 #include "standalone.h"
 #include "tcpwrap.h"
+#include "vsftpver.h"
 
 /*
  * Forward decls of helper functions
@@ -72,11 +73,13 @@ main(int argc, const char* argv[])
   }
   if (argc == 2)
   {
+    if (!vsf_sysutil_strcmp(argv[1], "-v"))
+    {
+      vsf_exit("vsftpd: version " VSF_VERSION "\n");
+    }
     p_config_name = argv[1];
     config_specified = 1;
   }
-  /* Just get out unless we start with requisite privilege */
-  die_unless_privileged();
   /* This might need to open /dev/zero on systems lacking MAP_ANON. Needs
    * to be done early (i.e. before config file parse, which may use
    * anonymous pages
@@ -95,6 +98,11 @@ main(int argc, const char* argv[])
       die2("vsftpd: cannot open config file:", p_config_name);
     }
     vsf_sysutil_free(p_statbuf);
+  }
+  if (!tunable_run_as_launching_user)
+  {
+    /* Just get out unless we start with requisite privilege */
+    die_unless_privileged();
   }
   if (tunable_setproctitle_enable)
   {
@@ -179,6 +187,10 @@ main(int argc, const char* argv[])
   {
     tunable_one_process_model = 1;
   }
+  if (tunable_run_as_launching_user)
+  {
+    tunable_one_process_model = 1;
+  }
   if (tunable_one_process_model)
   {
     vsf_one_process_start(&the_session);
@@ -209,7 +221,7 @@ do_sanity_checks(void)
     vsf_sysutil_fstat(VSFTP_COMMAND_FD, &p_statbuf);
     if (!vsf_sysutil_statbuf_is_socket(p_statbuf))
     {
-      die("vsftpd: does not run standalone, must be started from inetd");
+      die("vsftpd: not configured for standalone, must be started from inetd");
     }
     vsf_sysutil_free(p_statbuf);
   }

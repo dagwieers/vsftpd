@@ -52,6 +52,7 @@ extern int tunable_download_enable;           /* Can download anything? */
 extern int tunable_dirlist_enable;            /* Can see any dirs? */
 extern int tunable_chmod_enable;              /* Is CHMOD allowed? (local) */
 extern int tunable_secure_email_list_enable;  /* Require specific anon email */
+extern int tunable_run_as_launching_user;     /* Runs as launching user */
 
 /* Integer/numeric defines */
 extern unsigned int tunable_accept_timeout;

@@ -18,6 +18,12 @@
 /* For Linux, this adds nothing :-) */
 #include "port/porting_junk.h"
 
+#if (defined(__FreeBSD__) && __FreeBSD__ >= 3)
+  #define _FILE_OFFSET_BITS 64
+  #define _LARGEFILE_SOURCE 1
+  #define _LARGEFILE64_SOURCE 1
+#endif
+
 /* For INT_MAX */
 #include <limits.h>
 
@@ -27,7 +33,6 @@
 /* For FreeBSD */
 #include <sys/param.h>
 #include <sys/uio.h>
-
 
 /* Configuration.. here are the possibilities */
 #undef VSF_SYSDEP_HAVE_CAPABILITIES
@@ -146,6 +151,7 @@
 #include <sys/capability.h>
 
 #if defined(VSF_SYSDEP_HAVE_CAPABILITIES) && !defined(VSF_SYSDEP_HAVE_LIBCAP)
+#include <linux/unistd.h>
 #include <linux/capability.h>
 #include <errno.h>
 #include <syscall.h>
@@ -645,7 +651,7 @@ static int do_sendfile(const int out_fd, const int in_fd,
         }
   #elif defined(VSF_SYSDEP_HAVE_SOLARIS_SENDFILE)
         {
-          off_t written = 0;
+          size_t written = 0;
           struct sendfilevec the_vec;
           vsf_sysutil_memclr(&the_vec, sizeof(the_vec));
           the_vec.sfv_fd = in_fd;

@@ -20,6 +20,7 @@
 #include "str.h"
 #include "tunables.h"
 #include "utility.h"
+#include "sysstr.h"
 #include "sysdeputil.h"
 
 void
@@ -42,8 +43,18 @@ vsf_one_process_start(struct vsf_session* p_sess)
     {
       str_alloc_text(&chdir_str, tunable_anon_root);
     }
-    vsf_secutil_change_credentials(&user_name, 0, &chdir_str, caps,
-        VSF_SECUTIL_OPTION_CHROOT | VSF_SECUTIL_OPTION_USE_GROUPS);
+    if (tunable_run_as_launching_user)
+    {
+      if (!str_isempty(&chdir_str))
+      {
+        str_chdir(&chdir_str);
+      }
+    }
+    else
+    {
+      vsf_secutil_change_credentials(&user_name, 0, &chdir_str, caps,
+          VSF_SECUTIL_OPTION_CHROOT | VSF_SECUTIL_OPTION_USE_GROUPS);
+    }
     str_free(&user_name);
     str_free(&chdir_str);
   }

@@ -36,6 +36,7 @@ static unsigned int hash_pid(unsigned int buckets, void* p_key);
 struct vsf_client_launch
 vsf_standalone_main(void)
 {
+  struct vsf_sysutil_sockaddr* p_accept_addr = 0;
   int listen_sock = -1;
   int retval;
   s_ipaddr_size = vsf_sysutil_get_ipaddr_size();
@@ -126,17 +127,17 @@ vsf_standalone_main(void)
     }
   }
   vsf_sysutil_listen(listen_sock, VSFTP_LISTEN_BACKLOG);
+  vsf_sysutil_sockaddr_alloc(&p_accept_addr);
   while (1)
   {
     struct vsf_client_launch child_info;
-    static struct vsf_sysutil_sockaddr* p_accept_addr;
     void* p_raw_addr;
     int new_child;
     int new_client_sock;
     vsf_sysutil_unblock_sig(kVSFSysUtilSigCHLD);
     vsf_sysutil_unblock_sig(kVSFSysUtilSigHUP);
     new_client_sock = vsf_sysutil_accept_timeout(
-        listen_sock, &p_accept_addr, 0);
+        listen_sock, p_accept_addr, 0);
     vsf_sysutil_block_sig(kVSFSysUtilSigCHLD);
     vsf_sysutil_block_sig(kVSFSysUtilSigHUP);
     if (vsf_sysutil_retval_is_error(new_client_sock))

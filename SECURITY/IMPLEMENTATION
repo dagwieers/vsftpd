@@ -29,7 +29,7 @@ safely go through the API. If this sounds familiar, it is because what vsftpd
 implements is very similar to a C++ string class. You can do OO programming
 in C too, you know ;-)
 
-A key point of having the buffer API is place is that is it MORE DIFFICULT to
+A key point of having the buffer API in place is that it is MORE DIFFICULT to
 abuse the API than it is to use it properly. Try and create a buffer memory
 corruption or overflow scenario using just the buffer API.
 
