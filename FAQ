@@ -146,8 +146,36 @@ integration.
 Q) Help! Does vsftpd support IPv6?
 A) Yes, as of version 1.2.0. Read the vsftpd.conf.5 man page.
 
+Q) Help! vsftpd doesn't build, it fails with an error about being unable to
+find -lcap.
+A) Install the libcap package and retry the build. Seems to affect Debian
+users a lot.
+
+Q) Help! I've put settings in /etc/vsftpd.conf, but they are not taking
+effect!
+A) This is affecting some RedHat users - some RedHat versions put the config
+file in /etc/vsftpd/vsftpd.conf.
+
+Q) Help! vsftpd doesn't build, it complains about problems with incomplete
+types in sysutil.c.
+A) Your system probably doesn't have IPv6 support. Either use a more modern
+system, use an older vsftpd (e.g. v1.1.3), or wait for a version of vsftpd
+without this problem!
+
+Q) Help! I'm getting messages along the lines of 500 OOPS: vsf_sysutil_bind
+when trying to do downloads (particularly lots of small files).
+A) vsftpd-1.2.1 should sort this out.
+
+Q) Help! Does vsftpd support hiding or denying certain files?
+A) Yes. Look at the hide_file and deny_file options in the manual page.
+
+Q) Help! Does vsftpd support FXP?
+A) Yes. An FTP server does not have to do anything special to support FXP.
+However, you many get tripped up by vsftpd's security precautions on IP
+addresses. In order to relax these precautions, have a look in the
+vsftpd.conf.5 for pasv_promiscuous (and the less advisable port_promiscuous).
+
 Q) Blah.. blah..
 A) For a good idea of what vsftpd can do, read the vsftpd.conf.5 man page
 and the EXAMPLES.
-
 

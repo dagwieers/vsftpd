@@ -31,7 +31,7 @@ vsf_secutil_change_credentials(const struct mystr* p_user_str,
   {
     struct mystr dir_str = INIT_MYSTR;
     /* Work out where the chroot() jail is */
-    if (p_dir_str == 0)
+    if (p_dir_str == 0 || str_isempty(p_dir_str))
     {
       str_alloc_text(&dir_str, vsf_sysutil_user_get_homedir(p_user));
     }

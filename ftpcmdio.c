@@ -202,9 +202,10 @@ ftp_getline(struct mystr* p_str)
   /* If the last character is a \r, strip it */
   {
     unsigned int len = str_getlen(p_str);
-    if (len > 0 && str_get_char_at(p_str, len - 1) == '\r')
+    while (len > 0 && str_get_char_at(p_str, len - 1) == '\r')
     {
       str_trunc(p_str, len - 1);
+      --len;
     }
   }
 }

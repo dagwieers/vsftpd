@@ -69,6 +69,7 @@ struct str_locate_result
 {
   int found;
   unsigned int index;
+  char char_found;
 };
 
 struct str_locate_result str_locate_char(
@@ -81,6 +82,8 @@ struct str_locate_result str_locate_text(
   const struct mystr* p_str, const char* p_text);
 struct str_locate_result str_locate_text_reverse(
   const struct mystr* p_str, const char* p_text);
+struct str_locate_result str_locate_chars(
+  const struct mystr* p_str, const char* p_chars);
 
 void str_left(const struct mystr* p_str, struct mystr* p_out,
               unsigned int chars);

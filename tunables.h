@@ -51,6 +51,7 @@ extern int tunable_session_support;           /* utmp, wtmp, pam_session */
 extern int tunable_download_enable;           /* Can download anything? */
 extern int tunable_dirlist_enable;            /* Can see any dirs? */
 extern int tunable_chmod_enable;              /* Is CHMOD allowed? (local) */
+extern int tunable_secure_email_list_enable;  /* Require specific anon email */
 
 /* Integer/numeric defines */
 extern unsigned int tunable_accept_timeout;
@@ -92,6 +93,10 @@ extern const char* tunable_listen_address;
 extern const char* tunable_user_config_dir;
 extern const char* tunable_listen_address6;
 extern const char* tunable_cmds_allowed;
+extern const char* tunable_hide_file;
+extern const char* tunable_deny_file;
+extern const char* tunable_user_sub_token;
+extern const char* tunable_email_password_file;
 
 #endif /* VSF_TUNABLES_H */
 

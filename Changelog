@@ -695,3 +695,51 @@ per-user config stuff.
 At this point: v1.2.0 released!
 ===============================
 
+- Apply NetBSD patch to sysdeputil.c to activate a few features. Thanks to
+Lubomir Sedlacik <salo@netbsd.org>.
+- Apply fix for broken clients that terminate commands with \r\r\n. Thanks
+to Andrey Chernomyrdin <andrey@excom.spb.su>.
+- AIX send_file support, thanks to Tomas Ogren <stric@ing.umu.se>.
+- Fix typos in vsftpd.conf.5, thanks to SEKINE Tatsuo <tsekine@sdri.co.jp>.
+- Simple -F flag support to LIST and NLST. Needed for some broken clients.
+- Add simple ? wildcard in pattern matching.
+- Make pasv_min_port and pasv_max_port work if they are the same value. Thanks
+to Marvin Solomon <solomon@cs.wisc.edu>.
+- Paranoia: ignore user_config_dir if username has a / in it.
+- Implement stub ALLO command to keep busybox/ftpput happy.
+- Implement REIN, ACCT and SMNT stubs.
+- Implement FEAT along with an OPTS stub.
+- Implement STAT (no-args version).
+- Implement STAT (file/dir).
+- Add very simple access control via hide_file and deny_file. These should
+NOT be used for securing content as they are very dumb! Filesystem permissions
+are still the recommended way for securing important content.
+- Allow unsetting of string values with option= (i.e. blank).
+- Default virtual users to being chroot()'ed to the guest_user's home
+directory, if virtual_use_local_privs is not set.
+- Add support for "user_sub_token", where you can set the home directory of
+guest_user to "/home/virtual/$USER", and "user_sub_token" to "$USER" to
+have a root directory auto generated based on username logging in, e.g.
+fred logs in and gets chroot()'ed in /home/virtual/fred.
+- Fix bug in str_replace_text if replace token matches at end of string.
+- Recognize P@SW as PASV; works around an SMC router bug.
+- Accept an async ABOR sequence if it arrives via non-urgent data. Fixes issue
+with Cisco routers. Thanks to Eddie Corns <E.Corns@ed.ac.uk>.
+- Implement simple {,} support in pattern matcher (nested not handled). Handy
+to use with hide_file and deny_file options.
+(v1.2.1pre2)
+- Fix port range with pasv_min_port and pasv_max_port to use the full range
+(the upper limit wasn't being used very often!).
+- Activate SO_REUSEADDR on passive listen sockets - makes servers with
+restricted port ranges much more useable!
+- Add secure_email_list_enable, to provide simple anonymous password control.
+For some cases, it's better than the hassle of virtual users. Idea thanks to
+Malcolm O'Callaghan, <mjo@stamps.com>.
+- Add some FAQ entries.
+(v1.2.1pre3)
+- Fix issue with failure to call openlog() before using tcp_wrappers. Part
+of RH bugzilla #89765. (The more serious part was fixed with v1.2.0).
+
+At this point: v1.2.1 released!
+===============================
+

@@ -31,9 +31,11 @@ static void common_do_login(struct vsf_session* p_sess,
                             const struct mystr* p_user_str, int do_chroot,
                             int anon);
 static void handle_per_user_config(const struct mystr* p_user_str);
-static void calculate_chdir_dir(int anon, struct mystr* p_chroot_str,
+static void calculate_chdir_dir(int anon, struct mystr* p_userdir_str,
+                                struct mystr* p_chroot_str,
                                 struct mystr* p_chdir_str,
-                                const struct mystr* p_user_str);
+                                const struct mystr* p_user_str,
+                                const struct mystr* p_orig_user_str);
 
 static void
 handle_sigchld(int duff)
@@ -243,6 +245,7 @@ common_do_login(struct vsf_session* p_sess, const struct mystr* p_user_str,
                 int do_chroot, int anon)
 {
   int was_anon = anon;
+  const struct mystr* p_orig_user_str = p_user_str;
   int newpid;
   vsf_sysutil_install_null_sighandler(kVSFSysUtilSigCHLD);
   /* Asks the pre-login child to go away (by exiting) */
@@ -261,12 +264,8 @@ common_do_login(struct vsf_session* p_sess, const struct mystr* p_user_str,
     struct mystr guest_user_str = INIT_MYSTR;
     struct mystr chroot_str = INIT_MYSTR;
     struct mystr chdir_str = INIT_MYSTR;
+    struct mystr userdir_str = INIT_MYSTR;
     unsigned int secutil_option = VSF_SECUTIL_OPTION_USE_GROUPS;
-    calculate_chdir_dir(anon, &chroot_str, &chdir_str, p_user_str);
-    if (do_chroot)
-    {
-      secutil_option |= VSF_SECUTIL_OPTION_CHROOT;
-    }
     /* Child - drop privs and start proper FTP! */
     if (tunable_guest_enable && !anon)
     {
@@ -276,13 +275,20 @@ common_do_login(struct vsf_session* p_sess, const struct mystr* p_user_str,
       if (!tunable_virtual_use_local_privs)
       {
         anon = 1;
+        do_chroot = 1;
       }
+    }
+    if (do_chroot)
+    {
+      secutil_option |= VSF_SECUTIL_OPTION_CHROOT;
     }
     if (!anon)
     {
       secutil_option |= VSF_SECUTIL_OPTION_CHANGE_EUID;
     }
-    vsf_secutil_change_credentials(p_user_str, 0, &chroot_str,
+    calculate_chdir_dir(was_anon, &userdir_str, &chroot_str, &chdir_str,
+                        p_user_str, p_orig_user_str);
+    vsf_secutil_change_credentials(p_user_str, &userdir_str, &chroot_str,
                                    0, secutil_option);
     if (!str_isempty(&chdir_str))
     {
@@ -291,6 +297,7 @@ common_do_login(struct vsf_session* p_sess, const struct mystr* p_user_str,
     str_free(&guest_user_str);
     str_free(&chroot_str);
     str_free(&chdir_str);
+    str_free(&userdir_str);
     /* Guard against the config error of having the anonymous ftp tree owned
      * by the user we are running as
      */
@@ -310,59 +317,80 @@ common_do_login(struct vsf_session* p_sess, const struct mystr* p_user_str,
 static void
 handle_per_user_config(const struct mystr* p_user_str)
 {
-  if (tunable_user_config_dir)
+  struct mystr filename_str = INIT_MYSTR;
+  struct vsf_sysutil_statbuf* p_statbuf = 0;
+  struct str_locate_result loc_result;
+  int retval;
+  if (!tunable_user_config_dir)
   {
-    struct mystr filename_str = INIT_MYSTR;
-    struct vsf_sysutil_statbuf* p_statbuf = 0;
-    int retval;
-    str_alloc_text(&filename_str, tunable_user_config_dir);
-    str_append_char(&filename_str, '/');
-    str_append_str(&filename_str, p_user_str);
-    retval = str_stat(&filename_str, &p_statbuf);
-    /* Security - ignore unless owned by root */
-    if (!vsf_sysutil_retval_is_error(retval) &&
-        vsf_sysutil_statbuf_get_uid(p_statbuf) == VSFTP_ROOT_UID)
-    {
-      vsf_parseconf_load_file(str_getbuf(&filename_str), 1);
-    }
-    str_free(&filename_str);
-    vsf_sysutil_free(p_statbuf);
+    return;
   }
+  /* Security paranoia - ignore if user has a / in it. */
+  loc_result = str_locate_char(p_user_str, '/');
+  if (loc_result.found)
+  {
+    return;
+  }
+  str_alloc_text(&filename_str, tunable_user_config_dir);
+  str_append_char(&filename_str, '/');
+  str_append_str(&filename_str, p_user_str);
+  retval = str_stat(&filename_str, &p_statbuf);
+  /* Security - ignore unless owned by root */
+  if (!vsf_sysutil_retval_is_error(retval) &&
+      vsf_sysutil_statbuf_get_uid(p_statbuf) == VSFTP_ROOT_UID)
+  {
+    vsf_parseconf_load_file(str_getbuf(&filename_str), 1);
+  }
+  str_free(&filename_str);
+  vsf_sysutil_free(p_statbuf);
 }
 
 static void
-calculate_chdir_dir(int anon, struct mystr* p_chroot_str,
+calculate_chdir_dir(int anon_login, struct mystr* p_userdir_str,
+                    struct mystr* p_chroot_str,
                     struct mystr* p_chdir_str,
-                    const struct mystr* p_user_str)
+                    const struct mystr* p_user_str,
+                    const struct mystr* p_orig_user_str)
 {
-  if (anon && tunable_anon_root)
+  if (!anon_login)
   {
-    str_alloc_text(p_chroot_str, tunable_anon_root);
-  }
-  else if (!anon && tunable_local_root)
-  {
-    str_alloc_text(p_chroot_str, tunable_local_root);
-  }
-  /* If enabled, the chroot() location embedded in the HOMEDIR takes
-   * precedence.
-   */
-  if (!anon && tunable_passwd_chroot_enable)
-  {
-    struct mystr homedir_str = INIT_MYSTR;
     const struct vsf_sysutil_user* p_user = str_getpwnam(p_user_str);
-    struct str_locate_result loc_result;
     if (p_user == 0)
     {
       die2("cannot locate user entry:", str_getbuf(p_user_str));
     }
-    str_alloc_text(&homedir_str, vsf_sysutil_user_get_homedir(p_user));
-    loc_result = str_locate_text(&homedir_str, "/./");
+    str_alloc_text(p_userdir_str, vsf_sysutil_user_get_homedir(p_user));
+    if (tunable_user_sub_token)
+    {
+      str_replace_text(p_userdir_str, tunable_user_sub_token,
+                       str_getbuf(p_orig_user_str));
+    }
+  }
+  if (anon_login && tunable_anon_root)
+  {
+    str_alloc_text(p_chroot_str, tunable_anon_root);
+  }
+  else if (!anon_login && tunable_local_root)
+  {
+    str_alloc_text(p_chroot_str, tunable_local_root);
+    if (tunable_user_sub_token)
+    {
+      str_replace_text(p_chroot_str, tunable_user_sub_token,
+                       str_getbuf(p_orig_user_str));
+    }
+  }
+  /* If enabled, the chroot() location embedded in the HOMEDIR takes
+   * precedence.
+   */
+  if (!anon_login && tunable_passwd_chroot_enable)
+  {
+    struct str_locate_result loc_result;
+    loc_result = str_locate_text(p_userdir_str, "/./");
     if (loc_result.found)
     {
-      str_split_text(&homedir_str, p_chdir_str, "/./");
-      str_copy(p_chroot_str, &homedir_str);
+      str_split_text(p_userdir_str, p_chdir_str, "/./");
+      str_copy(p_chroot_str, p_userdir_str);
     }
-    str_free(&homedir_str);
   }
 }
 

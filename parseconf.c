@@ -83,6 +83,7 @@ parseconf_bool_array[] =
   { "download_enable", &tunable_download_enable },
   { "dirlist_enable", &tunable_dirlist_enable },
   { "chmod_enable", &tunable_chmod_enable },
+  { "secure_email_list_enable", &tunable_secure_email_list_enable },
   { 0, 0 }
 };
 
@@ -140,6 +141,10 @@ parseconf_str_array[] =
   { "user_config_dir", &tunable_user_config_dir },
   { "listen_address6", &tunable_listen_address6 },
   { "cmds_allowed", &tunable_cmds_allowed },
+  { "hide_file", &tunable_hide_file },
+  { "deny_file", &tunable_deny_file },
+  { "user_sub_token", &tunable_user_sub_token },
+  { "email_password_file", &tunable_email_password_file },
   { 0, 0 }
 };
 
@@ -208,6 +213,32 @@ static void
 handle_config_setting(struct mystr* p_setting_str, struct mystr* p_value_str,
                       int errs_fatal)
 {
+  /* Is it a string setting? */
+  {
+    const struct parseconf_str_setting* p_str_setting = parseconf_str_array;
+    while (p_str_setting->p_setting_name != 0)
+    {
+      if (str_equal_text(p_setting_str, p_str_setting->p_setting_name))
+      {
+        /* Got it */
+        const char** p_curr_setting = p_str_setting->p_variable;
+        if (*p_curr_setting)
+        {
+          vsf_sysutil_free((char*)*p_curr_setting);
+        }
+        if (str_isempty(p_value_str))
+        {
+          *p_curr_setting = 0;
+        }
+        else
+        {
+          *p_curr_setting = str_strdup(p_value_str);
+        }
+        return;
+      }
+      p_str_setting++;
+    }
+  }
   if (str_isempty(p_value_str))
   {
     if (errs_fatal)
@@ -271,25 +302,6 @@ handle_config_setting(struct mystr* p_setting_str, struct mystr* p_value_str,
         return;
       }
       p_uint_setting++;
-    }
-  }
-  /* Is it a string setting? */
-  {
-    const struct parseconf_str_setting* p_str_setting = parseconf_str_array;
-    while (p_str_setting->p_setting_name != 0)
-    {
-      if (str_equal_text(p_setting_str, p_str_setting->p_setting_name))
-      {
-        /* Got it */
-        const char** p_curr_setting = p_str_setting->p_variable;
-        if (*p_curr_setting)
-        {
-          vsf_sysutil_free((char*)*p_curr_setting);
-        }
-        *p_curr_setting = str_strdup(p_value_str);
-        return;
-      }
-      p_str_setting++;
     }
   }
   if (errs_fatal)

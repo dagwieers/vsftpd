@@ -18,6 +18,8 @@
 
 /* Activate 64-bit file support on Linux/32bit */
 #define _FILE_OFFSET_BITS 64
+/* And Solaris.. */
+/*#define _LARGEFILE64_SOURCE 1*/
 
 /* For Linux, this adds nothing :-) */
 #include "port/porting_junk.h"
@@ -2066,6 +2068,7 @@ vsf_sysutil_inet_ntop(const struct vsf_sysutil_sockaddr* p_sockptr)
   else
   {
     die("can only support ipv4 and ipv6 currently");
+    return 0;
   }
 }
 

@@ -317,15 +317,17 @@ str_replace_text(struct mystr* p_str, const char* p_from, const char* p_to)
 {
   static struct mystr s_lhs_chunk_str;
   static struct mystr s_rhs_chunk_str;
+  unsigned int lhs_len;
   str_copy(&s_lhs_chunk_str, p_str);
   str_free(p_str);
   do
   {
+    lhs_len = str_getlen(&s_lhs_chunk_str);
     str_split_text(&s_lhs_chunk_str, &s_rhs_chunk_str, p_from);
     /* Copy lhs to destination */
     str_append_str(p_str, &s_lhs_chunk_str);
     /* If this was a 'hit', append the 'to' text */
-    if (!str_isempty(&s_rhs_chunk_str))
+    if (str_getlen(&s_lhs_chunk_str) < lhs_len)
     {
       str_append_text(p_str, p_to);
     }
@@ -420,6 +422,31 @@ str_locate_char(const struct mystr* p_str, char look_char)
   look_str[0] = look_char;
   look_str[1] = '\0';
   return str_locate_text(p_str, look_str);
+}
+
+struct str_locate_result
+str_locate_chars(const struct mystr* p_str, const char* p_chars)
+{
+  struct str_locate_result retval;
+  unsigned int num_chars = vsf_sysutil_strlen(p_chars);
+  unsigned int i = 0;
+  retval.found = 0;
+  for (; i < p_str->len; ++i)
+  {
+    unsigned int j = 0;
+    char this_char = p_str->p_buf[i];
+    for (; j < num_chars; ++j)
+    {
+      if (p_chars[j] == this_char)
+      {
+        retval.found = 1;
+        retval.index = i;
+        retval.char_found = p_chars[j];
+        return retval;
+      }
+    }
+  }
+  return retval;
 }
 
 struct str_locate_result

@@ -52,6 +52,7 @@ struct vsf_session
 
   /* Things we need to cache before we chroot() */
   struct mystr banned_email_str;
+  struct mystr email_passwords_str;
   struct mystr userlist_str;
   struct mystr banner_str;
   int tcp_wrapper_ok;

@@ -5,6 +5,7 @@ and 5 being heavily audited by multiple competent people.
 The important rule is that when a file is changed, the audit status goes back
 to 1, _unless_ the change(s) are audited very carefully as they go in.
 
+access.c                     2
 ascii.c                      3
 banner.c                     2
 dirchange.c                  3

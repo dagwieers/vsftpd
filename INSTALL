@@ -98,10 +98,12 @@ drwxr-sr-x    2 0        50           4096 Jul 26 22:58 pub
 226 Directory send OK.
 ftp>
 
-Step 5) Run from an inetd of some kind (optional, recommended)
+Step 5) Run from an inetd of some kind (optional - standalone mode is now
+recommended)
 
 You may want to run the binary from an inetd of some kind, because this can
-give you extra features - e.g. per-IP connection limiting if you use xinetd.
+give you extra features - e.g. xinetd has a lot of settings. (Note that
+vsftpd's inbuilt listener covers most of the more useful xinetd settings).
 
 5a) If using standard "inetd", you will need to edit /etc/inetd.conf, and add
 a line such as:
@@ -146,7 +148,8 @@ Other notes
 ===========
 
 Tested platforms (well, it builds)
-- Any modern, well featured platform should work fine!
+- Any modern, well featured platform should work fine! More recent versions of
+the platforms listed below should be fine.
 - RedHat Linux 8.0
 - RedHat Linux 7.3
 - RedHat Linux 7.2

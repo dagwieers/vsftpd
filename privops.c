@@ -160,6 +160,12 @@ handle_anonymous_login(struct vsf_session* p_sess,
   {
     return kVSFLoginFail;
   }
+  if (!str_isempty(&p_sess->email_passwords_str) &&
+      (!str_contains_line(&p_sess->email_passwords_str, p_pass_str) ||
+       str_isempty(p_pass_str)))
+  {
+    return kVSFLoginFail;
+  }
   /* Store the anonymous identity string */
   str_copy(&p_sess->anon_pass_str, p_pass_str);
   if (str_isempty(&p_sess->anon_pass_str))
@@ -176,6 +182,7 @@ handle_anonymous_login(struct vsf_session* p_sess,
     str_free(&ftp_username_str);
   }
   str_free(&p_sess->banned_email_str);
+  str_free(&p_sess->email_passwords_str);
   return kVSFLoginAnon;
 }
 

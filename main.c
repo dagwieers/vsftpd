@@ -47,7 +47,7 @@ main(int argc, const char* argv[])
     /* Userids */
     -1, -1, -1,
     /* Pre-chroot() cache */
-    INIT_MYSTR, INIT_MYSTR, INIT_MYSTR, 1,
+    INIT_MYSTR, INIT_MYSTR, INIT_MYSTR, INIT_MYSTR, 1,
     /* Logging */
     -1, -1, INIT_MYSTR, 0, 0, 0, INIT_MYSTR, 0,
     /* Buffers */
@@ -149,7 +149,7 @@ main(int argc, const char* argv[])
                               tunable_banned_email_file, VSFTP_CONF_FILE_MAX);
     if (vsf_sysutil_retval_is_error(retval))
     {
-      die2("cannot open banned e-mail list file:", tunable_banned_email_file);
+      die2("cannot open anon e-mail list file:", tunable_banned_email_file);
     }
   }
   if (tunable_banner_file)
@@ -159,6 +159,16 @@ main(int argc, const char* argv[])
     if (vsf_sysutil_retval_is_error(retval))
     {
       die2("cannot open banner file:", tunable_banner_file);
+    }
+  }
+  if (tunable_secure_email_list_enable)
+  {
+    int retval = str_fileread(&the_session.email_passwords_str,
+                              tunable_email_password_file,
+                              VSFTP_CONF_FILE_MAX);
+    if (vsf_sysutil_retval_is_error(retval))
+    {
+      die2("cannot open email passwords file:", tunable_email_password_file);
     }
   }
   /* Special case - can force one process model if we've got a setup

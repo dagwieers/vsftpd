@@ -17,6 +17,11 @@ Whilst logged in as root, create the actual database file like this:
 
 db_load -T -t hash -f logins.txt /etc/vsftpd_login.db
 (Requires the Berkeley db program installed).
+NOTE: Many systems have multiple versions of "db" installed, so you may
+need to use e.g. db3_load for correct operation. This is known to affect
+some Debian systems. The core issue is that pam_userdb expects its login
+database to be a specific db version (often db3, whereas db4 may be installed
+on your system).
 
 This will create /etc/vsftpd_login.db. Obviously, you may want to make sure
 the permissions are restricted:

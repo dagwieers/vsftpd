@@ -12,8 +12,12 @@
 #define FTP_EPSVALLOK         200
 #define FTP_STRUOK            200
 #define FTP_MODEOK            200
+#define FTP_ALLOOK            202
+#define FTP_FEAT              211
+#define FTP_STATOK            211
 #define FTP_SIZEOK            213
 #define FTP_MDTMOK            213
+#define FTP_STATFILE_OK       213
 #define FTP_SITEHELP          214
 #define FTP_HELP              214
 #define FTP_SYSTOK            215
@@ -46,6 +50,8 @@
 #define FTP_BADSENDFILE       451
 
 #define FTP_BADCMD            500
+#define FTP_BADOPTS           501
+#define FTP_COMMANDNOTIMPL    502
 #define FTP_NEEDUSER          503
 #define FTP_NEEDRNFR          503
 #define FTP_BADSTRU           504

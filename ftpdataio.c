@@ -43,7 +43,7 @@ static int transfer_dir_internal(
   struct vsf_session* p_sess, const int remote_fd,
   struct vsf_sysutil_dir* p_dir, const struct mystr* p_base_dir_str,
   const struct mystr* p_option_str, const struct mystr* p_filter_str,
-  int is_verbose, int is_recurse);
+  int is_verbose);
 static int write_dir_list(struct mystr_list* p_dir_list, int remote_fd);
 
 void
@@ -246,7 +246,7 @@ vsf_ftpdataio_transfer_dir(struct vsf_session* p_sess, const int remote_fd,
                            int is_verbose)
 {
   return transfer_dir_internal(p_sess, remote_fd, p_dir, p_base_dir_str,
-                               p_option_str, p_filter_str, is_verbose, 0);
+                               p_option_str, p_filter_str, is_verbose);
 }
 
 static int
@@ -255,7 +255,7 @@ transfer_dir_internal(struct vsf_session* p_sess, const int remote_fd,
                       const struct mystr* p_base_dir_str,
                       const struct mystr* p_option_str,
                       const struct mystr* p_filter_str,
-                      int is_verbose, int is_recurse)
+                      int is_verbose)
 {
   struct mystr_list dir_list = INIT_STRLIST;
   struct mystr_list subdir_list = INIT_STRLIST;
@@ -318,8 +318,7 @@ transfer_dir_internal(struct vsf_session* p_sess, const int remote_fd,
         break;
       }
       retval = transfer_dir_internal(p_sess, remote_fd, p_subdir, &sub_str,
-                                     p_option_str, p_filter_str,
-                                     is_verbose, 1);
+                                     p_option_str, p_filter_str, is_verbose);
       vsf_sysutil_closedir(p_subdir);
       if (retval != 0)
       {
@@ -334,19 +333,10 @@ transfer_dir_internal(struct vsf_session* p_sess, const int remote_fd,
   str_free(&dir_prefix_str);
   if (!failed)
   {
-    if (!is_recurse)
-    {
-      vsf_cmdio_write(p_sess, FTP_TRANSFEROK, "Directory send OK.");
-    }
     return 0;
   }
   else
   {
-    if (!is_recurse)
-    {
-      vsf_cmdio_write(p_sess, FTP_BADSENDNET,
-                      "Failure writing network stream.");
-    }
     return -1;
   }
 }

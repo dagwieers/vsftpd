@@ -8,14 +8,13 @@
  */
 
 #include "ls.h"
+#include "access.h"
 #include "str.h"
 #include "strlist.h"
 #include "sysstr.h"
 #include "sysutil.h"
 #include "tunables.h"
 
-static int filename_passes_filter(const struct mystr* p_filename_str,
-                                  const struct mystr* p_filter_str);
 static void build_dir_line(struct mystr* p_str,
                            const struct mystr* p_filename_str,
                            const struct vsf_sysutil_statbuf* p_stat);
@@ -35,6 +34,7 @@ vsf_ls_populate_dir_list(struct mystr_list* p_list,
   int a_option;
   int r_option;
   int t_option;
+  int F_option;
   int do_stat = 0;
   loc_result = str_locate_char(p_option_str, 'a');
   a_option = loc_result.found;
@@ -42,6 +42,8 @@ vsf_ls_populate_dir_list(struct mystr_list* p_list,
   r_option = loc_result.found;
   loc_result = str_locate_char(p_option_str, 't');
   t_option = loc_result.found;
+  loc_result = str_locate_char(p_option_str, 'F');
+  F_option = loc_result.found;
   loc_result = str_locate_char(p_option_str, 'l');
   if (loc_result.found)
   {
@@ -52,7 +54,7 @@ vsf_ls_populate_dir_list(struct mystr_list* p_list,
   {
     r_option = !r_option;
   }
-  if (is_verbose || t_option || p_subdir_list != 0)
+  if (is_verbose || t_option || F_option || p_subdir_list != 0)
   {
     do_stat = 1;
   }
@@ -106,10 +108,15 @@ vsf_ls_populate_dir_list(struct mystr_list* p_list,
         continue;
       }
     }
+    /* Don't show hidden directory entries */
+    if (!vsf_access_check_file_visible(&s_next_filename_str))
+    {
+      continue;
+    }
     /* If we have an ls option which is a filter, apply it */
     if (!str_isempty(p_filter_str))
     {
-      if (!filename_passes_filter(&s_next_filename_str, p_filter_str))
+      if (!vsf_filename_passes_filter(&s_next_filename_str, p_filter_str))
       {
         continue;
       }
@@ -146,6 +153,10 @@ vsf_ls_populate_dir_list(struct mystr_list* p_list,
           str_append_str(&s_final_file_str, &s_temp_str);
         }
       }
+      if (F_option && vsf_sysutil_statbuf_is_dir(s_p_statbuf))
+      {
+        str_append_char(&s_final_file_str, '/');
+      }
       build_dir_line(&dirline_str, &s_final_file_str, s_p_statbuf);
     }
     else
@@ -154,6 +165,17 @@ vsf_ls_populate_dir_list(struct mystr_list* p_list,
        * but not for LIST
        */
       str_copy(&dirline_str, &s_next_path_and_filename_str);
+      if (F_option)
+      {
+        if (vsf_sysutil_statbuf_is_dir(s_p_statbuf))
+        {
+          str_append_char(&dirline_str, '/');
+        }
+        else if (vsf_sysutil_statbuf_is_symlink(s_p_statbuf))
+        {
+          str_append_char(&dirline_str, '@');
+        }
+      }
       str_append_text(&dirline_str, "\r\n");
     }
     /* Add filename into our sorted list - sorting by filename or time. Also,
@@ -191,9 +213,9 @@ vsf_ls_populate_dir_list(struct mystr_list* p_list,
   str_free(&normalised_base_dir_str);
 }
 
-static int
-filename_passes_filter(const struct mystr* p_filename_str,
-                       const struct mystr* p_filter_str)
+int
+vsf_filename_passes_filter(const struct mystr* p_filename_str,
+                           const struct mystr* p_filter_str)
 {
   /* A simple routine to match a filename against a pattern.
    * This routine is used instead of e.g. fnmatch(3), because we should be
@@ -202,36 +224,45 @@ filename_passes_filter(const struct mystr* p_filename_str,
    * implementation to be buggy.
    *
    * Currently supported pattern(s):
-   * - any number of wildcards, "*"
+   * - any number of wildcards, "*" or "?"
+   * - {,} syntax (not nested)
+   *
+   * Note that pattern matching is only supported within the last path
+   * component. For example, searching for /a/b/? will work, but searching
+   * for /a/?/c will not.
    */
-  static struct mystr s_filter_remain_str;
-  static struct mystr s_name_remain_str;
-  static struct mystr s_temp_str;
-  int last_was_wildcard = 1;
+  struct mystr filter_remain_str = INIT_MYSTR;
+  struct mystr name_remain_str = INIT_MYSTR;
+  struct mystr temp_str = INIT_MYSTR;
+  struct mystr brace_list_str = INIT_MYSTR;
+  struct mystr new_filter_str = INIT_MYSTR;
+  int ret = 0;
+  char last_token = 0;
   int must_match_at_current_pos = 1;
-  str_copy(&s_filter_remain_str, p_filter_str);
-  str_copy(&s_name_remain_str, p_filename_str);
+  str_copy(&filter_remain_str, p_filter_str);
+  str_copy(&name_remain_str, p_filename_str);
 
-  while (!str_isempty(&s_filter_remain_str))
+  while (!str_isempty(&filter_remain_str))
   {
     static struct mystr s_match_needed_str;
-    /* Locate next wildcard */
+    /* Locate next special token */
     struct str_locate_result locate_result =
-      str_locate_char(&s_filter_remain_str, '*');
-    /* Isolate text leading up to wildcard (if any) - needs to be matched */
+      str_locate_chars(&filter_remain_str, "*?{");
+    /* Isolate text leading up to token (if any) - needs to be matched */
     if (locate_result.found)
     {
       unsigned int indexx = locate_result.index;
-      str_left(&s_filter_remain_str, &s_match_needed_str, indexx);
-      str_mid_to_end(&s_filter_remain_str, &s_temp_str, indexx + 1);
-      str_copy(&s_filter_remain_str, &s_temp_str);
+      str_left(&filter_remain_str, &s_match_needed_str, indexx);
+      str_mid_to_end(&filter_remain_str, &temp_str, indexx + 1);
+      str_copy(&filter_remain_str, &temp_str);
+      last_token = locate_result.char_found;
     }
     else
     {
-      /* No more wildcards. Must match remaining filter string exactly. */
-      str_copy(&s_match_needed_str, &s_filter_remain_str);
-      str_empty(&s_filter_remain_str);
-      last_was_wildcard = 0;
+      /* No more tokens. Must match remaining filter string exactly. */
+      str_copy(&s_match_needed_str, &filter_remain_str);
+      str_empty(&filter_remain_str);
+      last_token = 0;
     }
     if (!str_isempty(&s_match_needed_str))
     {
@@ -239,35 +270,92 @@ filename_passes_filter(const struct mystr* p_filename_str,
        * current position, or we could allow it to start anywhere
        */
       unsigned int indexx;
-      locate_result = str_locate_str(&s_name_remain_str, &s_match_needed_str);
+      locate_result = str_locate_str(&name_remain_str, &s_match_needed_str);
       if (!locate_result.found)
       {
         /* Fail */
-        return 0;
+        goto out;
       }
       indexx = locate_result.index;
       if (must_match_at_current_pos && indexx > 0)
       {
-        /* Fail */
-        return 0;
+        goto out;
       }
       /* Chop matched string out of remainder */
-      str_mid_to_end(&s_name_remain_str, &s_temp_str,
+      str_mid_to_end(&name_remain_str, &temp_str,
                      indexx + str_getlen(&s_match_needed_str));
-      str_copy(&s_name_remain_str, &s_temp_str);
+      str_copy(&name_remain_str, &temp_str);
     }
-    /* Only the first iteration can require a match at current position -
-     * subsequent iterations will have seen a '*'
-     */
-    must_match_at_current_pos = 0;
+    if (last_token == '?')
+    {
+      if (str_isempty(&name_remain_str))
+      {
+        goto out;
+      }
+      str_right(&name_remain_str, &temp_str, str_getlen(&name_remain_str) - 1);
+      str_copy(&name_remain_str, &temp_str);
+      must_match_at_current_pos = 1;
+    }
+    else if (last_token == '{')
+    {
+      struct str_locate_result end_brace =
+        str_locate_char(&filter_remain_str, '}');
+      struct str_locate_result comma =
+        str_locate_char(&filter_remain_str, ',');
+      must_match_at_current_pos = 1;
+      if (end_brace.found && comma.found && comma.index < end_brace.index)
+      {
+        str_split_char(&filter_remain_str, &temp_str, '}');
+        str_copy(&brace_list_str, &filter_remain_str);
+        str_copy(&filter_remain_str, &temp_str);
+        str_split_char(&brace_list_str, &temp_str, ',');
+        while (!str_isempty(&brace_list_str))
+        {
+          str_copy(&new_filter_str, &brace_list_str);
+          str_append_str(&new_filter_str, &filter_remain_str);
+          if (vsf_filename_passes_filter(&name_remain_str, &new_filter_str))
+          {
+            ret = 1;
+            goto out;
+          }
+          str_copy(&brace_list_str, &temp_str);
+          str_split_char(&brace_list_str, &temp_str, ',');
+        }
+        goto out;
+      }
+      else if (str_isempty(&name_remain_str) ||
+               str_get_char_at(&name_remain_str, 0) != '{')
+      {
+        return 0;
+      }
+      else
+      {
+        str_right(&name_remain_str, &temp_str,
+                  str_getlen(&name_remain_str) - 1);
+        str_copy(&name_remain_str, &temp_str);
+      }
+    }
+    else
+    {
+      must_match_at_current_pos = 0;
+    }
   }
-  /* Any incoming string left means no match unless we ended on a wildcard */
-  if (!last_was_wildcard && str_getlen(&s_name_remain_str) > 0)
+  /* Any incoming string left means no match unless we ended on the correct
+   * type of wildcard.
+   */
+  if (str_getlen(&name_remain_str) > 0 && last_token != '*')
   {
-    return 0;
+    goto out;
   }
   /* OK, a match */
-  return 1;
+  ret = 1;
+out:
+  str_free(&filter_remain_str);
+  str_free(&name_remain_str);
+  str_free(&temp_str);
+  str_free(&brace_list_str);
+  str_free(&new_filter_str);
+  return ret;
 }
 
 static void

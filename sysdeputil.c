@@ -35,6 +35,7 @@
 #undef VSF_SYSDEP_HAVE_LINUX_SENDFILE
 #undef VSF_SYSDEP_HAVE_FREEBSD_SENDFILE
 #undef VSF_SYSDEP_HAVE_HPUX_SENDFILE
+#undef VSF_SYSDEP_HAVE_AIX_SENDFILE
 #undef VSF_SYSDEP_HAVE_SETPROCTITLE
 #undef VSF_SYSDEP_TRY_LINUX_SETPROCTITLE_HACK
 #undef VSF_SYSDEP_HAVE_HPUX_SETPROCTITLE
@@ -70,6 +71,17 @@
   #define VSF_SYSDEP_HAVE_SETPROCTITLE
 #endif
 
+#if defined(__NetBSD__)
+  #include <stdlib.h>
+  #define VSF_SYSDEP_HAVE_SETPROCTITLE
+  #include <sys/param.h>
+  #if __NetBSD_Version__ >= 106070000
+    #define WTMPX_FILE _PATH_WTMPX
+  #else
+    #undef VSF_SYSDEP_HAVE_UTMPX
+  #endif
+#endif
+
 #ifdef __hpux
   #include <sys/socket.h>
   #ifdef SF_DISCONNECT
@@ -91,6 +103,18 @@
 #ifdef __sgi
   #undef VSF_SYSDEP_HAVE_USERSHELL
   #undef VSF_SYSDEP_HAVE_LIBCAP
+#endif
+
+#ifdef _AIX
+  #undef VSF_SYSDEP_HAVE_USERSHELL
+  #undef VSF_SYSDEP_HAVE_LIBCAP
+  #undef VSF_SYSDEP_HAVE_UTMPX
+  #undef VSF_SYSDEP_HAVE_PAM
+  #undef VSF_SYSDEP_HAVE_SHADOW
+  #undef VSF_SYSDEP_HAVE_SETPROCTITLE
+  #define VSF_SYSDEP_HAVE_AIX_SENDFILE
+  #define VSF_SYSDEP_TRY_LINUX_SETPROCTITLE_HACK
+  #define VSF_SYSDEP_HAVE_MAP_ANON
 #endif
 
 #ifdef __osf__
@@ -593,6 +617,7 @@ static int do_sendfile(const int out_fd, const int in_fd,
 #if defined(VSF_SYSDEP_HAVE_LINUX_SENDFILE) || \
     defined(VSF_SYSDEP_HAVE_FREEBSD_SENDFILE) || \
     defined(VSF_SYSDEP_HAVE_HPUX_SENDFILE) || \
+    defined(VSF_SYSDEP_HAVE_AIX_SENDFILE) || \
     defined(VSF_SYSDEP_HAVE_SOLARIS_SENDFILE)
   if (tunable_use_sendfile)
   {
@@ -631,6 +656,24 @@ static int do_sendfile(const int out_fd, const int in_fd,
           if (written > 0)
           {
             retval = (int) written;
+          }
+        }
+  #elif defined(VSF_SYSDEP_HAVE_AIX_SENDFILE)
+        {
+          struct sf_parms sf_iobuf;
+          vsf_sysutil_memclr(&sf_iobuf, sizeof(sf_iobuf));
+          sf_iobuf.header_data = NULL;
+          sf_iobuf.header_length = 0;
+          sf_iobuf.trailer_data = NULL;
+          sf_iobuf.trailer_length = 0;
+          sf_iobuf.file_descriptor = in_fd;
+          sf_iobuf.file_offset = start_pos;
+          sf_iobuf.file_bytes = num_send;
+
+          retval = send_file((int*)&out_fd, &sf_iobuf, 0);
+          if (retval >= 0)
+          {
+            retval = sf_iobuf.bytes_sent;
           }
         }
   #else /* must be VSF_SYSDEP_HAVE_HPUX_SENDFILE */
@@ -701,7 +744,7 @@ static int do_sendfile(const int out_fd, const int in_fd,
     total_written += num_written;
     if (num_written != num_read)
     {
-      return -1;
+      return num_written;
     }
     if (num_written > num_send)
     {

@@ -55,6 +55,7 @@ int tunable_session_support = 0;
 int tunable_download_enable = 1;
 int tunable_dirlist_enable = 1;
 int tunable_chmod_enable = 1;
+int tunable_secure_email_list_enable = 0;
 
 unsigned int tunable_accept_timeout = 60;
 unsigned int tunable_connect_timeout = 60;
@@ -97,3 +98,8 @@ const char* tunable_listen_address = 0;
 const char* tunable_user_config_dir = 0;
 const char* tunable_listen_address6 = 0;
 const char* tunable_cmds_allowed = 0;
+const char* tunable_hide_file = 0;
+const char* tunable_deny_file = 0;
+const char* tunable_user_sub_token = 0;
+const char* tunable_email_password_file = "/etc/vsftpd.email_passwords";
+

@@ -88,7 +88,7 @@ Default: NO
 .TP
 .B async_abor_enable
 When enabled, a special FTP command known as "async ABOR" will be enabled.
-Only ill advised FTP clients will use this feature. Addtionally, this feature
+Only ill advised FTP clients will use this feature. Additionally, this feature
 is awkward to handle, so it is disabled by default. Unfortunately, some FTP
 clients will hang when cancelling a transfer unless this feature is available,
 so you may wish to enable it.
@@ -135,8 +135,8 @@ setting.
 Default: NO
 .TP
 .B chroot_local_user
-If set to YES, local users will be placed in a chroot() jail in their home
-directory after login.
+If set to YES, local users will be (by default) placed in a chroot() jail in
+their home directory after login.
 .BR Warning:
 This option has security implications, especially if the users have upload
 permission, or shell access. Only enable if you know what you are doing.
@@ -193,7 +193,7 @@ Default: NO
 .B force_dot_files
 If activated, files and directories starting with . will be shown in directory
 listings even if the "a" flag was not used by the client. This override
-exludes the "." and ".." entries.
+excludes the "." and ".." entries.
 
 Default: NO
 .TP
@@ -222,7 +222,7 @@ Default: NO
 .B listen_ipv6
 Like the listen parameter, except vsftpd will listen on an IPv6 socket instead
 of an IPv4 one. This parameter and the listen parameter are mutually
-exlusive.
+exclusive.
 
 Default: NO
 .TP
@@ -265,7 +265,7 @@ If enabled, along with
 .BR chroot_local_user
 , then a chroot() jail location may be specified on a per-user basis. Each
 user's jail is derived from their home directory string in /etc/passwd. The
-occurence of /./ in the home directory string denotes that the jail is at that
+occurrence of /./ in the home directory string denotes that the jail is at that
 particular location in the path.
 
 Default: NO
@@ -280,7 +280,8 @@ Default: YES
 Set to YES if you want to disable the PASV security check that ensures the
 data connection originates from the same IP address as the control connection.
 Only enable if you know what you are doing! The only legitimate use for this
-is in some form of secure tunnelling scheme.
+is in some form of secure tunnelling scheme, or perhaps to facilitate FXP
+support.
 
 Default: NO
 .TP
@@ -294,6 +295,18 @@ Default: YES
 Set to YES if you want to disable the PORT security check that ensures that
 outgoing data connections can only connect to the client. Only enable if
 you know what you are doing!
+
+Default: NO
+.TP
+.B secure_email_list_enable
+Set to YES if you want only a specified list of e-mail passwords for anonymous
+logins to be accepted. This is useful as a low-hassle way of restricting
+access to low-security content without needing virtual users. When enabled,
+anonymous logins are prevented unless the password provided is listed in the
+file specified by the
+.BR email_password_file
+setting. The file format is one password per line, no extra whitespace. The
+default filename is /etc/vsftpd.email_passwords.
 
 Default: NO
 .TP
@@ -552,9 +565,10 @@ The option is the name of a file containing a list of local users which
 will be placed in a chroot() jail in their home directory. This option is
 only relevant if the option
 .BR chroot_list_enable
-is enabled, and the option
+is enabled. If the option
 .BR chroot_local_user
-is disabled.
+is enabled, then the list file becomes a list of users to NOT place in a
+chroot() jail.
 
 Default: /etc/vsftpd.chroot_list
 .TP
@@ -566,13 +580,33 @@ FTP server. Example: cmds_allowed=PASV,RETR,QUIT
 
 Default: (none)
 .TP
-.B guest_username
-See the boolean setting
-.BR guest_enable
-for a description of what constitutes a guest login. This setting is the
-real username which guest users are mapped to.
+.B deny_file
+This option can be used to set a pattern for filenames (and directory names
+etc.) which should not be accessible in any way. The affected items are not
+hidden, but any attempt to do anything to them (download, change into
+directory, affect something within directory etc.) will be denied. This option
+is very simple, and should not be used for serious access control - the
+filesystem's permissions should be used in preference. However, this option
+may be useful in certain virtual user setups. In particular aware that if
+a filename is accessible by a variety of names (perhaps due to symbolic
+links or hard links), then care must be taken to deny access to all the names.
+Access will be denied to items if their name contains the string given by
+hide_file, or if they match the regular expression specified by hide_file.
+Note that vsftpd's regular expression matching code is a simple implementation
+which is a subset of full regular expression functionality. Because of this,
+you will need to carefully and exhaustively test any application of this
+option. And you are recommended to use filesystem permissions for any
+important security policies due to their greater reliability. Example:
+deny_file={*.mp3,*.mov,.private}
 
-Default: ftp
+Default: (none)
+.TP
+.B email_password_file
+This option can be used to provide an alternate file for usage by the
+.BR secure_email_list_enable
+setting.
+
+Default: /etc/vsftpd.email_passwords
 .TP
 .B ftp_username
 This is the name of the user we use for handling anonymous FTP. The home
@@ -585,6 +619,26 @@ This string option allows you to override the greeting banner displayed
 by vsftpd when a connection first comes in.
 
 Default: (none - default vsftpd banner is displayed)
+.TP
+.B guest_username
+See the boolean setting
+.BR guest_enable
+for a description of what constitutes a guest login. This setting is the
+real username which guest users are mapped to.
+
+Default: ftp
+.TP
+.B hide_file
+This option can be used to set a pattern for filenames (and directory names
+etc.) which should be hidden from directory listings. Despite being hidden,
+the files / directories etc. are fully accessible to clients who know what
+names to actually use. Items will be hidden if their names contain the string
+given by hide_file, or if they match the regular expression specified by
+hide_file. Note that vsftpd's regular expression matching code is a simple
+implementation which is a subset of full regular expression functionality.
+Example: hide_file={*.mp3,.hidden,hide*,h?}
+
+Default: (none)
 .TP
 .B listen_address
 If vsftpd is in standalone mode, the default listen address (of all local
@@ -651,7 +705,32 @@ and then log on as the user "chris", then vsftpd will apply the settings in
 the file
 .BR /etc/vsftpd_user_conf/chris
 for the duration of the session. The format of this file is as detailed in
-this manual page!
+this manual page! PLEASE NOTE that not all settings are effective on a
+per-user basis. For example, many settings only prior to the user's session
+being started. Examples of settings which will not affect any behviour on
+a per-user basis include listen_address, banner_file, max_per_ip, max_clients,
+xferlog_file, etc.
+
+Default: (none)
+.TP
+.B user_sub_token
+This option is useful is conjunction with virtual users. It is used to
+automatically generate a home directory for each virtual user, based on a
+template. For example, if the home directory of the real user specified via
+.BR guest_username
+is
+.BR /home/virtual/$USER ,
+and
+.BR user_sub_token
+is set to
+.BR $USER ,
+then when virtual user fred logs in, he will end up (usually chroot()'ed) in
+the directory
+.BR /home/virtual/fred .
+This option also takes affect if
+.BR local_root
+contains
+.BR user_sub_token .
 
 Default: (none)
 .TP
@@ -661,7 +740,7 @@ This option is the name of the file loaded when the
 option is active.
 
 Default: /etc/vsftpd.user_list
-.BR
+.TP
 .B vsftpd_log_file
 This option is the name of the file to which we write the vsftpd style
 log file. This log is only written if the option

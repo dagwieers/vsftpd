@@ -1,17 +1,21 @@
 CRITICAL
 ========
 
-- Improve FAQ, docs.
+- Improve FAQ, docs (ongoing..)
 - Integrated test suite (I'm so lazy..)
 
 NOT SO CRITICAL
 ===============
 
+- OpenSSL support.
+- Fix for systems with no IPv6 (e.g. Solaris 7).
 - PASV auto address guessing?
 - option to chroot to home dir and THEN apply init_dir
 - pasv_addr_file option (patch from Adam Luter)
 - Sweedish characters showing as ? in the log.
-- Limits on GIDs allowed to authenticate?
+- Handle SIGINT.
+- More stuff in the STAT output (session stats, etc. Perhaps even an "admin"
+mode which dumps session details?).
 
 - separate upload/download max rates
 - select() is assuming Linux behaviour (not threatening stability)
@@ -24,17 +28,14 @@ ON THE BACK BURNER
 ==================
 
 - lock the files being modified?
-- repeated PORT problem?
-- transfer stats
 - Small race: signal might come in just before we start a blocking call
-- OpenSSL support
 - log logout (pam session support provides this for locals)
+- Limits on GIDs allowed to authenticate?
 
 NOT PLANNED
 ===========
 
 - telnet strings (no demand)
-- better pattern matching in "ls" (no demand)
 - "Minimal" build support
 - transparent tar / compression support (no demand)
 
