@@ -2,16 +2,16 @@
 # Cheesy hacky location of additional link libraries.
 
 locate_library() { [ ! "$1*" = "`echo $1*`" ]; }
-enabled() { grep "#define $1" builddefs.h >/dev/null; }
+find_func() { egrep $1 $2 >/dev/null; }
 
-if enabled VSF_BUILD_TCPWRAPPERS; then
+if find_func hosts_access tcpwrap.o; then
   echo "-lwrap";
   locate_library /lib/libnsl.so && echo "-lnsl";
 fi
 
 # Look for PAM (done weirdly due to distribution bugs (e.g. Debian) or the
 # crypt library.
-if enabled VSF_BUILD_PAM; then
+if find_func pam_start sysdeputil.o; then
   locate_library /lib/libpam.so.0 && echo "/lib/libpam.so.0";
   locate_library /usr/lib/libpam.so && echo "-lpam";
   # HP-UX ends shared libraries with .sl
@@ -43,7 +43,7 @@ locate_library /usr/lib/libutil.so && echo "-lutil";
 locate_library /usr/lib/libsec.sl && echo "-lsec";
 
 # Look for libcap (capabilities)
-locate_library /lib/libcap.so && echo "-lcap";
+locate_library /lib/libcap.so.1 && echo "/lib/libcap.so.1";
 locate_library /usr/lib/libcap.so && echo "-lcap";
 
 # Solaris needs this for nanosleep()..
@@ -57,8 +57,8 @@ locate_library /usr/shlib/librt.so && echo "-lrt";
 locate_library /usr/lib/libsendfile.so && echo "-lsendfile";
 
 # OpenSSL
-if enabled VSF_BUILD_SSL; then
-  echo "-lssl";
+if find_func SSL_library_init ssl.o; then
+  echo "-lssl -lcrypto";
 fi
 
 exit 0;

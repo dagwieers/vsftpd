@@ -802,3 +802,20 @@ all of this is for very very broken clients :-(
 At this point: v2.0.0 released!
 ===============================
 
+- Add -lcrypto for the SSL build; needed for some systems! Thanks to Nelson
+Chang <nelsoncybernet@bigfoot.com>.
+- Oops; fix session bale out if an empty length password is given.
+- Fix build on Fedora Core 2 (-lcap cannot seem to find /lib/libcap.so).
+- Fix vsftpd.conf.5 man page error in "ssl_sslv3", thanks to Etienne Chevillard
+<echevillard@yahoo.fr>.
+- Clarify licensing: I allow linking of my GPL software with the OpenSSL
+libraries. Thanks to Jonas Bofjall <job@abc.se>.
+- Add COPYRIGHT.
+- Fix build on OpenBSD, FreeBSD, probably NetBSD too (they aren't SuSv2
+compliant; timezone should be a variable not a function).
+- Fix build where PAM build is enabled but PAM headers are missing.
+- Fix build on RHEL3 (remove errant include from twoprocess.c).
+
+At this point: v2.0.1 released!
+===============================
+

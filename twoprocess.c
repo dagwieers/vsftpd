@@ -1,6 +1,6 @@
 /*
  * Part of Very Secure FTPd
- * License: GPL
+ * License: GPL v2
  * Author: Chris Evans
  * twoprocess.c
  *
@@ -26,9 +26,6 @@
 #include "readwrite.h"
 #include "sysutil.h"
 #include "sysdeputil.h"
-
-// XXX
-#include <openssl/ssl.h>
 
 static void drop_all_privs(void);
 static void handle_sigchld(int duff);

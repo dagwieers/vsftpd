@@ -1,6 +1,6 @@
 /*
  * Part of Very Secure FTPd
- * Licence: GPL
+ * Licence: GPL v2
  * Author: Chris Evans
  * privsock.c
  *
@@ -42,8 +42,12 @@ priv_sock_send_cmd(int fd, char cmd)
 void
 priv_sock_send_str(int fd, const struct mystr* p_str)
 {
-  priv_sock_send_int(fd, (int) str_getlen(p_str));
-  str_netfd_write(p_str, fd);
+  unsigned int len = str_getlen(p_str);
+  priv_sock_send_int(fd, (int) len);
+  if (len > 0)
+  {
+    str_netfd_write(p_str, fd);
+  }
 }
 
 char
@@ -73,16 +77,19 @@ priv_sock_get_cmd(int fd)
 void
 priv_sock_get_str(int fd, struct mystr* p_dest)
 {
-  int retval;
   unsigned int len = (unsigned int) priv_sock_get_int(fd);
   if (len > VSFTP_PRIVSOCK_MAXSTR)
   {
     die("priv_sock_get_str: too big");
   }
-  retval = str_netfd_read(p_dest, fd, len);
-  if ((unsigned int) retval != len)
+  str_empty(p_dest);
+  if (len > 0)
   {
-    die("priv_sock_get_str: read error");
+    int retval = str_netfd_read(p_dest, fd, len);
+    if ((unsigned int) retval != len)
+    {
+      die("priv_sock_get_str: read error");
+    }
   }
 }
 

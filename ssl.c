@@ -1,6 +1,8 @@
 /*
  * Part of Very Secure FTPd
- * Licence: GPL
+ * Licence: GPL v2. Note that this code interfaces with with the OpenSSL
+ * libraries, so please read LICENSE where I give explicit permission to link
+ * against the OpenSSL libraries.
  * Author: Chris Evans
  * ssl.c
  *

@@ -1,6 +1,6 @@
 /*
  * Part of Very Secure FTPd
- * Licence: GPL
+ * Licence: GPL v2
  * Author: Chris Evans
  * 
  * sysutil.c
@@ -61,6 +61,8 @@ static struct timeval s_current_time;
 static int s_current_pid = -1;
 /* Exit function */
 static exitfunc_t s_exit_func;
+/* Difference in timezone from GMT in seconds */
+static long s_timezone;
 
 /* Our internal signal handling implementation details */
 static struct vsf_sysutil_sig_details
@@ -2350,6 +2352,15 @@ void
 vsf_sysutil_tzset(void)
 {
   tzset();
+#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
+  {
+    time_t the_time = 0;
+    struct tm* p_tm = localtime(&the_time);
+    s_timezone = p_tm->tm_gmtoff * -1;
+  }
+#else
+  s_timezone = timezone;
+#endif
 }
 
 const char*
@@ -2495,7 +2506,7 @@ vsf_sysutil_setmodtime(const char* p_file, long the_time, int is_localtime)
   struct utimbuf new_times;
   if (!is_localtime)
   {
-    the_time -= timezone;
+    the_time -= s_timezone;
   }
   vsf_sysutil_memclr(&new_times, sizeof(new_times));
   new_times.actime = the_time;

@@ -1,6 +1,6 @@
 /*
  * Part of Very Secure FTPd
- * Licence: GPL
+ * Licence: GPL v2
  * Author: Chris Evans
  * main.c
  */

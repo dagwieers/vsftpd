@@ -4,6 +4,9 @@ CRITICAL
 - Improve FAQ, docs (ongoing..)
 - Integrated test suite (I'm so lazy..)
 
+- libcrypt build error
+- FreeBSD build error
+
 NOT SO CRITICAL
 ===============
 
@@ -46,6 +49,7 @@ reproduce; kernel bug?)
 has been fixed?)
 - Fix for systems with no IPv6 (e.g. Solaris 7) (I'm only getting limited
 numbers of these reports)
+- Look into using GnuTLS in place of OpenSSL (more compatible license).
 
 NOT PLANNED
 ===========

@@ -1,6 +1,6 @@
 /*
  * Part of Very Secure FTPd
- * License: GPL
+ * License: GPL v2
  * Author: Chris Evans
  * privops.c
  *
