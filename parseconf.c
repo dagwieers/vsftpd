@@ -67,7 +67,9 @@ parseconf_bool_array[] =
   { "check_shell", &tunable_check_shell },
   { "hide_ids", &tunable_hide_ids },
   { "listen", &tunable_listen },
+  { "port_promiscuous", &tunable_port_promiscuous },
   { "passwd_chroot_enable", &tunable_passwd_chroot_enable },
+  { "no_anon_password", &tunable_no_anon_password },
   { 0, 0 }
 };
 
@@ -91,6 +93,7 @@ parseconf_uint_array[] =
   { "local_max_rate", &tunable_local_max_rate },
   { "listen_port", &tunable_listen_port },
   { "max_clients", &tunable_max_clients },
+  { "file_open_mode", &tunable_file_open_mode },
   { 0, 0 }
 };
 

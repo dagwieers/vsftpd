@@ -4,10 +4,13 @@ CRITICAL
 NOT SO CRITICAL
 ===============
 
+- lock the files being modified?
+- Sweedish characters showing as ? in the log.
+
 - separate upload/download max rates
 - select() is assuming Linux behaviour (not threatening stability)
 - IPv6 support
-- enhance standalone support (IP filtering, concurrent connection limits)
+- enhance standalone support (IP filtering, per-IP limits)
 
 ON THE BACK BURNER
 ==================

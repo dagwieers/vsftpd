@@ -14,6 +14,7 @@
 #define PRIVATE_HANDS_OFF_exit_status exit_status
 #include "sysutil.h"
 #include "utility.h"
+#include "tunables.h"
 
 /* Activate 64-bit file support on Linux/32bit */
 #define _FILE_OFFSET_BITS 64
@@ -665,8 +666,32 @@ vsf_sysutil_atoi(const char* p_str)
 filesize_t
 vsf_sysutil_a_to_filesize_t(const char* p_str)
 {
-  /* atoll() is C99 standard - may break build on older platforms */
-  return atoll(p_str);
+  /* atoll() is C99 standard - but even modern FreeBSD, OpenBSD don't have
+   * it, so we'll supply our own
+   */
+  filesize_t result = 0;
+  filesize_t mult = 1;
+  unsigned int len = vsf_sysutil_strlen(p_str);
+  unsigned int i;
+  /* Bail if the number is excessively big (petabytes!) */
+  if (len > 15)
+  {
+    return 0;
+  }
+  for (i=0; i<len; ++i)
+  {
+    char the_char = p_str[len-(i+1)];
+    filesize_t val;
+    if (the_char < '0' || the_char > '9')
+    {
+      return 0;
+    }
+    val = the_char - '0';
+    val *= mult;
+    result += val;
+    mult *= 10;
+  }
+  return result;
 }
 
 const char*
@@ -762,16 +787,16 @@ vsf_sysutil_isprint(int the_char)
   /* From Solar - we know better than some libc's! Don't let any potential
    * control chars through
    */
-  unsigned char uchar = (unsigned char) the_char;
-  if (uchar <= 31)
+  unsigned char uc = (unsigned char) the_char;
+  if (uc <= 31)
   {
     return 0;
   }
-  if (uchar == 177)
+  if (uc == 177)
   {
     return 0;
   }
-  if (uchar >= 128 && uchar <= 159)
+  if (uc >= 128 && uc <= 159)
   {
     return 0;
   }
@@ -984,15 +1009,17 @@ vsf_sysutil_open_file(const char* p_filename,
 int
 vsf_sysutil_create_file(const char* p_filename)
 {
-  /* NOTE! 0666 mode used so umask() decides end mode */
-  return open(p_filename, O_CREAT | O_EXCL | O_WRONLY | O_APPEND, 0666);
+  /* umask() also contributes to end mode */
+  return open(p_filename, O_CREAT | O_EXCL | O_WRONLY | O_APPEND,
+              tunable_file_open_mode);
 }
 
 int
 vsf_sysutil_create_overwrite_file(const char* p_filename)
 {
   return open(p_filename, O_CREAT | O_TRUNC | O_WRONLY |
-                          O_APPEND | O_NONBLOCK, 0666);
+                          O_APPEND | O_NONBLOCK,
+              tunable_file_open_mode);
 }
 
 int
@@ -1930,14 +1957,28 @@ vsf_sysutil_get_current_date(void)
   static char datebuf[64];
   time_t curr_time;
   const struct tm* p_tm;
+  int i = 0;
   vsf_sysutil_update_cached_time();
   curr_time = vsf_sysutil_get_cached_time_sec();
   p_tm = localtime(&curr_time);
-  if (strftime(datebuf, sizeof(datebuf), "%a %b %d %H:%M:%S %Y", p_tm) == 0)
+  if (strftime(datebuf, sizeof(datebuf), "%a %b!%d %H:%M:%S %Y", p_tm) == 0)
   {
     die("strftime");
   }
   datebuf[sizeof(datebuf) - 1] = '\0';
+  /* This hack is because %e in strftime() isn't so portable */
+  while (datebuf[i] != '!' && datebuf[i] != '\0')
+  {
+    ++i;
+  }
+  if (datebuf[i] == '!')
+  {
+    datebuf[i] = ' ';
+    if (datebuf[i+1] == '0')
+    {
+      datebuf[i+1] = ' ';
+    }
+  }
   return datebuf;
 }
 

@@ -60,8 +60,8 @@ emit_greeting(struct vsf_session* p_sess)
   }
   else if (tunable_ftpd_banner == 0)
   {
-    vsf_cmdio_write(p_sess, FTP_GREET, "ready, dude (vsFTPd " VSF_VERSION 
-                    ": beat me, break me)");
+    vsf_cmdio_write(p_sess, FTP_GREET, "(vsFTPd " VSF_VERSION 
+                    ")");
   }
   else
   {
@@ -104,11 +104,15 @@ handle_user_command(struct vsf_session* p_sess)
    * non-anonymous usernames in the hope we save passwords going plaintext
    * over the network
    */
+  int is_anon = 1;
   str_copy(&p_sess->user_str, &p_sess->ftp_arg_str);
   str_upper(&p_sess->ftp_arg_str);
-  if (!tunable_local_enable &&
-      !str_equal_text(&p_sess->ftp_arg_str, "FTP") &&
+  if (!str_equal_text(&p_sess->ftp_arg_str, "FTP") &&
       !str_equal_text(&p_sess->ftp_arg_str, "ANONYMOUS"))
+  {
+    is_anon = 0;
+  }
+  if (!tunable_local_enable && !is_anon)
   {
     vsf_cmdio_write(p_sess, FTP_LOGINERR,
                     "This FTP server is anonymous only.");
@@ -126,7 +130,16 @@ handle_user_command(struct vsf_session* p_sess)
       return;
     }
   }
-  vsf_cmdio_write(p_sess, FTP_GIVEPWORD, "Please specify the password.");
+  if (is_anon && tunable_no_anon_password)
+  {
+    /* Fake a password */
+    str_alloc_text(&p_sess->ftp_arg_str, "<no password>");
+    handle_pass_command(p_sess);
+  }
+  else
+  {
+    vsf_cmdio_write(p_sess, FTP_GIVEPWORD, "Please specify the password.");
+  }
 }
 
 static void

@@ -198,6 +198,12 @@ a lot of resources.
 
 Default: NO
 .TP
+.B no_anon_password
+When enabled, this prevents vsftpd from asking for an anonymous password -
+the anonymous user will log straight in.
+
+Default: NO
+.TP
 .B one_process_model
 If you have a Linux 2.4 kernel, it is possible to use a different security
 model which only uses one process per connection. It is a less pure security
@@ -237,7 +243,7 @@ connection.
 
 Default: YES
 .TP
-.B tunable_port_promiscuous
+.B port_promiscuous
 Set to YES if you want to disable the PORT security check that ensures that
 outgoing data connections can only connect to the client. Only enable if
 you know what you are doing!
@@ -344,6 +350,13 @@ transfers to stall for with no progress. If the timeout triggers, the remote
 client is kicked off.
 
 Default: 300
+.TP
+.B file_open_mode
+The permissions with which uploaded files are created. Umasks are applied
+on top of this value. You may wish to change to 0777 if you want uploaded
+files to be executable.
+
+Default: 0666
 .TP
 .B ftp_data_port
 The port from which PORT style connections originate (as long as the poorly

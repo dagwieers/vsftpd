@@ -27,14 +27,14 @@ install:
 	else \
 		$(INSTALL) -m 755 vsftpd /usr/sbin/vsftpd; fi
 	if [ -x /usr/local/man ]; then \
-		$(INSTALL) -m 644 vsftpd.8 /usr/local/man/man8/vsftpd.8; \
-		$(INSTALL) -m 644 vsftpd.conf.5 /usr/local/man/man5/vsftpd.conf.5; \
+		$(INSTALL) -D -m 644 vsftpd.8 /usr/local/man/man8/vsftpd.8; \
+		$(INSTALL) -D -m 644 vsftpd.conf.5 /usr/local/man/man5/vsftpd.conf.5; \
 	elif [ -x /usr/share/man ]; then \
-		$(INSTALL) -m 644 vsftpd.8 /usr/share/man/man8/vsftpd.8; \
-		$(INSTALL) -m 644 vsftpd.conf.5 /usr/share/man/man5/vsftpd.conf.5; \
+		$(INSTALL) -D -m 644 vsftpd.8 /usr/share/man/man8/vsftpd.8; \
+		$(INSTALL) -D -m 644 vsftpd.conf.5 /usr/share/man/man5/vsftpd.conf.5; \
 	else \
-		$(INSTALL) -m 644 vsftpd.8 /usr/man/man8/vsftpd.8; \
-		$(INSTALL) -m 644 vsftpd.conf.5 /usr/man/man5/vsftpd.conf.5; fi
+		$(INSTALL) -D -m 644 vsftpd.8 /usr/man/man8/vsftpd.8; \
+		$(INSTALL) -D -m 644 vsftpd.conf.5 /usr/man/man5/vsftpd.conf.5; fi
 	if [ -x /etc/xinetd.d ]; then \
 		$(INSTALL) -m 644 xinetd.d/vsftpd /etc/xinetd.d/vsftpd; fi
 

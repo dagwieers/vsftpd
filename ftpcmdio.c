@@ -40,7 +40,7 @@ static void
 handle_alarm_timeout(void* p_private)
 {
   struct vsf_session* p_sess = (struct vsf_session*) p_private;
-  vsf_cmdio_write_noblock(p_sess, FTP_IDLE_TIMEOUT, "Timeout. Pay attention.");
+  vsf_cmdio_write_noblock(p_sess, FTP_IDLE_TIMEOUT, "Timeout.");
   vsf_sysutil_exit(0);
 }
 

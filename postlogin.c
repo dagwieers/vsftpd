@@ -134,7 +134,7 @@ process_post_login(struct vsf_session* p_sess)
     }
     else if (str_equal_text(&p_sess->ftp_cmd_str, "NOOP"))
     {
-      vsf_cmdio_write(p_sess, FTP_NOOPOK, "Mary had a little lamb.");
+      vsf_cmdio_write(p_sess, FTP_NOOPOK, "NOOP ok.");
     }
     else if (str_equal_text(&p_sess->ftp_cmd_str, "SYST"))
     {
@@ -142,7 +142,7 @@ process_post_login(struct vsf_session* p_sess)
     }
     else if (str_equal_text(&p_sess->ftp_cmd_str, "HELP"))
     {
-      vsf_cmdio_write(p_sess, FTP_BADHELP, "Sorry, I don't do help.");
+      vsf_cmdio_write(p_sess, FTP_BADHELP, "Sorry, I don't have help.");
     }
     else if (str_equal_text(&p_sess->ftp_cmd_str, "LIST"))
     {
@@ -214,10 +214,10 @@ process_post_login(struct vsf_session* p_sess)
     }
     else if (str_equal_text(&p_sess->ftp_cmd_str, "ABOR"))
     {
-      vsf_cmdio_write(p_sess, FTP_ABOR_NOCONN, "Duh. No transfer to ABOR.");
+      vsf_cmdio_write(p_sess, FTP_ABOR_NOCONN, "No transfer to ABOR.");
     }
-    /* SECURITY: for now, no APPE in anonymous mode */
-    else if (!p_sess->is_anonymous &&
+    else if (tunable_write_enable &&
+             (tunable_anon_other_write_enable || !p_sess->is_anonymous) &&
              str_equal_text(&p_sess->ftp_cmd_str, "APPE"))
     {
       handle_appe(p_sess);
@@ -643,13 +643,13 @@ handle_type(struct vsf_session* p_sess)
       str_equal_text(&p_sess->ftp_arg_str, "L 8"))
   {
     p_sess->is_ascii = 0;
-    vsf_cmdio_write(p_sess, FTP_TYPEOK, "Binary it is, then.");
+    vsf_cmdio_write(p_sess, FTP_TYPEOK, "Switching to Binary mode.");
   }
   else if (str_equal_text(&p_sess->ftp_arg_str, "A") ||
            str_equal_text(&p_sess->ftp_arg_str, "A N"))
   {
     p_sess->is_ascii = 1;
-    vsf_cmdio_write(p_sess, FTP_TYPEOK, "ASCII tastes bad, dude.");
+    vsf_cmdio_write(p_sess, FTP_TYPEOK, "Switching to ASCII mode.");
   }
   else
   {
@@ -744,7 +744,7 @@ handle_upload_common(struct vsf_session* p_sess, int is_append)
   /* XXX - do we care about race between create and chown() of anonymous
    * upload?
    */
-  if (p_sess->is_anonymous)
+  if (p_sess->is_anonymous && !tunable_anon_other_write_enable)
   {
     new_file_fd = str_create(&p_sess->ftp_arg_str);
   }
@@ -788,7 +788,7 @@ handle_upload_common(struct vsf_session* p_sess, int is_append)
     goto port_pasv_cleanup_out;
   }
   vsf_cmdio_write(p_sess, FTP_DATACONN,
-                  "Go ahead make my day^W^W^Wsend me the data.");
+                  "Ok to send data.");
   vsf_log_start_entry(p_sess, kVSFLogEntryUpload);
   str_copy(&p_sess->log_str, &p_sess->ftp_arg_str);
   prepend_path_to_filename(&p_sess->log_str);
@@ -885,13 +885,17 @@ handle_dele(struct vsf_session* p_sess)
 static void
 handle_rest(struct vsf_session* p_sess)
 {
+  static struct mystr s_rest_str;
   filesize_t val = str_a_to_filesize_t(&p_sess->ftp_arg_str);
   if (val < 0)
   {
     val = 0;
   }
   p_sess->restart_pos = val;
-  vsf_cmdio_write(p_sess, FTP_RESTOK, "Restart position accepted.");
+  str_alloc_text(&s_rest_str, "Restart position accepted (");
+  str_append_filesize_t(&s_rest_str, val);
+  str_append_text(&s_rest_str, ").");
+  vsf_cmdio_write_str(p_sess, FTP_RESTOK, &s_rest_str);
 }
 
 static void
@@ -923,7 +927,7 @@ handle_rnto(struct vsf_session* p_sess)
   if (str_isempty(&p_sess->rnfr_filename_str))
   {
     vsf_cmdio_write(p_sess, FTP_NEEDRNFR,
-                    "Dude, get it sorted, I need RNFR first.");
+                    "RNFR required first.");
     return;
   }
   /* NOTE - might overwrite destination file. Not a concern because the same

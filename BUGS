@@ -15,8 +15,6 @@ directory name itself
 the file _after_ ASCII linefeed mangling?
 - ASCII mode uploads: we're only supposed to remove \r if they preceed \n,
 but I rip them out unconditionally.
-- "standard" xferlog format: we log dates like Feb 09, wu-ftpd logs like
-Feb  9.
 - Security model: vsf_privop_get_ftp_port_sock() should probably do the
 connect() to the remote location itself.
 - If a user's homedir doesn't exist, we ungracefully exit with "OOPS: chdir"

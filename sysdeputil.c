@@ -88,7 +88,11 @@
   #undef VSF_SYSDEP_HAVE_LIBCAP
 #endif
 
-#if (defined(__sgi) || defined(__hpux))
+#ifdef __osf__
+  #undef VSF_SYSDEP_HAVE_USERSHELL
+#endif
+
+#if (defined(__sgi) || defined(__hpux) || defined(__osf__))
   #define VSF_SYSDEP_NEED_OLD_FD_PASSING
 #endif
 /* END config */
@@ -159,7 +163,6 @@ vsf_sysdep_check_auth(const struct mystr* p_user_str,
                       const struct mystr* p_pass_str,
                       const struct mystr* p_remote_host)
 {
-  const char* p_shell;
   const char* p_crypted;
   const struct passwd* p_pwd = getpwnam(str_getbuf(p_user_str));
   (void) p_remote_host;
@@ -170,6 +173,7 @@ vsf_sysdep_check_auth(const struct mystr* p_user_str,
   #ifdef VSF_SYSDEP_HAVE_USERSHELL
   if (tunable_check_shell)
   {
+    const char* p_shell;
     while ((p_shell = getusershell()) != NULL)
     {
       if (!vsf_sysutil_strcmp(p_shell, p_pwd->pw_shell))

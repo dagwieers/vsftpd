@@ -42,6 +42,7 @@ int tunable_hide_ids = 0;
 int tunable_listen = 0;
 int tunable_port_promiscuous = 0;
 int tunable_passwd_chroot_enable = 0;
+int tunable_no_anon_password = 0;
 
 unsigned int tunable_accept_timeout = 60;
 unsigned int tunable_connect_timeout = 60;
@@ -58,6 +59,8 @@ unsigned int tunable_local_max_rate = 0;
 /* IPPORT_FTP */
 unsigned int tunable_listen_port = 21;
 unsigned int tunable_max_clients = 0;
+/* -rw-rw-rw- */
+unsigned int tunable_file_open_mode = 0666;
 
 const char* tunable_secure_chroot_dir = "/usr/share/empty";
 const char* tunable_ftp_username = "ftp";

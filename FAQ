@@ -1,9 +1,17 @@
 vsftpd frequently asked questions!!
 -----------------------------------
 
+Q) Can I restrict users to their home directories?
+A) Yes. You are probably after the setting:
+chroot_local_user=YES
+
 Q) Does vsftpd support a limit on the number of users connected?
-A) Yes, indirectly. vsftpd is an inetd-based service. If use the popular
+A1) Yes, indirectly. vsftpd is an inetd-based service. If use the popular
 "xinetd" as your inetd, this supports per-service per-IP connection limits.
+There is an example of this in the "EXAMPLE" directory.
+A2) If you run vsftpd in "standalone" mode with the setting listen=YES, then
+you can investigate the setting (e.g.):
+max_clients=10
 
 Q) Help! I'm getting the error message "refusing to run with writable anonymous
 root".
@@ -11,7 +19,7 @@ A) vsftpd is protecting against dangerous configurations. The cause of this
 message is usually dodgy ownership of the ftp home directory. The home
 directory should NOT be owned by the ftp user itself. Neither should it
 be writable by the ftp user. A way to fix this is:
-"chown root ~ftp; chmod -w ~ftp"
+chown root ~ftp; chmod -w ~ftp
 
 Q) Help! I'm getting the error message "str_getpwnam".
 A) The most likely cause of this is that the "nobody" user does not exist on
@@ -63,10 +71,12 @@ A) Use vsftpd's PAM integration to do this, and have PAM authenticate against
 an LDAP repository.
 
 Q) Help! Does vsftpd do virtual hosting setups?
-A) Yes. If you integrate vsftpd with xinetd, you can use xinetd to bind to
+A1) Yes. If you integrate vsftpd with xinetd, you can use xinetd to bind to
 several different IP addresses. For each IP address, get xinetd to launch
 vsftpd with a different config file. This way, you can get different behaviour
 per virtual address.
+A2) Alternatively, run as many copies as vsftpd as necessary, in standalone
+mode. Use "listen_address=x.x.x.x" to set the virtual IP.
 
 Q) Help! Does vsftpd support virtual users?
 A) Yes, via PAM integration. Set "guest_enable=YES" in /etc/vsftpd.conf. This
@@ -76,4 +86,17 @@ module to provide authentication against an external (i.e. non-/etc/passwd)
 repository of users.
 Note - currently there is a restriction that with guest_enable enabled, local
 users also get mapped to guest_username.
+There is an example of virtual users setup in the "EXAMPLE" directory.
+
+Q) Help! Does vsftpd support different settings for different users?
+A) Yes - in a very powerful way. Look at the setting "user_config_dir" in the
+manual page.
+
+Q) Help! Can I restrict vsftpd data connections to a specific range of ports?
+A) Yes. See the config settings "pasv_min_port" and "pasv_max_port".
+
+Q) Help! I'm getting the message "OOPS: chdir".
+A) If this is for an anonymous login, check that the home directory for the
+user "ftp" is correct. If you are using the config setting "anon_root", check
+that is correct too.
 

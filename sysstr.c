@@ -14,6 +14,7 @@
 #include "sysutil.h"
 #include "defs.h"
 #include "utility.h"
+#include "tunables.h"
 
 void
 str_getcwd(struct mystr* p_str)
@@ -106,7 +107,8 @@ str_create_overwrite(const struct mystr* p_str)
 int
 str_create_append(const struct mystr* p_str)
 {
-  return vsf_sysutil_create_or_open_file(str_getbuf(p_str), 0666);
+  return vsf_sysutil_create_or_open_file(
+      str_getbuf(p_str), tunable_file_open_mode);
 }
 
 int

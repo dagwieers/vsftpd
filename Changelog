@@ -586,3 +586,30 @@ Alexey <kuznet@ms2.inr.ac.ru>.
 At this point: 1.1.0 package released
 -------------------------------------
 
+(Note - 1.1.0 also included large file (>2Gb) support).
+
+- Fix port_promiscuous, oops! Thanks to Bjørn-Ove Heimsund
+<bjornoh@mi.uib.no>.
+- Fix to support umasks which create executable files. Reported by
+"Martin, Andreas" <AMartin@hegau-klinikum.de>.
+- Make the messages more.. professional :( Thanks to Steven G. Taylor
+<staylor@redhat.com>.
+- Allow anon users to append to files if they can delete files! Suggestion
+from Michael Leuchtenburg <michael@slashhome.org>.
+- Hopefully fix Solaris build (-lresolv)
+- Replace atoll() with a homebrew - modern FreeBSD, OpenBSD lack it.
+- Different solution for a umask which creates executable files:
+file_open_mode.
+- First attempt at Tru64 build, working with <Sulla17@aol.com>.
+- A few minor FAQ additions.
+- Change date format in the log from Sep 09 -> Sep  9. Avoids breaking some
+broken log parsers.
+- Make "INSTALL" better and clearer.
+- Fix passwd_chroot_enable, reported by James Jones <james@richland.edu>.
+- Finish Tru64 building :-)
+- Add tunable_no_anon_password as asked for by Stephen Quinney
+<stephen.quinney@computing-services.oxford.ac.uk>.
+
+At this point: 1.1.1 package released
+-------------------------------------
+

@@ -32,6 +32,7 @@ static void common_do_login(struct vsf_session* p_sess,
                             int anon);
 static void handle_per_user_config(const struct mystr* p_user_str);
 static void calculate_chdir_dir(int anon, struct mystr* p_chroot_str,
+                                struct mystr* p_chdir_str,
                                 const struct mystr* p_user_str);
 
 static void
@@ -253,9 +254,10 @@ common_do_login(struct vsf_session* p_sess, const struct mystr* p_user_str,
   if (newpid == 0)
   {
     struct mystr guest_user_str = INIT_MYSTR;
+    struct mystr chroot_str = INIT_MYSTR;
     struct mystr chdir_str = INIT_MYSTR;
     unsigned int secutil_option = VSF_SECUTIL_OPTION_USE_GROUPS;
-    calculate_chdir_dir(anon, &chdir_str, p_user_str);
+    calculate_chdir_dir(anon, &chroot_str, &chdir_str, p_user_str);
     if (do_chroot)
     {
       secutil_option |= VSF_SECUTIL_OPTION_CHROOT;
@@ -275,9 +277,14 @@ common_do_login(struct vsf_session* p_sess, const struct mystr* p_user_str,
     {
       secutil_option |= VSF_SECUTIL_OPTION_CHANGE_EUID;
     }
-    vsf_secutil_change_credentials(p_user_str, 0, &chdir_str,
+    vsf_secutil_change_credentials(p_user_str, 0, &chroot_str,
                                    0, secutil_option);
+    if (!str_isempty(&chdir_str))
+    {
+      (void) str_chdir(&chdir_str);
+    }
     str_free(&guest_user_str);
+    str_free(&chroot_str);
     str_free(&chdir_str);
     /* Guard against the config error of having the anonymous ftp tree owned
      * by the user we are running as
@@ -320,6 +327,7 @@ handle_per_user_config(const struct mystr* p_user_str)
 
 static void
 calculate_chdir_dir(int anon, struct mystr* p_chroot_str,
+                    struct mystr* p_chdir_str,
                     const struct mystr* p_user_str)
 {
   if (anon && tunable_anon_root)
@@ -349,9 +357,7 @@ calculate_chdir_dir(int anon, struct mystr* p_chroot_str,
     loc_result = str_locate_text(&homedir_str, "/./");
     if (loc_result.found)
     {
-      struct mystr tmp_str = INIT_MYSTR;
-      str_split_text(&homedir_str, &tmp_str, "/./");
-      str_free(&tmp_str);
+      str_split_text(&homedir_str, p_chdir_str, "/./");
       str_copy(p_chroot_str, &homedir_str);
     }
     str_free(&homedir_str);

@@ -51,6 +51,9 @@ locate_library /lib/libsocket.so && echo "-lsocket";
 # Look for libnsl. Solaris needs this.
 locate_library /lib/libnsl.so && echo "-lnsl";
 
+# Look for libresolv. Solaris needs this.
+locate_library /lib/libresolv.so && echo "-lresolv";
+
 # Look for libutil. Older FreeBSD need this for setproctitle().
 locate_library /usr/lib/libutil.so && echo "-lutil";
 
@@ -68,4 +71,7 @@ locate_library /lib/libcap.so /usr/lib/libcap.so && echo "-lcap";
 
 # Solaris needs this for nanosleep()..
 locate_library /lib/libposix4.so /usr/lib/libposix4.so && echo "-lposix4";
+
+# Tru64 (nanosleep)
+locate_library /usr/shlib/librt.so && echo "-lrt";
 

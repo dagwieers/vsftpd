@@ -11,7 +11,7 @@ extern int tunable_chroot_local_user;         /* Restrict local to home dir */
 extern int tunable_write_enable;              /* Global enable writes */
 extern int tunable_anon_upload_enable;        /* Enable STOR for anon users */
 extern int tunable_anon_mkdir_write_enable;   /* MKD for anon */
-extern int tunable_anon_other_write_enable;   /* DELE RMD RNFR RNTO for anon */
+extern int tunable_anon_other_write_enable;   /* APPE DELE RMD RNFR for anon */
 extern int tunable_chown_uploads;             /* chown() anon uploaded files */
 extern int tunable_connect_from_port_20;      /* PORT connects from port 20 */
 extern int tunable_xferlog_enable;            /* Log transfers to a file */
@@ -38,6 +38,7 @@ extern int tunable_hide_ids;                  /* Show "ftp" in ls listings */
 extern int tunable_listen;                    /* Standalone (no inetd) mode? */
 extern int tunable_port_promiscuous;          /* Any any PORT connect IP */
 extern int tunable_passwd_chroot_enable;      /* chroot() based on passwd */
+extern int tunable_no_anon_password;          /* Do not ask for anon pword */
 
 /* Integer/numeric defines */
 extern unsigned int tunable_accept_timeout;
@@ -53,6 +54,7 @@ extern unsigned int tunable_anon_max_rate;
 extern unsigned int tunable_local_max_rate;
 extern unsigned int tunable_listen_port;
 extern unsigned int tunable_max_clients;
+extern unsigned int tunable_file_open_mode;
 
 /* String defines */
 extern const char* tunable_secure_chroot_dir;
