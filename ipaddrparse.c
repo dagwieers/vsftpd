@@ -2,13 +2,13 @@
  * Part of Very Secure FTPd
  * Licence: GPL v2
  * Author: Chris Evans
- * ipv6parse.c
+ * ipaddrparse.c
  *
- * A routine to parse ipv6 addresses. I'm paranoid and don't want to use
+ * A routine to parse ip addresses. I'm paranoid and don't want to use
  * inet_pton.
  */
 
-#include "ipv6parse.h"
+#include "ipaddrparse.h"
 #include "sysutil.h"
 #include "str.h"
 
@@ -56,6 +56,48 @@ vsf_sysutil_parse_ipv6(const struct mystr* p_str)
     str_append_str(&s_ret, &s_rhs_ret);
   }
   return str_getbuf(&s_ret);
+}
+
+const unsigned char*
+vsf_sysutil_parse_ipv4(const struct mystr* p_str)
+{
+  static unsigned char items[4];
+  return vsf_sysutil_parse_uchar_string_sep(p_str, '.', items, sizeof(items));
+}
+
+const unsigned char*
+vsf_sysutil_parse_uchar_string_sep(
+  const struct mystr* p_str, char sep, unsigned char* p_items,
+  unsigned int items)
+{
+  static struct mystr s_tmp_str;
+  unsigned int i;
+  str_copy(&s_tmp_str, p_str);
+  for (i=0; i<items; i++)
+  {
+    static struct mystr s_rhs_sep_str;
+    int this_number;
+    /* This puts a single separator delimited field in tmp_str */
+    str_split_char(&s_tmp_str, &s_rhs_sep_str, sep);
+    /* Sanity - check for too many or two few dots! */
+    if ( (i < (items-1) && str_isempty(&s_rhs_sep_str)) ||
+         (i == (items-1) && !str_isempty(&s_rhs_sep_str)))
+    {
+      return 0;
+    }
+    this_number = str_atoi(&s_tmp_str);
+    if (this_number < 0 || this_number > 255)
+    {
+      return 0;
+    }
+    /* If this truncates from int to uchar, we don't care */
+    p_items[i] = (unsigned char) this_number;
+    /* The right hand side of the comma now becomes the new string to
+     * breakdown
+     */
+    str_copy(&s_tmp_str, &s_rhs_sep_str);
+  }
+  return p_items;
 }
 
 static int

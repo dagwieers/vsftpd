@@ -130,17 +130,14 @@ vsf_ftpdataio_get_port_fd(struct vsf_session* p_sess)
   }
   else
   {
-    remote_fd = vsf_sysutil_get_ipsock(p_sess->p_port_sockaddr);
-    if (vsf_sysutil_sockaddr_same_family(p_sess->p_port_sockaddr,
-                                         p_sess->p_local_addr))
-    {
-      static struct vsf_sysutil_sockaddr* s_p_addr;
-      vsf_sysutil_sockaddr_clone(&s_p_addr, p_sess->p_local_addr);
-      retval = vsf_sysutil_bind(remote_fd, s_p_addr);
-      if (retval != 0)
-      {
-        die("vsf_sysutil_bind");
-      }
+    static struct vsf_sysutil_sockaddr* s_p_addr;
+    remote_fd = vsf_sysutil_get_ipsock(p_sess->p_local_addr);
+    vsf_sysutil_sockaddr_clone(&s_p_addr, p_sess->p_local_addr);
+    vsf_sysutil_sockaddr_set_port(s_p_addr, 0);
+    retval = vsf_sysutil_bind(remote_fd, s_p_addr);
+    if (retval != 0)
+    { 
+      die("vsf_sysutil_bind");
     }
   }
   retval = vsf_sysutil_connect_timeout(remote_fd, p_sess->p_port_sockaddr,

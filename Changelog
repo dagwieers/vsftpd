@@ -855,6 +855,25 @@ separate files for the certificates and private keys.
 Better fix (which reports timeout to client properly) to follow.
 - Add which setsockopt option failed to die("setsockopt") calls.
 - Fix when running on recent OpenBSDs - OpenBSD change broke vsftpd. Lower
-linger timeout from INT_MAX to 32767 (SHORT_MAX).
+linger timeout from INT_MAX to 32767 (SHORT_MAX). Reported by
+Ewoud van der Vliet <e.c.vandervliet@student.utwente.nl> and Ed Vazquez
+<ed.vazquez@dhha.org>.
 (v2.0.3pre1)
+- Fix error with IPv4 connections to IPv6 listeners and PORT type data
+connections when connect_from_port_20 is set. RedHat bugzilla 134541. Reported
+by Joe Orton <jorton@redhat.com>, Radek Vokal <rvokal@redhat.com> and
+Andreas Kupfer <kupfer@42h.de>.
+- Remove vsf_sysutil_sockaddr_same_family (unused).
+- Support protocol 1 (IPv4) in EPRT.
+- Add ssl.c to AUDIT.
+- Allow config file to use "ssl_ciphers=" to use default OpenSSL cipher list.
+- Allow "EPSV 1" to mean IPv4 EPSV.
+- Report dummy IP but correct port with IPv6 / PASV.
+- Handle SSL_WANT_READ and SSL_WANT_WRITE retries in SSL_read and SSL_write;
+fixes SSL upload failures when data timeouts are in use with some clients.
+Specifically, I used the test case FileZilla 2.2.12a on Windows XP. Reported
+by Lee Lawrence <leel@aspin.co.uk> (using CuteFTP and BackupEdge) and
+Christian DELAIR <christian@cognition.fr> (using lftp, FileZilla and
+SmartFTP). Thanks to these two people for valuable help.
+(v2.0.3pre2)
 

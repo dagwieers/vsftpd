@@ -97,7 +97,8 @@ ssl_init(struct vsf_session* p_sess)
         die("SSL: cannot load DSA private key");
       }
     }
-    if (SSL_CTX_set_cipher_list(p_ctx, tunable_ssl_ciphers) != 1)
+    if (tunable_ssl_ciphers &&
+        SSL_CTX_set_cipher_list(p_ctx, tunable_ssl_ciphers) != 1)
     {
       die("SSL: could not set cipher list");
     }
@@ -211,18 +212,34 @@ ssl_getline(const struct vsf_session* p_sess, struct mystr* p_str,
 int
 ssl_read(void* p_ssl, char* p_buf, unsigned int len)
 {
-  int retval = SSL_read((SSL*) p_ssl, p_buf, len);
+  int retval;
+  int err;
   int fd = SSL_get_fd((SSL*) p_ssl);
-  vsf_sysutil_check_pending_actions(kVSFSysUtilIO, retval, fd);
+  do
+  {
+    retval = SSL_read((SSL*) p_ssl, p_buf, len);
+    err = SSL_get_error((SSL*) p_ssl, retval);
+    vsf_sysutil_check_pending_actions(kVSFSysUtilIO, retval, fd);
+  }
+  while (retval < 0 && (err == SSL_ERROR_WANT_READ ||
+                        err == SSL_ERROR_WANT_WRITE));
   return retval;
 }
 
 int
 ssl_write(void* p_ssl, const char* p_buf, unsigned int len)
 {
-  int retval = SSL_write((SSL*) p_ssl, p_buf, len);
+  int retval;
+  int err;
   int fd = SSL_get_fd((SSL*) p_ssl);
-  vsf_sysutil_check_pending_actions(kVSFSysUtilIO, retval, fd);
+  do
+  {
+    retval = SSL_write((SSL*) p_ssl, p_buf, len);
+    err = SSL_get_error((SSL*) p_ssl, retval);
+    vsf_sysutil_check_pending_actions(kVSFSysUtilIO, retval, fd);
+  }
+  while (retval < 0 && (err == SSL_ERROR_WANT_READ ||
+                        err == SSL_ERROR_WANT_WRITE));
   return retval;
 }
 

@@ -4,10 +4,9 @@ CRITICAL
 - Improve FAQ, docs (ongoing..)
 - Integrated test suite (I'm so lazy..)
 - Sweedish, Russian etc. characters showing as ? in the log - many complaints.
-
-- SIGALRM at prelogin stage with SSL not safe w.r.t. re-entrancy.
+- SIGALRM at prelogin stage with SSL not safe w.r.t. re-entrancy?
 - Check re-entrancy of usage of vsf_sysutil_exit_func.
-- And session timeout too :( (not working with SSL).
+- Fix SSL session timeout more gracefully.
 - Send until EOF is really reached (not the case with sendfile mode).
 
 NOT SO CRITICAL

@@ -21,7 +21,7 @@
 #include "sysutil.h"
 #include "logging.h"
 #include "sysdeputil.h"
-#include "ipv6parse.h"
+#include "ipaddrparse.h"
 #include "access.h"
 #include "features.h"
 #include "ssl.h"
@@ -511,7 +511,7 @@ handle_pasv(struct vsf_session* p_sess, int is_epsv)
       return;
     }
     argval = vsf_sysutil_atoi(str_getbuf(&p_sess->ftp_arg_str));
-    if (!is_ipv6 || argval != 2)
+    if (argval < 1 || argval > 2 || (!is_ipv6 && argval == 2))
     {
       vsf_cmdio_write(p_sess, FTP_EPSVBAD, "Bad network protocol.");
       return;
@@ -519,7 +519,7 @@ handle_pasv(struct vsf_session* p_sess, int is_epsv)
   }
   pasv_cleanup(p_sess);
   port_cleanup(p_sess);
-  if (is_epsv && is_ipv6)
+  if (is_ipv6)
   {
     p_sess->pasv_listen_fd = vsf_sysutil_get_ipv6_sock();
   }
@@ -595,6 +595,10 @@ handle_pasv(struct vsf_session* p_sess, int is_epsv)
     if (p_v4addr)
     {
       str_append_text(&s_pasv_res_str, vsf_sysutil_inet_ntoa(p_v4addr));
+    }
+    else
+    {
+      str_append_text(&s_pasv_res_str, "0,0,0,0");
     }
   }
   str_replace_char(&s_pasv_res_str, '.', ',');
@@ -888,42 +892,21 @@ handle_type(struct vsf_session* p_sess)
 static void
 handle_port(struct vsf_session* p_sess)
 {
-  static struct mystr s_tmp_str;
   unsigned short the_port;
   unsigned char vals[6];
-  int i;
+  const unsigned char* p_raw;
   pasv_cleanup(p_sess);
   port_cleanup(p_sess);
-  str_copy(&s_tmp_str, &p_sess->ftp_arg_str);
-  for (i=0; i<6; i++)
+  p_raw = vsf_sysutil_parse_uchar_string_sep(&p_sess->ftp_arg_str, ',', vals,
+                                             sizeof(vals));
+  if (p_raw == 0)
   {
-    static struct mystr s_rhs_comma_str;
-    int this_number;
-    /* This puts a single , delimited field in tmp_str */
-    str_split_char(&s_tmp_str, &s_rhs_comma_str, ',');
-    /* Sanity - check for too many or two few commas! */
-    if ( (i<5 && str_isempty(&s_rhs_comma_str)) ||
-         (i==5 && !str_isempty(&s_rhs_comma_str)))
-    {
-      vsf_cmdio_write(p_sess, FTP_BADCMD, "Illegal PORT command.");
-      return;
-    }
-    this_number = str_atoi(&s_tmp_str);
-    if (this_number < 0 || this_number > 255)
-    {
-      vsf_cmdio_write(p_sess, FTP_BADCMD, "Illegal PORT command.");
-      return;
-    }
-    /* If this truncates from int to uchar, we don't care */
-    vals[i] = (unsigned char) this_number;
-    /* The right hand side of the comma now becomes the new string to
-     * breakdown
-     */
-    str_copy(&s_tmp_str, &s_rhs_comma_str);
+    vsf_cmdio_write(p_sess, FTP_BADCMD, "Illegal PORT command.");
+    return;
   }
   the_port = vals[4] << 8;
   the_port |= vals[5];
-  vsf_sysutil_sockaddr_alloc_ipv4(&p_sess->p_port_sockaddr);
+  vsf_sysutil_sockaddr_clone(&p_sess->p_port_sockaddr, p_sess->p_local_addr);
   vsf_sysutil_sockaddr_set_ipv4addr(p_sess->p_port_sockaddr, vals);
   vsf_sysutil_sockaddr_set_port(p_sess->p_port_sockaddr, the_port);
   /* SECURITY:
@@ -1312,6 +1295,10 @@ handle_sigurg(void* p_private)
   if (str_equal_text(&real_cmd_str, "ABOR"))
   {
     p_sess->abor_received = 1;
+    /* This is failok because of a small race condition; the SIGURG might
+     * be raised after the data socket is closed, but before data_fd is
+     * set to -1.
+     */
     vsf_sysutil_shutdown_failok(p_sess->data_fd);
   }
   else
@@ -1586,14 +1573,21 @@ handle_eprt(struct vsf_session* p_sess)
   /* Split out the protocol and check it */
   str_split_char(&s_part2_str, &s_part1_str, '|');
   proto = str_atoi(&s_part2_str);
-  if (!is_ipv6 || proto != 2)
+  if (proto < 1 || proto > 2 || (!is_ipv6 && proto == 2))
   {
     vsf_cmdio_write(p_sess, FTP_BADCMD, "Bad EPRT protocol.");
     return;
   }
   /* Split out address and parse it */
   str_split_char(&s_part1_str, &s_part2_str, '|');
-  p_raw_addr = vsf_sysutil_parse_ipv6(&s_part1_str);
+  if (proto == 2)
+  {
+    p_raw_addr = vsf_sysutil_parse_ipv6(&s_part1_str);
+  }
+  else
+  {
+    p_raw_addr = vsf_sysutil_parse_ipv4(&s_part1_str);
+  }
   if (!p_raw_addr)
   {
     goto bad_eprt;
@@ -1609,9 +1603,16 @@ handle_eprt(struct vsf_session* p_sess)
   {
     goto bad_eprt;
   }
-  vsf_sysutil_sockaddr_alloc_ipv6(&p_sess->p_port_sockaddr);
-  vsf_sysutil_sockaddr_set_ipv6addr(p_sess->p_port_sockaddr, p_raw_addr);
-  vsf_sysutil_sockaddr_set_port(p_sess->p_port_sockaddr, (unsigned short)port);
+  vsf_sysutil_sockaddr_clone(&p_sess->p_port_sockaddr, p_sess->p_local_addr);
+  if (proto == 2)
+  {
+    vsf_sysutil_sockaddr_set_ipv6addr(p_sess->p_port_sockaddr, p_raw_addr);
+  }
+  else
+  {
+    vsf_sysutil_sockaddr_set_ipv4addr(p_sess->p_port_sockaddr, p_raw_addr);
+  }
+  vsf_sysutil_sockaddr_set_port(p_sess->p_port_sockaddr, (unsigned short) port);
   /* SECURITY:
    * 1) Reject requests not connecting to the control socket IP
    * 2) Reject connects to privileged ports

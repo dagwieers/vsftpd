@@ -17,7 +17,7 @@
 #include "defs.h"
 #include "hash.h"
 #include "str.h"
-#include "ipv6parse.h"
+#include "ipaddrparse.h"
 
 static unsigned int s_children;
 static struct hash* s_p_ip_count_hash;

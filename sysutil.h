@@ -215,9 +215,6 @@ int vsf_sysutil_sockaddr_addr_equal(const struct vsf_sysutil_sockaddr* p1,
                                     const struct vsf_sysutil_sockaddr* p2);
 int vsf_sysutil_sockaddr_is_ipv6(
   const struct vsf_sysutil_sockaddr* p_sockaddr);
-int vsf_sysutil_sockaddr_same_family(
-  const struct vsf_sysutil_sockaddr* p1,
-  const struct vsf_sysutil_sockaddr* p2);
 void vsf_sysutil_sockaddr_set_ipv4addr(struct vsf_sysutil_sockaddr* p_sockptr,
                                        const unsigned char* p_raw);
 void vsf_sysutil_sockaddr_set_ipv6addr(struct vsf_sysutil_sockaddr* p_sockptr,
@@ -231,6 +228,8 @@ unsigned int vsf_sysutil_get_ipaddr_size(void);
 void* vsf_sysutil_sockaddr_get_raw_addr(
   struct vsf_sysutil_sockaddr* p_sockaddr);
 const void* vsf_sysutil_sockaddr_ipv6_v4(
+  const struct vsf_sysutil_sockaddr* p_sockaddr);
+const void* vsf_sysutil_sockaddr_ipv4_v6(
   const struct vsf_sysutil_sockaddr* p_sockaddr);
 int vsf_sysutil_get_ipv4_sock(void);
 int vsf_sysutil_get_ipv6_sock(void);

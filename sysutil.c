@@ -1920,17 +1920,6 @@ vsf_sysutil_sockaddr_is_ipv6(const struct vsf_sysutil_sockaddr* p_sockaddr)
   return 0;
 }
 
-int
-vsf_sysutil_sockaddr_same_family(const struct vsf_sysutil_sockaddr* p1,
-                                 const struct vsf_sysutil_sockaddr* p2)
-{
-  if (p1->u.u_sockaddr.sa_family == p2->u.u_sockaddr.sa_family)
-  {
-    return 1;
-  }
-  return 0;
-}
-
 void
 vsf_sysutil_sockaddr_set_ipv4addr(struct vsf_sysutil_sockaddr* p_sockptr,
                                   const unsigned char* p_raw)
@@ -1939,6 +1928,16 @@ vsf_sysutil_sockaddr_set_ipv4addr(struct vsf_sysutil_sockaddr* p_sockptr,
   {
     vsf_sysutil_memcpy(&p_sockptr->u.u_sockaddr_in.sin_addr, p_raw,
                        sizeof(p_sockptr->u.u_sockaddr_in.sin_addr));
+  }
+  else if (p_sockptr->u.u_sockaddr.sa_family == AF_INET6)
+  {
+    static struct vsf_sysutil_sockaddr* s_p_sockaddr;
+    vsf_sysutil_sockaddr_alloc_ipv4(&s_p_sockaddr);
+    vsf_sysutil_memcpy(&s_p_sockaddr->u.u_sockaddr_in.sin_addr, p_raw,
+                       sizeof(&s_p_sockaddr->u.u_sockaddr_in.sin_addr));
+    vsf_sysutil_memcpy(&p_sockptr->u.u_sockaddr_in6.sin6_addr,
+                       vsf_sysutil_sockaddr_ipv4_v6(s_p_sockaddr),
+                       sizeof(p_sockptr->u.u_sockaddr_in6.sin6_addr));
   }
   else
   {
@@ -1976,6 +1975,18 @@ vsf_sysutil_sockaddr_ipv6_v4(const struct vsf_sysutil_sockaddr* p_addr)
   }
   p_addr_start = (const unsigned char*)&p_addr->u.u_sockaddr_in6.sin6_addr;
   return &p_addr_start[12];
+}
+
+const void*
+vsf_sysutil_sockaddr_ipv4_v6(const struct vsf_sysutil_sockaddr* p_addr)
+{
+  static char ret[16] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xFF, 0xFF };
+  if (p_addr->u.u_sockaddr.sa_family != AF_INET)
+  {
+    return 0;
+  }
+  vsf_sysutil_memcpy(&ret[12], &p_addr->u.u_sockaddr_in.sin_addr, 4);
+  return ret;
 }
 
 void*

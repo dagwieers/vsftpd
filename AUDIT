@@ -13,7 +13,7 @@ filestr.c                    3
 ftpcmdio.c                   3
 ftpdataio.c                  2
 hash.c                       1
-ipv6parse.c                  1
+ipaddrparse.c                1
 logging.c                    3
 ls.c                         2
 main.c                       3
@@ -28,6 +28,7 @@ privparent.c                 3
 privsock.c                   3
 secbuf.c                     3
 secutil.c                    3
+ssl.c                        1
 standalone.c                 1
 str.c                        2
 strlist.c                    2
