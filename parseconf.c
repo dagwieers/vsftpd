@@ -96,6 +96,9 @@ parseconf_bool_array[] =
   { "tilde_user_enable", &tunable_tilde_user_enable },
   { "force_anon_logins_ssl", &tunable_force_anon_logins_ssl },
   { "force_anon_data_ssl", &tunable_force_anon_data_ssl },
+  { "mdtm_write", &tunable_mdtm_write },
+  { "lock_upload_files", &tunable_lock_upload_files },
+  { "pasv_addr_resolve", &tunable_pasv_addr_resolve },
   { 0, 0 }
 };
 

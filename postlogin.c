@@ -646,6 +646,11 @@ handle_retr(struct vsf_session* p_sess)
     vsf_cmdio_write(p_sess, FTP_FILEFAIL, "Failed to open file.");
     return;
   }
+  /* Lock file if required */
+  if (tunable_lock_upload_files)
+  {
+    vsf_sysutil_lock_file_read(opened_file);
+  }
   vsf_sysutil_fstat(opened_file, &s_p_statbuf);
   /* No games please */
   if (!vsf_sysutil_statbuf_is_regfile(s_p_statbuf))
@@ -1000,6 +1005,11 @@ handle_upload_common(struct vsf_session* p_sess, int is_append, int is_unique)
     {
       vsf_two_process_chown_upload(p_sess, new_file_fd);
     }
+  }
+  /* Are we required to lock this file? */
+  if (tunable_lock_upload_files)
+  {
+    vsf_sysutil_lock_file_write(new_file_fd);
   }
   if (!is_append && offset != 0)
   {
@@ -1489,7 +1499,7 @@ handle_mdtm(struct vsf_session* p_sess)
   long modtime = 0;
   struct str_locate_result loc = str_locate_char(&p_sess->ftp_arg_str, ' ');
   int retval = str_stat(&p_sess->ftp_arg_str, &s_p_statbuf);
-  if (retval != 0 && loc.found &&
+  if (tunable_mdtm_write && retval != 0 && loc.found &&
       vsf_sysutil_isdigit(str_get_char_at(&p_sess->ftp_arg_str, 0)))
   {
     if (loc.index == 8 || loc.index == 14 ||
@@ -1537,7 +1547,7 @@ handle_mdtm(struct vsf_session* p_sess)
   }
   else
   {
-    if (!vsf_sysutil_statbuf_is_regfile(s_p_statbuf))
+    if (retval != 0 || !vsf_sysutil_statbuf_is_regfile(s_p_statbuf))
     {
       vsf_cmdio_write(p_sess, FTP_FILEFAIL,
                       "Could not get file modification time.");

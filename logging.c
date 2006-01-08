@@ -148,7 +148,7 @@ vsf_log_do_log_to_file(int fd, struct mystr* p_str)
 {
   if (!tunable_no_log_lock)
   {
-    int retval = vsf_sysutil_lock_file(fd);
+    int retval = vsf_sysutil_lock_file_write(fd);
     if (vsf_sysutil_retval_is_error(retval))
     {
       return;

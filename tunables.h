@@ -64,6 +64,9 @@ extern int tunable_tlsv1;                     /* Allow TLSv1 */
 extern int tunable_tilde_user_enable;         /* Support e.g. ~chris */
 extern int tunable_force_anon_logins_ssl;     /* Require anon logins use SSL */
 extern int tunable_force_anon_data_ssl;       /* Require anon data uses SSL */
+extern int tunable_mdtm_write;                /* Allow MDTM to set timestamps */
+extern int tunable_lock_upload_files;         /* Lock uploading files */
+extern int tunable_pasv_addr_resolve;         /* DNS resolve pasv_addr */
 
 /* Integer/numeric defines */
 extern unsigned int tunable_accept_timeout;

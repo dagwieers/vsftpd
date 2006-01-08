@@ -100,6 +100,7 @@
   #ifdef PSTAT_SETCMD
     #define VSF_SYSDEP_HAVE_HPUX_SETPROCTITLE
   #endif
+  #undef VSF_SYSDEP_HAVE_UTMPX
 #endif
 
 #include <unistd.h>

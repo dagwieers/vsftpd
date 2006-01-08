@@ -45,6 +45,9 @@ file to the PAM directory - typically /etc/pam.d/
 
 cp vsftpd.pam /etc/pam.d/ftp
 
+(Note - if you set pam_service_name to e.g. vsftpd instead, you'll need to copy
+to /etc/pam.d/vsftpd).
+
 
 Step 3) Set up the location of the files for the virtual users.
 

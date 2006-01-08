@@ -887,3 +887,24 @@ weren't all occurring promply.
 At this point: v2.0.3 released! (need to get about three imporant fixes out)
 ============================================================================
 
+- Add explicit "This FTP server does not allow anonymous logins" message.
+- Add paranoid checks to sysutil.c for large values / lengths.
+- Fix incorrect comment about ASCII and SIZE in the vsftpd.conf example.
+- Load per-IP config files earlier; allows more settings to be tuned on a
+per-IP level. Suggested by Reber Tobias <t.reber@dkfz-heidelberg.de>.
+- Fix MDTM on non-existant files. Reported by Ken A <ka@pacific.net>.
+- {} regex fix so that {*} correctly matches everything. Reported by
+Tom Van de Wiele <tom.vandewiele@gmail.com>.
+- Add "mdtm_write" option to disable MDTM being able to set file timestamps.
+- Fix HPUX build, thanks to Kevin Vajk <kvajk@cup.hp.com>.
+- Add optional file locking support via lock_upload_files (default on).
+- Apply LDFLAGS patch from Mads Martin Joergensen <mmj@suse.de>.
+- Add pasv_addr_resolve option to allow pasv_address to get DNS resolved once
+at startup.
+- Apply patch to fix timezone issues (caused by chroot() interacting badly with
+newer glibc versions). Thanks to Dmitry V. Levin <ldv@altlinux.org> and
+Mads Martin Joergensen <mmj@suse.de>.
+
+At this point: v2.0.4 released!
+===============================
+

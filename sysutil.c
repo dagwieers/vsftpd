@@ -52,6 +52,7 @@
 #include <limits.h>
 #include <syslog.h>
 #include <utime.h>
+#include <netdb.h>
 
 /* Private variables to this file */
 /* Current umask() */
@@ -98,6 +99,7 @@ static int vsf_sysutil_translate_openmode(
   const enum EVSFSysUtilOpenMode mode);
 static void vsf_sysutil_alloc_statbuf(struct vsf_sysutil_statbuf** p_ptr);
 void vsf_sysutil_sockaddr_alloc(struct vsf_sysutil_sockaddr** p_sockptr);
+static int lock_internal(int fd, int lock_type);
 
 static void
 vsf_sysutil_common_sighandler(int signum)
@@ -976,7 +978,13 @@ vsf_sysutil_next_dirent(struct vsf_sysutil_dir* p_dir)
 unsigned int
 vsf_sysutil_strlen(const char* p_text)
 {
-  return strlen(p_text);
+  unsigned int ret = strlen(p_text);
+  /* A defense in depth measure. */
+  if (ret > INT_MAX / 8)
+  {
+    die("string suspiciously long");
+  }
+  return ret;
 }
 
 char*
@@ -1003,6 +1011,11 @@ vsf_sysutil_memcpy(void* p_dest, const void* p_src, const unsigned int size)
   if (size == 0)
   {
     return;
+  }
+  /* Defense in depth */
+  if (size > INT_MAX)
+  {
+    die("possible negative value to memcpy?");
   }
   memcpy(p_dest, p_src, size);
 }
@@ -1447,13 +1460,25 @@ vsf_sysutil_chmod(const char* p_filename, unsigned int mode)
 }
 
 int
-vsf_sysutil_lock_file(int fd)
+vsf_sysutil_lock_file_write(int fd)
+{
+  return lock_internal(fd, F_WRLCK);
+}
+
+int
+vsf_sysutil_lock_file_read(int fd)
+{
+  return lock_internal(fd, F_RDLCK);
+}
+
+static int
+lock_internal(int fd, int lock_type)
 {
   struct flock the_lock;
   int retval;
   int saved_errno;
   vsf_sysutil_memclr(&the_lock, sizeof(the_lock));
-  the_lock.l_type = F_WRLCK;
+  the_lock.l_type = lock_type;
   the_lock.l_whence = SEEK_SET;
   the_lock.l_start = 0;
   the_lock.l_len = 0;
@@ -2139,6 +2164,44 @@ vsf_sysutil_inet_aton(const char* p_text, struct vsf_sysutil_sockaddr* p_addr)
   }
 }
 
+void
+vsf_sysutil_dns_resolve(struct vsf_sysutil_sockaddr** p_sockptr,
+                        const char* p_name)
+{
+  struct hostent* hent = gethostbyname(p_name);
+  if (hent == NULL)
+  {
+    die2("cannot resolve host:", p_name);
+  }
+  vsf_sysutil_sockaddr_clear(p_sockptr);
+  if (hent->h_addrtype == AF_INET)
+  {
+    unsigned int len = hent->h_length;
+    if (len > sizeof((*p_sockptr)->u.u_sockaddr_in.sin_addr))
+    {
+      len = sizeof((*p_sockptr)->u.u_sockaddr_in.sin_addr);
+    }
+    vsf_sysutil_sockaddr_alloc_ipv4(p_sockptr);
+    vsf_sysutil_memcpy(&(*p_sockptr)->u.u_sockaddr_in.sin_addr,
+                       hent->h_addr_list[0], len);
+  }
+  else if (hent->h_addrtype == AF_INET6)
+  {
+    unsigned int len = hent->h_length;
+    if (len > sizeof((*p_sockptr)->u.u_sockaddr_in6.sin6_addr))
+    {
+      len = sizeof((*p_sockptr)->u.u_sockaddr_in6.sin6_addr);
+    }
+    vsf_sysutil_sockaddr_alloc_ipv6(p_sockptr);
+    vsf_sysutil_memcpy(&(*p_sockptr)->u.u_sockaddr_in6.sin6_addr,
+                       hent->h_addr_list[0], len);
+  }
+  else
+  {
+    die("gethostbyname(): neither IPv4 nor IPv6");
+  }
+}
+
 struct vsf_sysutil_user*
 vsf_sysutil_getpwuid(const int uid)
 {
@@ -2352,6 +2415,34 @@ vsf_sysutil_chroot(const char* p_root_path)
   {
     die("chroot");
   }
+  /* Set our timezone in the TZ environment variable to cater for the fact
+   * that modern glibc does not cache /etc/localtime (which is of course now
+   * inaccessible).
+   */
+  if (s_timezone)
+  {
+    char envtz[sizeof("UTC-hh:mm:ss")];
+    int hour, min, sec;
+
+    hour = s_timezone;
+    if (hour < 0)
+    {
+      hour = -hour;
+    }
+    if (hour < 25*60*60)
+    {
+      sec = hour % 60;
+      hour /= 60;
+      min = hour % 60;
+      hour /= 60;
+      if (s_timezone < 0)
+      {
+        hour = -hour;
+      }
+      snprintf(envtz, sizeof(envtz), "UTC%+d:%d:%d", hour, min, sec);
+      setenv("TZ", envtz, 1);
+    }
+  }
 }
 
 unsigned int
@@ -2382,16 +2473,12 @@ vsf_sysutil_make_session_leader(void)
 void
 vsf_sysutil_tzset(void)
 {
+  time_t the_time = 0;
+  struct tm* p_tm;
   tzset();
-#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
-  {
-    time_t the_time = 0;
-    struct tm* p_tm = localtime(&the_time);
-    s_timezone = p_tm->tm_gmtoff * -1;
-  }
-#else
-  s_timezone = timezone;
-#endif
+  the_time = time(NULL);
+  p_tm = localtime(&the_time);
+  s_timezone = -p_tm->tm_gmtoff;
 }
 
 const char*

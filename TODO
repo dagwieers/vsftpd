@@ -11,17 +11,14 @@ CRITICAL
 NOT SO CRITICAL
 ===============
 
+- "add_group" support.
 - Implict SSL support (port 990?)
 - Do something with client certs.
 - Add CHLD handler to priv parent process to take care of session crashes?
-- Send until EOF is really reached (not the case with sendfile mode).
-- lock the files being modified?
 - Still reports FlashFXP broken when trying to do FXP.
 - Add negation, other support to regex handler.
 - Fix SIGHUP config file reload to correctly reset _removed_ settings to
 their default values.
-- Allow listener to listen on multiple IPs; bonus points if the different
-IPs can have different configs.
 - Upload file size limits.
 - Allow groups to be listed in user lists.
 - Allow space in username.
@@ -30,11 +27,12 @@ can result in a non-zero exit code.
 - Better reporting of failed uploads due to out of device space or quota all
 used.
 - option to chroot to home dir and THEN apply init_dir
-- pasv_addr_file option (patch from Adam Luter)
 - separate upload/download max rates
 - select() is assuming Linux behaviour (not threatening stability)
 - add example global bandwidth limiting.
 - switch to new signal model
+- have a chown_uploads for non-anon users too; also more control over
+permissions of uploaded file
 
 ON THE BACK BURNER
 ==================
@@ -56,6 +54,8 @@ numbers of these reports)
 - Test vsftpd with pam_opie (issues with challenge/response vs. FTP protocol?)
 - SITE GROUP support.
 - SITE UTIME?
+- Allow listener to listen on multiple IPs; bonus points if the different
+IPs can have different configs.
 
 NOT PLANNED
 ===========

@@ -104,6 +104,17 @@ main(int argc, const char* argv[])
     }
     vsf_sysutil_free(p_statbuf);
   }
+  /* Resolve pasv_address if required */
+  if (tunable_pasv_address && tunable_pasv_addr_resolve)
+  {
+    struct vsf_sysutil_sockaddr* p_addr = 0;
+    const char* p_numeric_addr;
+    vsf_sysutil_dns_resolve(&p_addr, tunable_pasv_address);
+    vsf_sysutil_free((char*) tunable_pasv_address);
+    p_numeric_addr = vsf_sysutil_inet_ntop(p_addr);
+    tunable_pasv_address = vsf_sysutil_strdup(p_numeric_addr);
+    vsf_sysutil_free(p_addr);
+  }
   if (!tunable_run_as_launching_user)
   {
     /* Just get out unless we start with requisite privilege */
@@ -127,6 +138,17 @@ main(int argc, const char* argv[])
     struct vsf_client_launch ret = vsf_standalone_main();
     the_session.num_clients = ret.num_children;
     the_session.num_this_ip = ret.num_this_ip;
+  }
+  if (tunable_tcp_wrappers)
+  {
+    the_session.tcp_wrapper_ok = vsf_tcp_wrapper_ok(VSFTP_COMMAND_FD);
+  }
+  {
+    const char* p_load_conf = vsf_sysutil_getenv("VSFTPD_LOAD_CONF");
+    if (p_load_conf)
+    {
+      vsf_parseconf_load_file(p_load_conf, 1);
+    }
   }
   /* Sanity checks - exit with a graceful error message if our STDIN is not
    * a socket. Also check various config options don't collide.
@@ -152,17 +174,6 @@ main(int argc, const char* argv[])
   /* We might chroot() very soon (one process model), so we need to open
    * any required config files here.
    */
-  if (tunable_tcp_wrappers)
-  {
-    the_session.tcp_wrapper_ok = vsf_tcp_wrapper_ok(VSFTP_COMMAND_FD);
-  }
-  {
-    const char* p_load_conf = vsf_sysutil_getenv("VSFTPD_LOAD_CONF");
-    if (p_load_conf)
-    {
-      vsf_parseconf_load_file(p_load_conf, 1);
-    }
-  }
   /* SSL may have been enabled by a per-IP configuration.. */
   if (tunable_ssl_enable)
   {

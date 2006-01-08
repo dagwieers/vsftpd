@@ -52,6 +52,10 @@ vsf_standalone_main(void)
       /* Parent, just exit */
       vsf_sysutil_exit(0);
     }
+    /* Son, close standard FDs to avoid SSH hang-on-exit */
+    vsf_sysutil_close_failok(0);
+    vsf_sysutil_close_failok(1);
+    vsf_sysutil_close_failok(2);
     vsf_sysutil_make_session_leader();
   }
   if (tunable_listen)

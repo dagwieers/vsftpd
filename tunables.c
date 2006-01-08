@@ -68,6 +68,9 @@ int tunable_tlsv1 = 1;
 int tunable_tilde_user_enable = 0;
 int tunable_force_anon_logins_ssl = 0;
 int tunable_force_anon_data_ssl = 0;
+int tunable_mdtm_write = 1;
+int tunable_lock_upload_files = 1;
+int tunable_pasv_addr_resolve = 0;
 
 unsigned int tunable_accept_timeout = 60;
 unsigned int tunable_connect_timeout = 60;

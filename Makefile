@@ -21,7 +21,7 @@ OBJS	=	main.o utility.o prelogin.o ftpcmdio.o postlogin.o privsock.o \
 	$(CC) -c $*.c $(CFLAGS) $(IFLAGS)
 
 vsftpd: $(OBJS) 
-	$(CC) -o vsftpd $(OBJS) $(LINK) $(LIBS)
+	$(CC) -o vsftpd $(OBJS) $(LINK) $(LIBS) $(LDFLAGS)
 
 install:
 	if [ -x /usr/local/sbin ]; then \

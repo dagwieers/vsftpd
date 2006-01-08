@@ -300,10 +300,8 @@ vsf_filename_passes_filter(const struct mystr* p_filename_str,
     {
       struct str_locate_result end_brace =
         str_locate_char(&filter_remain_str, '}');
-      struct str_locate_result comma =
-        str_locate_char(&filter_remain_str, ',');
       must_match_at_current_pos = 1;
-      if (end_brace.found && comma.found && comma.index < end_brace.index)
+      if (end_brace.found)
       {
         str_split_char(&filter_remain_str, &temp_str, '}');
         str_copy(&brace_list_str, &filter_remain_str);
@@ -326,7 +324,7 @@ vsf_filename_passes_filter(const struct mystr* p_filename_str,
       else if (str_isempty(&name_remain_str) ||
                str_get_char_at(&name_remain_str, 0) != '{')
       {
-        return 0;
+        goto out;
       }
       else
       {

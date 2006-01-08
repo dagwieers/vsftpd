@@ -272,6 +272,14 @@ user accounts in /etc/passwd may be used to log in.
 
 Default: NO
 .TP
+.B lock_upload_files
+When enabled, all uploads proceed with a write lock on the upload file. All
+downloads proceed with a shared read lock on the download file. WARNING!
+Before enabling this, be aware that malicious readers could starve a writer
+wanting to e.g. append a file.
+
+Default: NO
+.TP
 .B log_ftp_protocol
 When enabled, all FTP requests and responses are logged, providing the option
 xferlog_std_format is not enabled. Useful for debugging.
@@ -284,6 +292,12 @@ security risk, because a ls -R at the top level of a large site may consume
 a lot of resources.
 
 Default: NO
+.TP
+.B mdtm_write
+When enabled, this setting will allow MDTM to set file modification times
+(subject to the usual access checks).
+
+Default: YES
 .TP
 .B no_anon_password
 When enabled, this prevents vsftpd from asking for an anonymous password -
@@ -315,6 +329,13 @@ If enabled, along with
 user's jail is derived from their home directory string in /etc/passwd. The
 occurrence of /./ in the home directory string denotes that the jail is at that
 particular location in the path.
+
+Default: NO
+.TP
+.B pasv_addr_resolve
+Set to YES if you want to use a hostname (as opposed to IP address) in the
+.BR pasv_address
+option.
 
 Default: NO
 .TP
@@ -812,7 +833,10 @@ Default: ftp
 .TP
 .B pasv_address
 Use this option to override the IP address that vsftpd will advertise in
-response to the PASV command. Provide a numeric IP address.
+response to the PASV command. Provide a numeric IP address, unless
+.BR pasv_addr_resolve
+is enabled, in which case you can provide a hostname which will be DNS
+resolved for you at startup.
 
 Default: (none - the address is taken from the incoming connected socket)
 .TP

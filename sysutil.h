@@ -136,8 +136,11 @@ void vsf_sysutil_fchmod(const int fd, unsigned int mode);
 int vsf_sysutil_readlink(const char* p_filename, char* p_dest,
                          unsigned int bufsiz);
 
-/* Get an exclusive lock, and blocks */
-int vsf_sysutil_lock_file(int fd);
+/* Get / unget various locks. Lock gets are blocking. Write locks are
+ * exclusive; read locks are shared.
+ */
+int vsf_sysutil_lock_file_write(int fd);
+int vsf_sysutil_lock_file_read(int fd);
 void vsf_sysutil_unlock_file(int fd);
 
 /* Mapping/unmapping */
@@ -244,6 +247,8 @@ int vsf_sysutil_accept_timeout(int fd, struct vsf_sysutil_sockaddr* p_sockaddr,
 int vsf_sysutil_connect_timeout(int fd,
                                 const struct vsf_sysutil_sockaddr* p_sockaddr,
                                 unsigned int wait_seconds);
+void vsf_sysutil_dns_resolve(struct vsf_sysutil_sockaddr** p_sockptr,
+                             const char* p_name);
 /* Option setting on sockets */
 void vsf_sysutil_activate_keepalive(int fd);
 void vsf_sysutil_set_iptos_throughput(int fd);
