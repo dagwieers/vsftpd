@@ -201,9 +201,11 @@ static int do_sendfile(const int out_fd, const int in_fd,
                        unsigned int num_send, filesize_t start_pos);
 static void vsf_sysutil_setproctitle_internal(const char* p_text);
 static struct mystr s_proctitle_prefix_str;
-static void vsf_insert_uwtmp(const struct mystr* p_user_str,
-                             const struct mystr* p_host_str);
-static void vsf_remove_uwtmp(void);
+
+/* These two aren't static to avoid OpenBSD build warnings. */
+void vsf_insert_uwtmp(const struct mystr* p_user_str,
+                      const struct mystr* p_host_str);
+void vsf_remove_uwtmp(void);
 
 #ifndef VSF_SYSDEP_HAVE_PAM
 int
@@ -304,6 +306,24 @@ vsf_sysdep_check_auth(const struct mystr* p_user_str,
   }
 #ifdef PAM_RHOST
   retval = pam_set_item(s_pamh, PAM_RHOST, str_getbuf(p_remote_host));
+  if (retval != PAM_SUCCESS)
+  {
+    (void) pam_end(s_pamh, 0);
+    s_pamh = 0;
+    return 0;
+  }
+#endif
+#ifdef PAM_TTY
+  retval = pam_set_item(s_pamh, PAM_TTY, "ftp");
+  if (retval != PAM_SUCCESS)
+  {
+    (void) pam_end(s_pamh, 0);
+    s_pamh = 0;
+    return 0;
+  }
+#endif
+#ifdef PAM_RUSER
+  retval = pam_set_item(s_pamh, PAM_RUSER, str_getbuf(p_user_str));
   if (retval != PAM_SUCCESS)
   {
     (void) pam_end(s_pamh, 0);
@@ -625,6 +645,7 @@ static int do_sendfile(const int out_fd, const int in_fd,
   int retval;
   enum EVSFSysUtilError error;
   (void) start_pos;
+  (void) error;
 #if defined(VSF_SYSDEP_HAVE_LINUX_SENDFILE) || \
     defined(VSF_SYSDEP_HAVE_FREEBSD_SENDFILE) || \
     defined(VSF_SYSDEP_HAVE_HPUX_SENDFILE) || \
@@ -1087,7 +1108,7 @@ vsf_sysutil_recv_fd(int sock_fd)
 
 #ifndef VSF_SYSDEP_HAVE_UTMPX
 
-static void
+void
 vsf_insert_uwtmp(const struct mystr* p_user_str,
                  const struct mystr* p_host_str)
 {
@@ -1095,7 +1116,7 @@ vsf_insert_uwtmp(const struct mystr* p_user_str,
   (void) p_host_str;
 }
 
-static void
+void
 vsf_remove_uwtmp(void)
 {
 }
@@ -1107,7 +1128,7 @@ vsf_remove_uwtmp(void)
 static int s_uwtmp_inserted;
 static struct utmpx s_utent;
 
-static void
+void
 vsf_insert_uwtmp(const struct mystr* p_user_str,
                  const struct mystr* p_host_str)
 {
@@ -1147,7 +1168,7 @@ vsf_insert_uwtmp(const struct mystr* p_user_str,
   updwtmpx(WTMPX_FILE, &s_utent);
 }
 
-static void
+void
 vsf_remove_uwtmp(void)
 {
   if (!s_uwtmp_inserted)

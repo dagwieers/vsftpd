@@ -61,7 +61,9 @@ main(int argc, const char* argv[])
     /* Home directory */
     INIT_MYSTR,
     /* Secure connection state */
-    0, 0, 0, 0, 0, 0, -1, -1
+    0, 0, 0, 0, 0, 0, -1, -1,
+    /* Login fails */
+    0
   };
   int config_specified = 0;
   const char* p_config_name = VSFTP_DEFAULT_CONFIG;

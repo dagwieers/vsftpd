@@ -234,6 +234,11 @@ Q) Help! I'm getting the error "ftp: netin: Interrupted system call".
 A) Seems to be a bug in ftp-tls, particularly with SSL transfers with
 bandwidth limiting in effect.
 
+Q) Help! When trying SSL transfers, users log in and are no longer restricted
+to their home directory! They can browse the entire filesystem!
+A) Most likely, your FTP client is in fact using the SSH protocol rather than
+the FTP protocol - so sshd is in control and not vsftpd!
+
 Q) Blah.. blah..
 A) For a good idea of what vsftpd can do, read the vsftpd.conf.5 man page
 and the EXAMPLES.

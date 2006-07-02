@@ -90,6 +90,7 @@ struct vsf_session
   int ssl_slave_active;
   int ssl_slave_fd;
   int ssl_consumer_fd;
+  unsigned int login_fails;
 };
 
 #endif /* VSF_SESSION_H */

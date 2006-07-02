@@ -908,3 +908,30 @@ Mads Martin Joergensen <mmj@suse.de>.
 At this point: v2.0.4 released!
 ===============================
 
+- Apply fix for O_NONBLOCK vs. XFS DMAPI filesystem. Thanks to Sudha Srinivasan
+<sudhas@sgi.com>.
+- Fix build warnings exposed by my upgrade to Fedora Core 5 / GCC4.1.1.
+- Be more honest in FEAT response if PORT or PASV are disabled! Reported by
+Charles Honton <chas@honton.org>. Allows MS Explorer to get the transfer mode
+correct.
+- pam_pwdb.so -> pam_unix.so in example PAM file. Thanks to
+Rhodes, Colin <colin.rhodes@airways.co.nz>.
+- Add FAQ issue regarding "chroot fails with SSL" - in fact, sshd is being hit
+here instead ;-)
+- Minor man page doc tweaks.
+- Tiny bit of paranoia in privops.c.
+- Revert change to reject anonymous logins before asking for password. This
+fixes complaints about IE not showing the FTP login dialog.
+- Change SSL certificate load to cater for chaining too.
+- Added delay_failed_login and delay_successful_login to help limit resources
+taken by brute force attacks.
+- Kick session after a few login fails. Allows IP blocking solutions to be more
+immediately effective.
+- Replace setenv() with more portable putenv(). First part of Solaris fix.
+- Replace tm_gmtoff usage with timezone and daylight. Second part of Solaris
+fix.
+- Set PAM items TTY and RUSER if possible.
+- OpenBSD build warning fixes.
+- So, timezone and daylight are not available on BSD, so redo the whole TZ
+thing again. Should use only very portable constructs now.
+
