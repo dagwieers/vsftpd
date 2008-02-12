@@ -33,6 +33,7 @@ struct vsf_session
 
   /* Details of the login */
   int is_anonymous;
+  int is_guest;
   struct mystr user_str;
   struct mystr anon_pass_str;
 
@@ -87,6 +88,7 @@ struct vsf_session
   void* p_ssl_ctx;
   void* p_control_ssl;
   void* p_data_ssl;
+  struct mystr control_cert_digest;
   int ssl_slave_active;
   int ssl_slave_fd;
   int ssl_consumer_fd;

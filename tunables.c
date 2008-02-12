@@ -71,6 +71,9 @@ int tunable_force_anon_data_ssl = 0;
 int tunable_mdtm_write = 1;
 int tunable_lock_upload_files = 1;
 int tunable_pasv_addr_resolve = 0;
+int tunable_debug_ssl = 0;
+int tunable_require_cert = 0;
+int tunable_validate_cert = 0;
 
 unsigned int tunable_accept_timeout = 60;
 unsigned int tunable_connect_timeout = 60;
@@ -94,6 +97,8 @@ unsigned int tunable_trans_chunk_size = 0;
 unsigned int tunable_delay_failed_login = 1;
 unsigned int tunable_delay_successful_login = 0;
 unsigned int tunable_max_login_fails = 3;
+/* -rw------- */
+unsigned int tunable_chown_upload_mode = 0600;
 
 const char* tunable_secure_chroot_dir = "/usr/share/empty";
 const char* tunable_ftp_username = "ftp";
@@ -125,4 +130,5 @@ const char* tunable_dsa_cert_file = 0;
 const char* tunable_ssl_ciphers = "DES-CBC3-SHA";
 const char* tunable_rsa_private_key_file = 0;
 const char* tunable_dsa_private_key_file = 0;
+const char* tunable_ca_certs_file = 0;
 

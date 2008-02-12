@@ -67,6 +67,9 @@ extern int tunable_force_anon_data_ssl;       /* Require anon data uses SSL */
 extern int tunable_mdtm_write;                /* Allow MDTM to set timestamps */
 extern int tunable_lock_upload_files;         /* Lock uploading files */
 extern int tunable_pasv_addr_resolve;         /* DNS resolve pasv_addr */
+extern int tunable_debug_ssl;                 /* Verbose SSL logging */
+extern int tunable_require_cert;              /* SSL client cert required */
+extern int tunable_validate_cert;             /* SSL certs must be valid */
 
 /* Integer/numeric defines */
 extern unsigned int tunable_accept_timeout;
@@ -88,6 +91,7 @@ extern unsigned int tunable_trans_chunk_size;
 extern unsigned int tunable_delay_failed_login;
 extern unsigned int tunable_delay_successful_login;
 extern unsigned int tunable_max_login_fails;
+extern unsigned int tunable_chown_upload_mode;
 
 /* String defines */
 extern const char* tunable_secure_chroot_dir;
@@ -120,6 +124,7 @@ extern const char* tunable_dsa_cert_file;
 extern const char* tunable_ssl_ciphers;
 extern const char* tunable_rsa_private_key_file;
 extern const char* tunable_dsa_private_key_file;
+extern const char* tunable_ca_certs_file;
 
 #endif /* VSF_TUNABLES_H */
 

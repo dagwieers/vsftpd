@@ -23,6 +23,7 @@
 #include "ssl.h"
 #include "features.h"
 #include "defs.h"
+#include "opts.h"
 
 /* Functions used */
 static void emit_greeting(struct vsf_session* p_sess);
@@ -116,6 +117,10 @@ parse_username_password(struct vsf_session* p_sess)
     {
       handle_feat(p_sess);
     }
+    else if (str_equal_text(&p_sess->ftp_cmd_str, "OPTS"))
+    {
+      handle_opts(p_sess);
+    }
     else if (tunable_ssl_enable && str_equal_text(&p_sess->ftp_cmd_str, "AUTH"))
     {
       handle_auth(p_sess);
@@ -182,7 +187,7 @@ handle_user_command(struct vsf_session* p_sess)
     str_empty(&p_sess->user_str);
     return;
   }
-  if (!str_isempty(&p_sess->userlist_str))
+  if (tunable_userlist_enable)
   {
     int located = str_contains_line(&p_sess->userlist_str, &p_sess->user_str);
     if ((located && tunable_userlist_deny) ||

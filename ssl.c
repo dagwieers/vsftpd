@@ -20,6 +20,7 @@
 #include "tunables.h"
 #include "utility.h"
 #include "builddefs.h"
+#include "logging.h"
 
 #ifdef VSF_BUILD_SSL
 
@@ -34,8 +35,12 @@ static int ssl_session_init(struct vsf_session* p_sess);
 static void setup_bio_callbacks();
 static long bio_callback(
   BIO* p_bio, int oper, const char* p_arg, int argi, long argl, long retval);
+static int ssl_verify_callback(int verify_ok, X509_STORE_CTX* p_ctx);
+static int ssl_cert_digest(
+  SSL* p_ssl, struct vsf_session* p_sess, struct mystr* p_str);
 
 static int ssl_inited;
+static struct mystr debug_str;
 
 void
 ssl_init(struct vsf_session* p_sess)
@@ -44,6 +49,7 @@ ssl_init(struct vsf_session* p_sess)
   {
     SSL_CTX* p_ctx;
     long options;
+    int verify_option = 0;
     SSL_library_init();
     p_ctx = SSL_CTX_new(SSLv23_server_method());
     if (p_ctx == NULL)
@@ -105,6 +111,19 @@ ssl_init(struct vsf_session* p_sess)
     {
       die("SSL: RNG is not seeded");
     }
+    verify_option = SSL_VERIFY_PEER;
+    if (tunable_require_cert)
+    {
+      verify_option |= SSL_VERIFY_FAIL_IF_NO_PEER_CERT;
+    }
+    SSL_CTX_set_verify(p_ctx, verify_option, ssl_verify_callback);
+    if (tunable_ca_certs_file)
+    {
+      if (!SSL_CTX_load_verify_locations(p_ctx, tunable_ca_certs_file, NULL))
+      {
+        die("SSL: could not load verify file");
+      }
+    }
     p_sess->p_ssl_ctx = p_ctx;
     ssl_inited = 1;
   }
@@ -124,6 +143,7 @@ handle_auth(struct vsf_session* p_sess)
     {
       struct mystr err_str = INIT_MYSTR;
       str_alloc_text(&err_str, "Negotiation failed: ");
+      /* Technically, we shouldn't leak such detailed error messages. */
       str_append_text(&err_str, get_ssl_error());
       vsf_cmdio_write_str(p_sess, FTP_TLS_FAIL, &err_str);
       vsf_sysutil_exit(0);
@@ -187,17 +207,26 @@ void
 ssl_getline(const struct vsf_session* p_sess, struct mystr* p_str,
             char end_char, char* p_buf, unsigned int buflen)
 {
+  if (buflen == 0)
+  {
+    return;
+  }
   char* p_buf_start = p_buf;
-  p_buf[buflen - 1] = '\0';
+  p_buf[buflen - 1] = end_char;
   buflen--;
   while (1)
   {
+    /* Should I use SSL_peek here? Won't lack of it break pipelining? (SSL
+     * clients seem to work just fine, mind you, so maybe pipelining is banned
+     * over SSL connections. Also note that OpenSSL didn't always have
+     * SSL_peek).
+     */
     int retval = SSL_read(p_sess->p_control_ssl, p_buf, buflen);
     if (retval <= 0)
     {
       die("SSL_read");
     }
-    p_buf[retval] = '\0';
+    p_buf[retval] = end_char;
     buflen -= retval;
     if (p_buf[retval - 1] == end_char || buflen == 0)
     {
@@ -250,9 +279,27 @@ ssl_write_str(void* p_ssl, const struct mystr* p_str)
   return 0;
 }
 
+void
+ssl_data_close(struct vsf_session* p_sess)
+{
+  if (p_sess->p_data_ssl)
+  {
+    SSL_free(p_sess->p_data_ssl);
+    p_sess->p_data_ssl = NULL;
+  }
+}
+
 int
 ssl_accept(struct vsf_session* p_sess, int fd)
 {
+  /* SECURITY: data SSL connections don't have any auth on them as part of the
+   * protocol. If a client sends an unfortunately optional client cert then
+   * we can check for a match between the control and data connections.
+   */
+  if (p_sess->p_data_ssl != NULL)
+  {
+    die("p_data_ssl should be NULL.");
+  }
   SSL* p_ssl = get_ssl(p_sess, fd);
   if (p_ssl == NULL)
   {
@@ -260,13 +307,36 @@ ssl_accept(struct vsf_session* p_sess, int fd)
   }
   p_sess->p_data_ssl = p_ssl;
   setup_bio_callbacks(p_ssl);
+  if (str_getlen(&p_sess->control_cert_digest) > 0)
+  {
+    static struct mystr data_cert_digest;
+    if (!ssl_cert_digest(p_ssl, p_sess, &data_cert_digest))
+    {
+      if (tunable_debug_ssl)
+      {
+        str_alloc_text(&debug_str, "Missing cert on data channel.");
+        vsf_log_line(p_sess, kVSFLogEntryDebug, &debug_str);
+      }
+      ssl_data_close(p_sess);
+      return 0;
+    }
+    if (str_strcmp(&p_sess->control_cert_digest, &data_cert_digest))
+    {
+      if (tunable_debug_ssl)
+      {
+        str_alloc_text(&debug_str, "DIFFERENT cert on data channel.");
+        vsf_log_line(p_sess, kVSFLogEntryDebug, &debug_str);
+      }
+      ssl_data_close(p_sess);
+      return 0;
+    }
+    if (tunable_debug_ssl)
+    {
+      str_alloc_text(&debug_str, "Matching cert on data channel.");
+      vsf_log_line(p_sess, kVSFLogEntryDebug, &debug_str);
+    }
+  }
   return 1;
-}
-
-void
-ssl_data_close(struct vsf_session* p_sess)
-{
-  SSL_free(p_sess->p_data_ssl);
 }
 
 void
@@ -284,18 +354,65 @@ get_ssl(struct vsf_session* p_sess, int fd)
   SSL* p_ssl = SSL_new(p_sess->p_ssl_ctx);
   if (p_ssl == NULL)
   {
+    if (tunable_debug_ssl)
+    {
+      str_alloc_text(&debug_str, "SSL_new failed");
+      vsf_log_line(p_sess, kVSFLogEntryDebug, &debug_str);
+    }
     return NULL;
   }
   if (!SSL_set_fd(p_ssl, fd))
   {
+    if (tunable_debug_ssl)
+    {
+      str_alloc_text(&debug_str, "SSL_set_fd failed");
+      vsf_log_line(p_sess, kVSFLogEntryDebug, &debug_str);
+    }
     SSL_free(p_ssl);
     return NULL;
   }
   if (SSL_accept(p_ssl) != 1)
   {
-    die(get_ssl_error());
+    const char* p_err = get_ssl_error();
+    if (tunable_debug_ssl)
+    {
+      str_alloc_text(&debug_str, "SSL_accept failed: ");
+      str_append_text(&debug_str, p_err);
+      vsf_log_line(p_sess, kVSFLogEntryDebug, &debug_str);
+    }
+    die(p_err);
     SSL_free(p_ssl);
     return NULL;
+  }
+  if (tunable_debug_ssl)
+  {
+    const char* p_ssl_version = SSL_get_cipher_version(p_ssl);
+    SSL_CIPHER* p_ssl_cipher = SSL_get_current_cipher(p_ssl);
+    const char* p_cipher_name = SSL_CIPHER_get_name(p_ssl_cipher);
+    int reused = SSL_session_reused(p_ssl);
+    X509* p_ssl_cert = SSL_get_peer_certificate(p_ssl);
+    str_alloc_text(&debug_str, "SSL version: ");
+    str_append_text(&debug_str, p_ssl_version);
+    str_append_text(&debug_str, ", SSL cipher: ");
+    str_append_text(&debug_str, p_cipher_name);
+    if (reused)
+    {
+      str_append_text(&debug_str, ", reused");
+    }
+    else
+    {
+      str_append_text(&debug_str, ", not reused");
+    }
+    if (p_ssl_cert != NULL)
+    {
+      str_append_text(&debug_str, ", CERT PRESENTED");
+      X509_free(p_ssl_cert);
+    }
+    else
+    {
+      str_append_text(&debug_str, ", no cert");
+    }
+    vsf_log_line(p_sess, kVSFLogEntryDebug, &debug_str);
   }
   return p_ssl;
 }
@@ -309,7 +426,42 @@ ssl_session_init(struct vsf_session* p_sess)
     return 0;
   }
   p_sess->p_control_ssl = p_ssl;
+  (void) ssl_cert_digest(p_ssl, p_sess, &p_sess->control_cert_digest);
   setup_bio_callbacks(p_ssl);
+  return 1;
+}
+
+static int
+ssl_cert_digest(SSL* p_ssl, struct vsf_session* p_sess, struct mystr* p_str)
+{
+  X509* p_cert = SSL_get_peer_certificate(p_ssl);
+  unsigned int num_bytes = 0;
+  if (p_cert == NULL)
+  {
+    return 0;
+  }
+  str_reserve(p_str, EVP_MAX_MD_SIZE);
+  str_empty(p_str);
+  str_rpad(p_str, EVP_MAX_MD_SIZE);
+  if (!X509_digest(p_cert, EVP_sha256(), (unsigned char*) str_getbuf(p_str),
+                   &num_bytes))
+  {
+    die("X509_digest failed");
+  }
+  X509_free(p_cert);
+  if (tunable_debug_ssl)
+  {
+    unsigned int i;
+    str_alloc_text(&debug_str, "Cert digest:");
+    for (i = 0; i < num_bytes; ++i)
+    { 
+      str_append_char(&debug_str, ' ');
+      str_append_ulong(
+        &debug_str, (unsigned long) (unsigned char) str_get_char_at(p_str, i));
+    }
+    vsf_log_line(p_sess, kVSFLogEntryDebug, &debug_str);
+  }
+  str_trunc(p_str, num_bytes);
   return 1;
 }
 
@@ -345,6 +497,17 @@ bio_callback(
   }
   vsf_sysutil_check_pending_actions(kVSFSysUtilIO, retval, fd);
   return ret;
+}
+
+static int
+ssl_verify_callback(int verify_ok, X509_STORE_CTX* p_ctx)
+{
+  (void) p_ctx;
+  if (tunable_validate_cert)
+  {
+    return verify_ok;
+  }
+  return 1;
 }
 
 #else /* VSF_BUILD_SSL */

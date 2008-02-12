@@ -935,3 +935,43 @@ fix.
 - So, timezone and daylight are not available on BSD, so redo the whole TZ
 thing again. Should use only very portable constructs now.
 
+At this point: v2.0.5 released!
+===============================
+
+- Fix delay_failed_login typo. Oops.
+- Patch the getcwd and readlink sysutil helpers to reflect that they wouldn't
+like a 0-sized buf. No caller is affected. Thanks Ilja van Sprundel
+<ilja@suresec.org>.
+- Allow a (fake) reauth as the same user as the logged in user. Should resolve
+.NET related report from Sabo Jim <Jim.Sabo@thomson.net>.
+- Tweak from Lucian Adrian Grijincu <lucian.grijincu@gmail.com> to take
+unnecessary port calculations out of a loop.
+- Fix byte I/O accounting in the error path of do_file_send_rwloop, thanks to
+<echen@siac.com>.
+- Don't log FireFox's attempts to RETR directories! Reported by
+Nixdorf, Tim <tnixdorf@dnps.com>.
+- Fix STOU sending the same 150 status line twice - oops! Reported by
+<yamazaki@iij.ad.jp>.
+- Fix xferlog format for virtual (guest) users, reported by Andy Fletcher
+<andy@withnail.org>.
+- Fix bug with empty user list file and userlist_deny=NO. Reported by
+Marcin Zawadzki/GlobalVanet.com <marcin.zawadzki@globalvanet.com>.
+- Pretend we have proper UTF8 support and respond positively to OPTS UTF8 ON.
+Thanks Stanislav Maslovski <stanislav.maslovski@gmail.com>.
+- Add control over the file permissions used in the chown()ing of anonymous
+uploads: chown_upload_mode (default 0600 as before). Suggestion from
+An Pham <apham@medforcetech.com>.
+- Do a retry getting the active ftp socket in vsf_privop_get_ftp_port_sock();
+should help buggy Solaris systems. Reported by Michael Masterson
+<mjmasterson@xo.com>.
+- Add debug_ssl option to dump out some SSL connection details.
+- Use code 522, not 521, to indicate that the server requires an encrypted
+data connection. Still does not seem to coax lftp to retry :(
+- Recognize OPTS pre-login.
+- A whole ton of SSL improvements, including ability to force requirement of
+a client cert; data and control channel client cert cross checking. Ability
+to require fully valid / authentic client certs. No cert-based auth yet.
+- Change my e-mail to my GMail account.
+
+At this point: v2.0.6 released!
+===============================

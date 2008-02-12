@@ -106,6 +106,12 @@ vsf_log_entry_pending(struct vsf_session* p_sess)
 }
 
 void
+vsf_log_clear_entry(struct vsf_session* p_sess)
+{
+  p_sess->log_type = 0;
+}
+
+void
 vsf_log_do_log(struct vsf_session* p_sess, int succeeded)
 {
   vsf_log_common(p_sess, succeeded, (enum EVSFLogEntryType) p_sess->log_type,
@@ -211,14 +217,21 @@ vsf_log_do_log_wuftpd_format(struct vsf_session* p_sess, struct mystr* p_str,
     str_append_text(p_str, "o ");
   }
   /* Access mode: anonymous/real user, and identity */
-  if (p_sess->is_anonymous)
+  if (p_sess->is_anonymous && !p_sess->is_guest)
   {
     str_append_text(p_str, "a ");
     str_append_str(p_str, &p_sess->anon_pass_str);
   }
   else
   {
-    str_append_text(p_str, "r ");
+    if (p_sess->is_guest)
+    {
+      str_append_text(p_str, "g ");
+    } 
+    else
+    {
+      str_append_text(p_str, "r ");
+    }
     str_append_str(p_str, &p_sess->user_str);
   }
   str_append_char(p_str, ' ');
@@ -255,7 +268,7 @@ vsf_log_do_log_vsftpd_format(struct vsf_session* p_sess, struct mystr* p_str,
   }
   /* And the action */
   if (what != kVSFLogEntryFTPInput && what != kVSFLogEntryFTPOutput &&
-      what != kVSFLogEntryConnection)
+      what != kVSFLogEntryConnection && what != kVSFLogEntryDebug)
   {
     if (succeeded)
     {
@@ -301,6 +314,9 @@ vsf_log_do_log_vsftpd_format(struct vsf_session* p_sess, struct mystr* p_str,
     case kVSFLogEntryChmod:
       str_append_text(p_str, "CHMOD");
       break;
+    case kVSFLogEntryDebug:
+      str_append_text(p_str, "DEBUG");
+      break;
     default:
       bug("bad entry_type in vsf_log_do_log");
       break;
@@ -320,7 +336,8 @@ vsf_log_do_log_vsftpd_format(struct vsf_session* p_sess, struct mystr* p_str,
     str_append_str(p_str, p_log_str);
     str_append_char(p_str, '"');
   }
-  if (what != kVSFLogEntryFTPInput && what != kVSFLogEntryFTPOutput)
+  if (what != kVSFLogEntryFTPInput && what != kVSFLogEntryFTPOutput &&
+      what != kVSFLogEntryDebug)
   {
     if (p_sess->transfer_size)
     {

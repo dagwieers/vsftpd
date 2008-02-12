@@ -36,14 +36,29 @@ vsf_privop_get_ftp_port_sock(struct vsf_session* p_sess)
 {
   static struct vsf_sysutil_sockaddr* p_sockaddr;
   int retval;
+  int i;
   int s = vsf_sysutil_get_ipsock(p_sess->p_local_addr);
   vsf_sysutil_activate_reuseaddr(s);
-  vsf_sysutil_sockaddr_clone(&p_sockaddr, p_sess->p_local_addr);
-  vsf_sysutil_sockaddr_set_port(p_sockaddr, tunable_ftp_data_port);
-  retval = vsf_sysutil_bind(s, p_sockaddr);
-  if (retval != 0)
+  /* A report of failure here on Solaris, presumably buggy address reuse
+   * support? We'll retry.
+   */
+  for (i = 0; i < 2; ++i)
   {
-    die("vsf_sysutil_bind");
+    vsf_sysutil_sockaddr_clone(&p_sockaddr, p_sess->p_local_addr);
+    vsf_sysutil_sockaddr_set_port(p_sockaddr, tunable_ftp_data_port);
+    retval = vsf_sysutil_bind(s, p_sockaddr);
+    if (retval == 0)
+    {
+      return s;
+    }
+    if (vsf_sysutil_get_error() != kVSFSysUtilErrADDRINUSE || i == 1)
+    {
+      die("vsf_sysutil_bind");
+    }
+    double sleep_for = vsf_sysutil_get_random_byte();
+    sleep_for /= 256.0;
+    sleep_for += 1.0;
+    vsf_sysutil_sleep(sleep_for);
   }
   return s;
 }

@@ -99,6 +99,9 @@ parseconf_bool_array[] =
   { "mdtm_write", &tunable_mdtm_write },
   { "lock_upload_files", &tunable_lock_upload_files },
   { "pasv_addr_resolve", &tunable_pasv_addr_resolve },
+  { "debug_ssl", &tunable_debug_ssl },
+  { "require_cert", &tunable_require_cert },
+  { "validate_cert", &tunable_validate_cert },
   { 0, 0 }
 };
 
@@ -128,6 +131,7 @@ parseconf_uint_array[] =
   { "delay_failed_login", &tunable_delay_failed_login },
   { "delay_successful_login", &tunable_delay_successful_login },
   { "max_login_fails", &tunable_max_login_fails },
+  { "chown_upload_mode", &tunable_chown_upload_mode },
   { 0, 0 }
 };
 
@@ -168,6 +172,7 @@ parseconf_str_array[] =
   { "ssl_ciphers", &tunable_ssl_ciphers },
   { "rsa_private_key_file", &tunable_rsa_private_key_file },
   { "dsa_private_key_file", &tunable_dsa_private_key_file },
+  { "ca_certs_file", &tunable_ca_certs_file },
   { 0, 0 }
 };
 

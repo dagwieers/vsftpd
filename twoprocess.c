@@ -282,6 +282,7 @@ process_login_req(struct vsf_session* p_sess)
 static void
 process_ssl_slave_req(struct vsf_session* p_sess)
 {
+  priv_sock_send_str(p_sess->ssl_slave_fd, &p_sess->control_cert_digest);
   while (1)
   {
     char cmd = priv_sock_get_cmd(p_sess->ssl_slave_fd);
@@ -342,9 +343,15 @@ common_do_login(struct vsf_session* p_sess, const struct mystr* p_user_str,
     if (tunable_ssl_enable)
     {
       vsf_sysutil_close(p_sess->ssl_slave_fd);
+      if (p_sess->ssl_slave_active)
+      {
+        priv_sock_get_str(p_sess->ssl_consumer_fd,
+                          &p_sess->control_cert_digest);
+      }
     }
     if (tunable_guest_enable && !anon)
     {
+      p_sess->is_guest = 1;
       /* Remap to the guest user */
       str_alloc_text(&guest_user_str, tunable_guest_username);
       p_user_str = &guest_user_str;

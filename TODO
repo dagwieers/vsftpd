@@ -13,7 +13,6 @@ NOT SO CRITICAL
 
 - "add_group" support.
 - Implict SSL support (port 990?)
-- Do something with client certs.
 - Add CHLD handler to priv parent process to take care of session crashes?
 - Still reports FlashFXP broken when trying to do FXP.
 - Add negation, other support to regex handler.

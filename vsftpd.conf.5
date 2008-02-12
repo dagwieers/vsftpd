@@ -163,6 +163,12 @@ slightly less privilege.
 
 Default: NO (but the sample config file enables it)
 .TP
+.B debug_ssl
+If true, OpenSSL connection diagnostics are dumped to the vsftpd log file.
+(Added in v2.0.6).
+
+Default: NO
+.TP
 .B deny_email_enable
 If activated, you may provide a list of anonymous password e-mail responses
 which cause login to be denied. By default, the file containing this list is
@@ -282,7 +288,7 @@ downloads proceed with a shared read lock on the download file. WARNING!
 Before enabling this, be aware that malicious readers could starve a writer
 wanting to e.g. append a file.
 
-Default: NO
+Default: YES
 .TP
 .B log_ftp_protocol
 When enabled, all FTP requests and responses are logged, providing the option
@@ -368,6 +374,15 @@ Default: YES
 Set to YES if you want to disable the PORT security check that ensures that
 outgoing data connections can only connect to the client. Only enable if
 you know what you are doing!
+
+Default: NO
+.TP
+.B require_cert
+If set to yes, all SSL client connections are required to present a client
+certificate. The degree of validation applied to this certificate is
+controlled by
+.BR validate_cert
+(Added in v2.0.6).
 
 Default: NO
 .TP
@@ -520,6 +535,12 @@ cleartext passwords being transmitted. See also
 
 Default: NO
 .TP
+.B validate_cert
+If set to yes, all SSL client certificates received must validate OK.
+Self-signed certs do not constitute OK validation. (New in v2.0.6).
+
+Default: NO
+.TP
 .B virtual_use_local_privs
 If enabled, virtual users will use the same privileges as local users. By
 default, virtual users will use the same privileges as anonymous users, which
@@ -575,6 +596,11 @@ value will be treated as a base 10 integer!
 
 Default: 077
 .TP
+.B chown_upload_mode
+The file mode to force for chown()ed anonymous uploads. (Added in v2.0.6).
+
+Default: 0600
+.TP
 .B connect_timeout
 The timeout, in seconds, for a remote client to respond to our PORT style
 data connection.
@@ -588,12 +614,12 @@ client is kicked off.
 
 Default: 300
 .TP
-.B delay_failed_logins
+.B delay_failed_login
 The number of seconds to pause prior to reporting a failed login.
 
 Default: 1
 .TP
-.B delay_successful_logins
+.B delay_successful_login
 The number of seconds to pause prior to allowing a successful login.
 
 Default: 0
@@ -699,6 +725,14 @@ connects to the server. If set, it overrides the banner string provided by
 the
 .BR ftpd_banner
 option.
+
+Default: (none)
+.TP
+.B ca_certs_file
+This option is the name of a file to load Certificate Authority certs from, for
+the purpose of validating client certs. Regrettably, the default SSL CA cert
+paths are not used, because of vsftpd's use of restricted filesystem spaces
+(chroot). (Added in v2.0.6).
 
 Default: (none)
 .TP
@@ -962,5 +996,5 @@ Alternatively, it is written if you have set the option
 Default: /var/log/xferlog
 
 .SH AUTHOR
-chris@scary.beasts.org
+scarybeasts@gmail.com
 

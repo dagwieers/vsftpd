@@ -41,7 +41,7 @@ main(int argc, const char* argv[])
     /* Data connection */
     -1, 0, -1, 0, 0, 0, 0,
     /* Login */
-    1, INIT_MYSTR, INIT_MYSTR,
+    1, 0, INIT_MYSTR, INIT_MYSTR,
     /* Protocol state */
     0, 1, INIT_MYSTR, 0, 0,
     /* Session state */
@@ -61,7 +61,7 @@ main(int argc, const char* argv[])
     /* Home directory */
     INIT_MYSTR,
     /* Secure connection state */
-    0, 0, 0, 0, 0, 0, -1, -1,
+    0, 0, 0, 0, 0, INIT_MYSTR, 0, -1, -1,
     /* Login fails */
     0
   };
@@ -128,7 +128,7 @@ main(int argc, const char* argv[])
     vsf_sysutil_setproctitle_init(argc, argv);
   }
   /* Initialize the SSL system here if needed - saves the overhead of each
-   *  child doing this itself.
+   * child doing this itself.
    */
   if (tunable_ssl_enable)
   {
@@ -269,6 +269,10 @@ do_sanity_checks(void)
     if (!vsf_sysdep_has_capabilities_as_non_root())
     {
       die("vsftpd: security: 'one_process_model' needs a better OS");
+    }
+    if (tunable_ssl_enable)
+    {
+      die("vsftpd: SSL mode not compatible with 'one_process_model'");
     }
   }
   if (!tunable_local_enable && !tunable_anonymous_enable)

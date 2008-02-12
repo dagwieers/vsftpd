@@ -18,7 +18,8 @@ enum EVSFLogEntryType
   kVSFLogEntryDelete,
   kVSFLogEntryRename,
   kVSFLogEntryRmdir,
-  kVSFLogEntryChmod
+  kVSFLogEntryChmod,
+  kVSFLogEntryDebug,
 };
 
 /* vsf_log_init()
@@ -48,6 +49,12 @@ void vsf_log_start_entry(struct vsf_session* p_sess,
  * 0 if no log entry is pending; 1 if one is.
  */
 int vsf_log_entry_pending(struct vsf_session* p_sess);
+
+/* vsf_log_clear_entry()
+ * PURPOSE
+ * Clears any pending log entry.
+ */
+void vsf_log_clear_entry(struct vsf_session* p_sess);
 
 /* vsf_log_do_log()
  * PURPOSE

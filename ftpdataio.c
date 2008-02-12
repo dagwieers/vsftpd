@@ -478,13 +478,16 @@ do_file_send_rwloop(struct vsf_session* p_sess, int file_fd, int is_ascii)
       num_to_write = (unsigned int) retval;
     }
     retval = ftp_write_data(p_sess, p_writefrom_buf, num_to_write);
+    if (!vsf_sysutil_retval_is_error(retval))
+    {
+      ret_struct.transferred += (unsigned int) retval;
+    }
     if (vsf_sysutil_retval_is_error(retval) ||
         (unsigned int) retval != num_to_write)
     {
       ret_struct.retval = -2;
       return ret_struct;
     }
-    ret_struct.transferred += (unsigned int) retval;
   }
 }
 

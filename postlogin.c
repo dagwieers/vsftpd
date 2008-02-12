@@ -26,6 +26,7 @@
 #include "features.h"
 #include "ssl.h"
 #include "vsftpver.h"
+#include "opts.h"
 
 /* Private local functions */
 static void handle_pwd(struct vsf_session* p_sess);
@@ -57,6 +58,8 @@ static void handle_help(struct vsf_session* p_sess);
 static void handle_stou(struct vsf_session* p_sess);
 static void handle_stat(struct vsf_session* p_sess);
 static void handle_stat_file(struct vsf_session* p_sess);
+static void handle_logged_in_user(struct vsf_session* p_sess);
+static void handle_logged_in_pass(struct vsf_session* p_sess);
 
 static int pasv_active(struct vsf_session* p_sess);
 static int port_active(struct vsf_session* p_sess);
@@ -340,7 +343,7 @@ process_post_login(struct vsf_session* p_sess)
     }
     else if (str_equal_text(&p_sess->ftp_cmd_str, "OPTS"))
     {
-      vsf_cmdio_write(p_sess, FTP_BADOPTS, "Option not understood.");
+      handle_opts(p_sess);
     }
     else if (str_equal_text(&p_sess->ftp_cmd_str, "STAT") &&
              str_isempty(&p_sess->ftp_arg_str))
@@ -359,6 +362,14 @@ process_post_login(struct vsf_session* p_sess)
     else if (tunable_ssl_enable && str_equal_text(&p_sess->ftp_cmd_str, "PROT"))
     {
       handle_prot(p_sess);
+    }
+    else if (str_equal_text(&p_sess->ftp_cmd_str, "USER"))
+    {
+      handle_logged_in_user(p_sess);
+    }
+    else if (str_equal_text(&p_sess->ftp_cmd_str, "PASS"))
+    {
+      handle_logged_in_pass(p_sess);
     }
     else if (str_equal_text(&p_sess->ftp_cmd_str, "PASV") ||
              str_equal_text(&p_sess->ftp_cmd_str, "PORT") ||
@@ -499,6 +510,9 @@ handle_pasv(struct vsf_session* p_sess, int is_epsv)
   static struct vsf_sysutil_sockaddr* s_p_sockaddr;
   int bind_retries = 10;
   unsigned short the_port = 0;
+  /* IPPORT_RESERVED */
+  unsigned short min_port = 1024;
+  unsigned short max_port = 65535;
   int is_ipv6 = vsf_sysutil_sockaddr_is_ipv6(p_sess->p_local_addr);
   if (is_epsv && !str_isempty(&p_sess->ftp_arg_str))
   {
@@ -528,21 +542,20 @@ handle_pasv(struct vsf_session* p_sess, int is_epsv)
     p_sess->pasv_listen_fd = vsf_sysutil_get_ipv4_sock();
   }
   vsf_sysutil_activate_reuseaddr(p_sess->pasv_listen_fd);
+
+  if (tunable_pasv_min_port > min_port && tunable_pasv_min_port <= max_port)
+  {
+    min_port = tunable_pasv_min_port;
+  }
+  if (tunable_pasv_max_port >= min_port && tunable_pasv_max_port < max_port)
+  {
+    max_port = tunable_pasv_max_port;
+  }
+
   while (--bind_retries)
   {
     int retval;
     double scaled_port;
-    /* IPPORT_RESERVED */
-    unsigned short min_port = 1024;
-    unsigned short max_port = 65535;
-    if (tunable_pasv_min_port > min_port && tunable_pasv_min_port <= max_port)
-    {
-      min_port = tunable_pasv_min_port;
-    }
-    if (tunable_pasv_max_port >= min_port && tunable_pasv_max_port < max_port)
-    {
-      max_port = tunable_pasv_max_port;
-    }
     the_port = vsf_sysutil_get_random_byte();
     the_port <<= 8;
     the_port |= vsf_sysutil_get_random_byte();
@@ -657,6 +670,13 @@ handle_retr(struct vsf_session* p_sess)
   {
     /* Note - pretend open failed */
     vsf_cmdio_write(p_sess, FTP_FILEFAIL, "Failed to open file.");
+    /* Irritating FireFox does RETR on directories, so avoid logging this
+     * very common and noisy case.
+     */
+    if (vsf_sysutil_statbuf_is_dir(s_p_statbuf))
+    {
+      vsf_log_clear_entry(p_sess);
+    }
     goto file_close_out;
   }
   /* Now deactive O_NONBLOCK, otherwise we have a problem on DMAPI filesystems
@@ -1009,7 +1029,7 @@ handle_upload_common(struct vsf_session* p_sess, int is_append, int is_unique)
   /* Are we required to chown() this file for security? */
   if (p_sess->is_anonymous && tunable_chown_uploads)
   {
-    vsf_sysutil_fchmod(new_file_fd, 0600);
+    vsf_sysutil_fchmod(new_file_fd, tunable_chown_upload_mode);
     if (tunable_one_process_model)
     {
       vsf_one_process_chown_upload(p_sess, new_file_fd);
@@ -1034,7 +1054,6 @@ handle_upload_common(struct vsf_session* p_sess, int is_append, int is_unique)
     struct mystr resp_str = INIT_MYSTR;
     str_alloc_text(&resp_str, "FILE: ");
     str_append_str(&resp_str, p_filename);
-    vsf_cmdio_write_str(p_sess, FTP_DATACONN, &resp_str);
     remote_fd = get_remote_transfer_fd(p_sess, str_getbuf(&resp_str));
     str_free(&resp_str);
   }
@@ -1684,7 +1703,9 @@ handle_stou(struct vsf_session* p_sess)
 static void
 get_unique_filename(struct mystr* p_outstr, const struct mystr* p_base_str)
 {
-  /* Use silly wu-ftpd algorithm for compatibility */
+  /* Use silly wu-ftpd algorithm for compatibility. It has races of course, if
+   * two sessions are using the same file prefix at the same time.
+   */
   static struct vsf_sysutil_statbuf* s_p_statbuf;
   unsigned int suffix = 1;
   int retval;
@@ -1828,3 +1849,23 @@ resolve_tilde(struct mystr* p_str, struct vsf_session* p_sess)
   }
 }
 
+static void handle_logged_in_user(struct vsf_session* p_sess)
+{
+  if (p_sess->is_anonymous)
+  {
+    vsf_cmdio_write(p_sess, FTP_LOGINERR, "Can't change from guest user.");
+  }
+  else if (str_equal(&p_sess->user_str, &p_sess->ftp_arg_str))
+  {
+    vsf_cmdio_write(p_sess, FTP_GIVEPWORD, "Any password will do.");
+  }
+  else
+  {
+    vsf_cmdio_write(p_sess, FTP_LOGINERR, "Can't change to another user.");
+  }
+}
+
+static void handle_logged_in_pass(struct vsf_session* p_sess)
+{
+  vsf_cmdio_write(p_sess, FTP_LOGINOK, "Already logged in.");
+}
