@@ -15,8 +15,11 @@ struct vsf_session;
  * timeout goes off, or the connection is severed).
  * PARAMETERS
  * p_sess       - the current FTP session object
+ * RETURNS
+ * 1 on success, 0 otherwise.
+ * 
  */
-void vsf_ftpdataio_dispose_transfer_fd(struct vsf_session* p_sess);
+int vsf_ftpdataio_dispose_transfer_fd(struct vsf_session* p_sess);
 
 /* vsf_ftpdataio_get_pasv_fd()
  * PURPOSE

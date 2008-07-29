@@ -12,8 +12,7 @@ enum EVSFRWTarget
 
 int ftp_write_str(const struct vsf_session* p_sess, const struct mystr* p_str,
                   enum EVSFRWTarget target);
-int ftp_read_data(const struct vsf_session* p_sess, char* p_buf,
-                  unsigned int len);
+int ftp_read_data(struct vsf_session* p_sess, char* p_buf, unsigned int len);
 int ftp_write_data(const struct vsf_session* p_sess, const char* p_buf,
                    unsigned int len);
 void ftp_getline(const struct vsf_session* p_sess, struct mystr* p_str,

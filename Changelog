@@ -975,3 +975,20 @@ to require fully valid / authentic client certs. No cert-based auth yet.
 
 At this point: v2.0.6 released!
 ===============================
+
+- Fix finding libcap for the link on Slackware systems, thanks to Roman
+Kravchenko <roman@atech.lv>.
+- Fix build on Solaris 2.8 due to non-standard C, thanks to IIDA Yosiaki
+<y-iida@secom.co.jp>.
+- Fix man page typo, thanks Matt Selsky <selsky@columbia.edu>.
+- Bring the PASV listen() into the bind() retry loop to resolve a race under
+extreme load. Thanks to Curtis Taylor <cjt@us.ibm.com>.
+- Enhance logging for debug_ssl.
+- Shutdown the SSL data connections properly. This prevents clients such as
+recent FileZilla from complaining. Reported by various people.
+- Add option to enforce proper SSL shutdown on uploads. Left it off after much
+agonizing because clients are so broken in this area.
+- Add option to delete failed uploads.
+
+At this point: v2.0.7 released!
+===============================

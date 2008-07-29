@@ -51,11 +51,11 @@ ftp_write_str(const struct vsf_session* p_sess, const struct mystr* p_str,
 }
 
 int
-ftp_read_data(const struct vsf_session* p_sess, char* p_buf, unsigned int len)
+ftp_read_data(struct vsf_session* p_sess, char* p_buf, unsigned int len)
 {
   if (p_sess->data_use_ssl)
   {
-    return ssl_read(p_sess->p_data_ssl, p_buf, len);
+    return ssl_read(p_sess, p_buf, len);
   }
   else
   {

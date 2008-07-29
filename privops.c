@@ -44,6 +44,7 @@ vsf_privop_get_ftp_port_sock(struct vsf_session* p_sess)
    */
   for (i = 0; i < 2; ++i)
   {
+    double sleep_for;
     vsf_sysutil_sockaddr_clone(&p_sockaddr, p_sess->p_local_addr);
     vsf_sysutil_sockaddr_set_port(p_sockaddr, tunable_ftp_data_port);
     retval = vsf_sysutil_bind(s, p_sockaddr);
@@ -55,7 +56,7 @@ vsf_privop_get_ftp_port_sock(struct vsf_session* p_sess)
     {
       die("vsf_sysutil_bind");
     }
-    double sleep_for = vsf_sysutil_get_random_byte();
+    sleep_for = vsf_sysutil_get_random_byte();
     sleep_for /= 256.0;
     sleep_for += 1.0;
     vsf_sysutil_sleep(sleep_for);

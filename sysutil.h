@@ -239,7 +239,7 @@ int vsf_sysutil_get_ipv6_sock(void);
 struct vsf_sysutil_socketpair_retval
   vsf_sysutil_unix_stream_socketpair(void);
 int vsf_sysutil_bind(int fd, const struct vsf_sysutil_sockaddr* p_sockptr);
-void vsf_sysutil_listen(int fd, const unsigned int backlog);
+int vsf_sysutil_listen(int fd, const unsigned int backlog);
 void vsf_sysutil_getsockname(int fd, struct vsf_sysutil_sockaddr** p_sockptr);
 void vsf_sysutil_getpeername(int fd, struct vsf_sysutil_sockaddr** p_sockptr);
 int vsf_sysutil_accept_timeout(int fd, struct vsf_sysutil_sockaddr* p_sockaddr,

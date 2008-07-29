@@ -51,9 +51,10 @@ static int write_dir_list(struct vsf_session* p_sess,
                           enum EVSFRWTarget target);
 static unsigned int get_chunk_size();
 
-void
+int
 vsf_ftpdataio_dispose_transfer_fd(struct vsf_session* p_sess)
 {
+  int dispose_ret = 1;
   int retval;
   if (p_sess->data_fd == -1)
   {
@@ -64,7 +65,7 @@ vsf_ftpdataio_dispose_transfer_fd(struct vsf_session* p_sess)
   vsf_sysutil_uninstall_io_handler();
   if (p_sess->p_data_ssl != 0)
   {
-    ssl_data_close(p_sess);
+    dispose_ret = ssl_data_close(p_sess);
   }
   /* This close() blocks because we set SO_LINGER */
   retval = vsf_sysutil_close_failok(p_sess->data_fd);
@@ -76,6 +77,7 @@ vsf_ftpdataio_dispose_transfer_fd(struct vsf_session* p_sess)
   }
   vsf_sysutil_clear_alarm();
   p_sess->data_fd = -1;
+  return dispose_ret;
 }
 
 int

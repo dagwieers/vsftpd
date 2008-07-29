@@ -102,6 +102,10 @@ parseconf_bool_array[] =
   { "debug_ssl", &tunable_debug_ssl },
   { "require_cert", &tunable_require_cert },
   { "validate_cert", &tunable_validate_cert },
+  { "strict_ssl_read_eof", &tunable_strict_ssl_read_eof },
+  { "strict_ssl_write_shutdown", &tunable_strict_ssl_write_shutdown },
+  { "ssl_request_cert", &tunable_ssl_request_cert },
+  { "delete_failed_uploads", &tunable_delete_failed_uploads },
   { 0, 0 }
 };
 

@@ -130,7 +130,11 @@ vsf_standalone_main(void)
       die("could not bind listening IPv6 socket");
     }
   }
-  vsf_sysutil_listen(listen_sock, VSFTP_LISTEN_BACKLOG);
+  retval = vsf_sysutil_listen(listen_sock, VSFTP_LISTEN_BACKLOG);
+  if (vsf_sysutil_retval_is_error(retval))
+  {
+    die("could not listen");
+  }
   vsf_sysutil_sockaddr_alloc(&p_accept_addr);
   while (1)
   {

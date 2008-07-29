@@ -169,6 +169,11 @@ If true, OpenSSL connection diagnostics are dumped to the vsftpd log file.
 
 Default: NO
 .TP
+.B delete_failed_uploads
+If true, any failed upload files are deleted.  (Added in v2.0.7).
+
+Default: NO
+.TP
 .B deny_email_enable
 If activated, you may provide a list of anonymous password e-mail responses
 which cause login to be denied. By default, the file containing this list is
@@ -445,6 +450,14 @@ OpenSSL library.
 
 Default: NO
 .TP
+.B ssl_request_cert
+If enabled, vsftpd will request (but not necessarily require; see
+.BR require_cert) a certificate on incoming SSL connections. Normally this
+should not cause any trouble at all, but IBM zOS seems to have issues.
+(New in v2.0.7).
+
+Default: YES
+.TP
 .B ssl_sslv2
 Only applies if
 .BR ssl_enable
@@ -468,6 +481,23 @@ is activated. If enabled, this option will permit TLS v1 protocol connections.
 TLS v1 connections are preferred.
 
 Default: YES
+.TP
+.B strict_ssl_read_eof
+If enabled, SSL data uploads are required to terminate via SSL, not an
+EOF on the socket. This option is required to be sure that an attacker did
+not terminate an upload prematurely with a faked TCP FIN. Unfortunately, it
+is not enabled by default because so few clients get it right. (New in v2.0.7).
+
+Default: NO
+.TP
+.B strict_ssl_write_shutdown
+If enabled, SSL data downloads are required to terminate via SSL, not an
+EOF on the socket. This is off by default as I was unable to find a single
+FTP client that does this. It is minor. All it affects is our ability to tell
+whether the client confirmed full receipt of the file. Even without this option,
+the client is able to check the integrity of the download. (New in v2.0.7).
+
+Default: NO
 .TP
 .B syslog_enable
 If enabled, then any log output which would have gone to /var/log/vsftpd.log
@@ -915,7 +945,7 @@ Default: /usr/share/empty
 .TP
 .B ssl_ciphers
 This option can be used to select which SSL ciphers vsftpd will allow for
-encrpyted SSL connections. See the
+encrypted SSL connections. See the
 .BR ciphers
 man page for further details. Note that restricting ciphers can be a useful
 security precaution as it prevents malicious remote parties forcing a cipher

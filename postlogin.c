@@ -568,19 +568,22 @@ handle_pasv(struct vsf_session* p_sess, int is_epsv)
     retval = vsf_sysutil_bind(p_sess->pasv_listen_fd, s_p_sockaddr);
     if (!vsf_sysutil_retval_is_error(retval))
     {
-      break;
+      retval = vsf_sysutil_listen(p_sess->pasv_listen_fd, 1);
+      if (!vsf_sysutil_retval_is_error(retval))
+      {
+        break;
+      }
     }
     if (vsf_sysutil_get_error() == kVSFSysUtilErrADDRINUSE)
     {
       continue;
     }
-    die("vsf_sysutil_bind");
+    die("vsf_sysutil_bind / listen");
   }
   if (!bind_retries)
   {
     die("vsf_sysutil_bind");
   }
-  vsf_sysutil_listen(p_sess->pasv_listen_fd, 1);
   if (is_epsv)
   {
     str_alloc_text(&s_pasv_res_str, "Entering Extended Passive Mode (|||");
@@ -718,7 +721,10 @@ handle_retr(struct vsf_session* p_sess)
   }
   trans_ret = vsf_ftpdataio_transfer_file(p_sess, remote_fd,
                                           opened_file, 0, is_ascii);
-  vsf_ftpdataio_dispose_transfer_fd(p_sess);
+  if (vsf_ftpdataio_dispose_transfer_fd(p_sess) != 1 && trans_ret.retval == 0)
+  {
+    trans_ret.retval = -2;
+  }
   p_sess->transfer_size = trans_ret.transferred;
   /* Log _after_ the blocking dispose call, so we get transfer times right */
   if (trans_ret.retval == 0)
@@ -863,7 +869,10 @@ handle_dir_common(struct vsf_session* p_sess, int full_details, int stat_cmd)
   }
   if (!stat_cmd)
   {
-    vsf_ftpdataio_dispose_transfer_fd(p_sess);
+    if (vsf_ftpdataio_dispose_transfer_fd(p_sess) != 1 && retval == 0)
+    {
+      retval = -1;
+    }
   }
   if (stat_cmd)
   {
@@ -972,6 +981,8 @@ handle_upload_common(struct vsf_session* p_sess, int is_append, int is_unique)
   struct vsf_transfer_ret trans_ret;
   int new_file_fd;
   int remote_fd;
+  int success = 0;
+  int created = 0;
   filesize_t offset = p_sess->restart_pos;
   p_sess->restart_pos = 0;
   if (!data_transfer_checks_ok(p_sess))
@@ -1018,6 +1029,7 @@ handle_upload_common(struct vsf_session* p_sess, int is_append, int is_unique)
     vsf_cmdio_write(p_sess, FTP_UPLOADFAIL, "Could not create file.");
     return;
   }
+  created = 1;
   vsf_sysutil_fstat(new_file_fd, &s_p_statbuf);
   if (vsf_sysutil_statbuf_is_regfile(s_p_statbuf))
   {
@@ -1075,11 +1087,14 @@ handle_upload_common(struct vsf_session* p_sess, int is_append, int is_unique)
     trans_ret = vsf_ftpdataio_transfer_file(p_sess, remote_fd,
                                             new_file_fd, 1, 0);
   }
-  vsf_ftpdataio_dispose_transfer_fd(p_sess);
+  if (vsf_ftpdataio_dispose_transfer_fd(p_sess) != 1 && trans_ret.retval == 0)
+  {
+    trans_ret.retval = -2;
+  }
   p_sess->transfer_size = trans_ret.transferred;
-  /* XXX - handle failure, delete file? */
   if (trans_ret.retval == 0)
   {
+    success = 1;
     vsf_log_do_log(p_sess, 1);
   }
   if (trans_ret.retval == -1)
@@ -1098,6 +1113,10 @@ handle_upload_common(struct vsf_session* p_sess, int is_append, int is_unique)
 port_pasv_cleanup_out:
   port_cleanup(p_sess);
   pasv_cleanup(p_sess);
+  if (tunable_delete_failed_uploads && created && !success)
+  {
+    str_unlink(p_filename);
+  }
   vsf_sysutil_close(new_file_fd);
 }
 

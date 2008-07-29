@@ -917,10 +917,11 @@ vsf_sysutil_isdigit(int the_char)
 char*
 vsf_sysutil_getcwd(char* p_dest, const unsigned int buf_size)
 {
+  char* p_retval;
   if (buf_size == 0) {
     return p_dest;
   }
-  char* p_retval = getcwd(p_dest, buf_size);
+  p_retval = getcwd(p_dest, buf_size);
   p_dest[buf_size - 1] = '\0';
   return p_retval;
 }
@@ -1515,10 +1516,11 @@ vsf_sysutil_unlock_file(int fd)
 int
 vsf_sysutil_readlink(const char* p_filename, char* p_dest, unsigned int bufsiz)
 {
+  int retval;
   if (bufsiz == 0) {
     return -1;
   }
-  int retval = readlink(p_filename, p_dest, bufsiz - 1);
+  retval = readlink(p_filename, p_dest, bufsiz - 1);
   if (retval < 0)
   {
     return retval;
@@ -1620,14 +1622,16 @@ vsf_sysutil_bind(int fd, const struct vsf_sysutil_sockaddr* p_sockptr)
   return bind(fd, p_sockaddr, len);
 }
 
-void
+int
 vsf_sysutil_listen(int fd, const unsigned int backlog)
 {
   int retval = listen(fd, backlog);
-  if (retval != 0)
+  if (vsf_sysutil_retval_is_error(retval) &&
+      vsf_sysutil_get_error() != kVSFSysUtilErrADDRINUSE)
   {
     die("listen");
   }
+  return retval;
 }
 
 /* Warning: callers of this function assume it does NOT make use of any

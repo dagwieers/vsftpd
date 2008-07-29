@@ -70,6 +70,10 @@ extern int tunable_pasv_addr_resolve;         /* DNS resolve pasv_addr */
 extern int tunable_debug_ssl;                 /* Verbose SSL logging */
 extern int tunable_require_cert;              /* SSL client cert required */
 extern int tunable_validate_cert;             /* SSL certs must be valid */
+extern int tunable_strict_ssl_read_eof;       /* Need SSL_shutdown() on read */
+extern int tunable_strict_ssl_write_shutdown; /* Need SSL_shutdown() on write */
+extern int tunable_ssl_request_cert;          /* Ask client for cert */
+extern int tunable_delete_failed_uploads;     /* Delete an upload that failed */
 
 /* Integer/numeric defines */
 extern unsigned int tunable_accept_timeout;

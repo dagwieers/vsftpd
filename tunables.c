@@ -74,6 +74,10 @@ int tunable_pasv_addr_resolve = 0;
 int tunable_debug_ssl = 0;
 int tunable_require_cert = 0;
 int tunable_validate_cert = 0;
+int tunable_strict_ssl_read_eof = 0;
+int tunable_strict_ssl_write_shutdown = 0;
+int tunable_ssl_request_cert = 1;
+int tunable_delete_failed_uploads = 0;
 
 unsigned int tunable_accept_timeout = 60;
 unsigned int tunable_connect_timeout = 60;
