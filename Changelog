@@ -1097,3 +1097,11 @@ using O_CLOEXEC more).
 
 At this point: v2.1.0 released!
 ===============================
+
+- Apply Tavis' RLIMIT_NOFILE trick in the twoprocess model's initial
+unprivileged child.
+- Fix build error due to __NR_utimes.
+- Ugh. Can't use RLIMIT_NOFILE in the SSL case because the process later
+receives data transfer fd's via recvmsg(). It's a total shame because doing
+the SSL handshake under even lower privs would be a real boost.
+(v2.1.1pre1 here)

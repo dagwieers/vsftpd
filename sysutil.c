@@ -2760,3 +2760,17 @@ vsf_sysutil_set_address_space_limit(long bytes)
 #endif /* RLIMIT_AS */
   (void) bytes;
 }
+
+void
+vsf_sysutil_set_no_fds()
+{
+  int ret;
+  struct rlimit rlim;
+  rlim.rlim_cur = 0;
+  rlim.rlim_max = 0;
+  ret = setrlimit(RLIMIT_NOFILE, &rlim);
+  if (ret != 0)
+  {
+    die("setrlimit NOFILE");
+  }
+}

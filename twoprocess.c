@@ -133,6 +133,14 @@ drop_all_privs(void)
 {
   struct mystr user_str = INIT_MYSTR;
   struct mystr dir_str = INIT_MYSTR;
+  int option = VSF_SECUTIL_OPTION_CHROOT;
+  if (!tunable_ssl_enable)
+  {
+    /* Unfortunately, can only enable this if we can be sure of not using SSL.
+     * In the SSL case, we'll need to receive data transfer file descriptors.
+     */
+    option |= VSF_SECUTIL_OPTION_NO_FDS;
+  }
   str_alloc_text(&user_str, tunable_nopriv_user);
   str_alloc_text(&dir_str, tunable_secure_chroot_dir);
   /* Be kind: give good error message if the secure dir is missing */
@@ -145,8 +153,7 @@ drop_all_privs(void)
     }
     vsf_sysutil_free(p_statbuf);
   }
-  vsf_secutil_change_credentials(&user_str, &dir_str, 0, 0,
-                                 VSF_SECUTIL_OPTION_CHROOT);
+  vsf_secutil_change_credentials(&user_str, &dir_str, 0, 0, option);
   str_free(&user_str);
   str_free(&dir_str);
 }

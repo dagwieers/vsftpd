@@ -339,6 +339,7 @@ int vsf_sysutil_setmodtime(const char* p_file, long the_time, int is_localtime);
 
 /* Limits */
 void vsf_sysutil_set_address_space_limit(long bytes);
+void vsf_sysutil_set_no_fds(void);
 
 #endif /* VSF_SYSUTIL_H */
 
