@@ -125,5 +125,9 @@ vsf_secutil_change_credentials(const struct mystr* p_user_str,
   {
     vsf_sysdep_adopt_capabilities(caps);
   }
+  if (options & VSF_SECUTIL_OPTION_NO_PROCS)
+  {
+    vsf_sysutil_set_no_procs();
+  }
 }
 
