@@ -214,14 +214,6 @@ main(int argc, const char* argv[])
       die2("cannot open email passwords file:", tunable_email_password_file);
     }
   }
-  /* Special case - can force one process model if we've got a setup
-   * needing _no_ privs
-   */
-  if (!tunable_local_enable && !tunable_connect_from_port_20 &&
-      !tunable_chown_uploads)
-  {
-    tunable_one_process_model = 1;
-  }
   if (tunable_run_as_launching_user)
   {
     tunable_one_process_model = 1;

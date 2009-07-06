@@ -228,6 +228,8 @@ void vsf_sysutil_sockaddr_set_ipv4addr(struct vsf_sysutil_sockaddr* p_sockptr,
 void vsf_sysutil_sockaddr_set_ipv6addr(struct vsf_sysutil_sockaddr* p_sockptr,
                                        const unsigned char* p_raw);
 void vsf_sysutil_sockaddr_set_any(struct vsf_sysutil_sockaddr* p_sockaddr);
+unsigned short vsf_sysutil_sockaddr_get_port(
+    const struct vsf_sysutil_sockaddr* p_sockptr);
 void vsf_sysutil_sockaddr_set_port(struct vsf_sysutil_sockaddr* p_sockptr,
                                    unsigned short the_port);
 int vsf_sysutil_is_port_reserved(unsigned short port);

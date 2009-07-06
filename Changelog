@@ -1132,3 +1132,21 @@ At this point: v2.1.1 released!
 At this point: v2.1.2 released!
 ===============================
 
+- Fix compile on systems with no RLIMIT_NPROC, oops.
+- Change some unsigned int to socklen_t's to avoid warnings on various
+platforms, e.g. AIX.
+- Add some syscall constants to ptracesandbox.c to fix the build on systems
+with 2.4 kernel headers.
+- Look for libs in /lib64 and /usr/lib64 too (Fixes Fedora 11 x86_64 compile).
+- Fix EACCES mapping, thanks Solar Designer <solar@openwall.com>.
+- Dont emit a bogus "OOPS: " message upon a QUIT, report from Solar Designer
+<solar@openwall.com>.
+- Tweak example vsftpd.conf to add commented out chroot_local_user=YES,
+from Ivan I. Grushin <mcgru@intrice.ru>.
+- Where available, use CLONE_NEWNET to isolate the untrusted processes so that
+they can't do arbitrary connect() and instead have to ask the privileged
+process for sockets. Moderate code disturbance - hope for no breakage :-/
+- Disable implicit activation of one_process_model so that an anonymous setup
+can benefit from the no-network isolation of the unprivileged process (where
+available).
+(vsftpd-2.2.0pre1)

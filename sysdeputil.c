@@ -73,6 +73,9 @@
   #ifndef CLONE_NEWIPC
     #define CLONE_NEWIPC 0x08000000
   #endif
+  #ifndef CLONE_NEWNET
+    #define CLONE_NEWNET 0x40000000
+  #endif
   #include <linux/unistd.h>
   #include <errno.h>
   #include <syscall.h>
@@ -1253,6 +1256,25 @@ vsf_sysutil_fork_isolate_failok()
   }
 #endif
   return vsf_sysutil_fork_failok();
+}
+
+int
+vsf_sysutil_fork_newnet()
+{
+#ifdef VSF_SYSDEP_HAVE_LINUX_CLONE
+  static int cloneflags_work = 1;
+  if (cloneflags_work)
+  {
+    int ret = syscall(__NR_clone, CLONE_NEWNET | SIGCHLD, NULL);
+    if (ret != -1 || errno != EINVAL)
+    {
+      vsf_sysutil_clear_pid_cache();
+      return ret;
+    }
+    cloneflags_work = 0;
+  }
+#endif
+  return vsf_sysutil_fork();
 }
 
 int

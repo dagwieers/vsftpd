@@ -542,15 +542,7 @@ vsf_sysutil_getpid(void)
 int
 vsf_sysutil_fork(void)
 {
-  /* Child does NOT inherit exit function */
-  exitfunc_t curr_func = s_exit_func;
-  int retval;
-  s_exit_func = 0;
-  retval = vsf_sysutil_fork_failok();
-  if (retval != 0)
-  {
-    s_exit_func = curr_func;
-  }
+  int retval = vsf_sysutil_fork_failok();
   if (retval < 0)
   {
     die("fork");
@@ -561,7 +553,15 @@ vsf_sysutil_fork(void)
 int
 vsf_sysutil_fork_failok(void)
 {
-  int retval = fork();
+  /* Child does NOT inherit exit function */
+  exitfunc_t curr_func = s_exit_func;
+  int retval;
+  s_exit_func = 0;
+  retval = fork();
+  if (retval != 0)
+  {
+    s_exit_func = curr_func;
+  }
   if (retval == 0)
   {
     vsf_sysutil_clear_pid_cache();
@@ -1597,7 +1597,7 @@ vsf_sysutil_get_error(void)
       retval = kVSFSysUtilErrOPNOTSUPP;
       break;
     case EACCES:
-      retval = kVSFSysUtilErrOPNOTSUPP;
+      retval = kVSFSysUtilErrACCES;
       break;
   }
   return retval;
@@ -1684,7 +1684,7 @@ vsf_sysutil_accept_timeout(int fd, struct vsf_sysutil_sockaddr* p_sockaddr,
   int saved_errno;
   fd_set accept_fdset;
   struct timeval timeout;
-  unsigned int socklen = sizeof(remote_addr);
+  socklen_t socklen = sizeof(remote_addr);
   if (p_sockaddr)
   {
     vsf_sysutil_memclr(p_sockaddr, sizeof(*p_sockaddr));
@@ -1808,7 +1808,7 @@ vsf_sysutil_getsockname(int fd, struct vsf_sysutil_sockaddr** p_sockptr)
 {
   struct vsf_sysutil_sockaddr the_addr;
   int retval;
-  unsigned int socklen = sizeof(the_addr);
+  socklen_t socklen = sizeof(the_addr);
   vsf_sysutil_sockaddr_clear(p_sockptr);
   retval = getsockname(fd, &the_addr.u.u_sockaddr, &socklen);
   if (retval != 0)
@@ -1833,7 +1833,7 @@ vsf_sysutil_getpeername(int fd, struct vsf_sysutil_sockaddr** p_sockptr)
 {
   struct vsf_sysutil_sockaddr the_addr;
   int retval;
-  unsigned int socklen = sizeof(the_addr);
+  socklen_t socklen = sizeof(the_addr);
   vsf_sysutil_sockaddr_clear(p_sockptr);
   retval = getpeername(fd, &the_addr.u.u_sockaddr, &socklen);
   if (retval != 0)
@@ -2128,6 +2128,25 @@ vsf_sysutil_sockaddr_set_any(struct vsf_sysutil_sockaddr* p_sockaddr)
   {
     bug("bad family");
   }
+}
+
+unsigned short
+vsf_sysutil_sockaddr_get_port(const struct vsf_sysutil_sockaddr* p_sockptr)
+{
+  if (p_sockptr->u.u_sockaddr.sa_family == AF_INET)
+  {
+    return ntohs(p_sockptr->u.u_sockaddr_in.sin_port);
+  }
+  else if (p_sockptr->u.u_sockaddr.sa_family == AF_INET6)
+  {
+    return ntohs(p_sockptr->u.u_sockaddr_in6.sin6_port);
+  }
+  else
+  {
+    bug("bad family");
+  }
+  /* NOTREACHED */
+  return 0;
 }
 
 void
@@ -2779,6 +2798,7 @@ vsf_sysutil_set_no_fds()
 void
 vsf_sysutil_set_no_procs()
 {
+#ifdef RLIMIT_NPROC
   int ret;
   struct rlimit rlim;
   rlim.rlim_cur = 0;
@@ -2788,6 +2808,7 @@ vsf_sysutil_set_no_procs()
   {
     die("setrlimit NPROC");
   }
+#endif
 }
 
 void

@@ -127,8 +127,7 @@ parse_username_password(struct vsf_session* p_sess)
     }
     else if (str_equal_text(&p_sess->ftp_cmd_str, "QUIT"))
     {
-      vsf_cmdio_write(p_sess, FTP_GOODBYE, "Goodbye.");
-      vsf_sysutil_exit(0);
+      vsf_cmdio_write_exit(p_sess, FTP_GOODBYE, "Goodbye.");
     }
     else if (str_equal_text(&p_sess->ftp_cmd_str, "FEAT"))
     {

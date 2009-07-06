@@ -60,8 +60,12 @@ void vsf_set_die_if_parent_dies();
 /* Or a softer version delivering SIGTERM. */
 void vsf_set_term_if_parent_dies();
 
-/* If supported, the ability to fork into different secure namespaces. */
+/* If supported, the ability to fork into different secure namespaces (PID
+ * and IPC. Fails back to normal fork() */
 int vsf_sysutil_fork_isolate_failok();
+/* If supported, the ability to fork into an empty network namespace.
+ * Fails back to normal fork() */
+int vsf_sysutil_fork_newnet();
 int vsf_sysutil_getpid_nocache();
 
 #endif /* VSF_SYSDEPUTIL_H */
