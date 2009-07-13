@@ -252,7 +252,17 @@ vsf_two_process_listen(struct vsf_session* p_sess)
 int
 vsf_two_process_get_pasv_fd(struct vsf_session* p_sess)
 {
+  char res;
   priv_sock_send_cmd(p_sess->child_fd, PRIV_SOCK_PASV_ACCEPT);
+  res = priv_sock_get_result(p_sess->child_fd);
+  if (res == PRIV_SOCK_RESULT_BAD)
+  {
+    return priv_sock_get_int(p_sess->child_fd);
+  }
+  else if (res != PRIV_SOCK_RESULT_OK)
+  {
+    die("could not accept on listening socket");
+  }
   return priv_sock_recv_fd(p_sess->child_fd);
 }
 

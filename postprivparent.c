@@ -161,6 +161,13 @@ static void
 cmd_process_pasv_accept(struct vsf_session* p_sess)
 {
   int fd = vsf_privop_accept_pasv(p_sess);
+  if (fd < 0)
+  {
+    priv_sock_send_result(p_sess->parent_fd, PRIV_SOCK_RESULT_BAD);
+    priv_sock_send_int(p_sess->parent_fd, fd);
+    return;
+  }
+  priv_sock_send_result(p_sess->parent_fd, PRIV_SOCK_RESULT_OK);
   priv_sock_send_fd(p_sess->parent_fd, fd);
   vsf_sysutil_close(fd);
 }

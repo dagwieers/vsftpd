@@ -1620,6 +1620,7 @@ handle_eprt(struct vsf_session* p_sess)
 {
   static struct mystr s_part1_str;
   static struct mystr s_part2_str;
+  static struct mystr s_scopeid_str;
   int proto;
   int port;
   const unsigned char* p_raw_addr;
@@ -1644,6 +1645,7 @@ handle_eprt(struct vsf_session* p_sess)
   str_split_char(&s_part1_str, &s_part2_str, '|');
   if (proto == 2)
   {
+    str_split_char(&s_part1_str, &s_scopeid_str, '%');
     p_raw_addr = vsf_sysutil_parse_ipv6(&s_part1_str);
   }
   else

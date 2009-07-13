@@ -65,6 +65,8 @@
 
 /* BEGIN config */
 #if defined(__linux__)
+  #include <errno.h>
+  #include <syscall.h>
   #define VSF_SYSDEP_HAVE_LINUX_CLONE
   #include <sched.h>
   #ifndef CLONE_NEWPID
@@ -309,11 +311,12 @@ static int pam_conv_func(int nmsg, const struct pam_message** p_msg,
 static void vsf_auth_shutdown(void);
 
 int
-vsf_sysdep_check_auth(const struct mystr* p_user_str,
+vsf_sysdep_check_auth(struct mystr* p_user_str,
                       const struct mystr* p_pass_str,
                       const struct mystr* p_remote_host)
 {
   int retval;
+  const char* pam_user_name = 0;
   struct pam_conv the_conv =
   {
     &pam_conv_func,
@@ -365,6 +368,16 @@ vsf_sysdep_check_auth(const struct mystr* p_user_str,
     s_pamh = 0;
     return 0;
   }
+#ifdef PAM_USER
+  retval = pam_get_item(s_pamh, PAM_USER, (const void**) &pam_user_name);
+  if (retval != PAM_SUCCESS)
+  {
+    (void) pam_end(s_pamh, retval);
+    s_pamh = 0;
+    return 0;
+  }
+  str_alloc_text(p_user_str, pam_user_name);
+#endif
   retval = pam_acct_mgmt(s_pamh, 0);
   if (retval != PAM_SUCCESS)
   {

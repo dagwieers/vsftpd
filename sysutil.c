@@ -1925,6 +1925,8 @@ vsf_sysutil_sockaddr_clone(struct vsf_sysutil_sockaddr** p_sockptr,
     vsf_sysutil_memcpy(&p_sockaddr->u.u_sockaddr_in6.sin6_addr,
                        &p_src->u.u_sockaddr_in6.sin6_addr,
                        sizeof(p_sockaddr->u.u_sockaddr_in6.sin6_addr));
+    p_sockaddr->u.u_sockaddr_in6.sin6_scope_id =
+        p_src->u.u_sockaddr_in6.sin6_scope_id;
   }
   else
   {

@@ -1150,3 +1150,15 @@ process for sockets. Moderate code disturbance - hope for no breakage :-/
 can benefit from the no-network isolation of the unprivileged process (where
 available).
 (vsftpd-2.2.0pre1)
+- Call pam_get_item(PAM_GETUSER) after authentication in case a PAM module
+remapped the username. Based on a patch from John McNair <john.mcnair@ihg.com>.
+- Apply a couple of IPv6 fixes from Corinna Schultz <corinna.schultz@gmail.com>,
+particularly when MS operating systems are talking on link local addresses.
+- Handle the error case for accepting a PASV connection in the two process
+model properly.
+- Pull in a couple of minor tidyup patches from Openwall.
+- Add "-o" command line option to specify option, e.g. vsftpd -olisten=NO. Also
+respect ordering with respect config files, e.g.
+vsftpd -olisten=NO /etc/vsftpd.conf -olocal_enable=NO
+Inspiration from Solar / Openwall.
+(vsftpd-2.2.0pre2)

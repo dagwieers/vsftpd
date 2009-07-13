@@ -23,12 +23,12 @@
 static enum EVSFPrivopLoginResult handle_anonymous_login(
   struct vsf_session* p_sess, const struct mystr* p_pass_str);
 static enum EVSFPrivopLoginResult handle_local_login(
-  struct vsf_session* p_sess, const struct mystr* p_user_str,
+  struct vsf_session* p_sess, struct mystr* p_user_str,
   const struct mystr* p_pass_str);
 static void setup_username_globals(struct vsf_session* p_sess,
                                    const struct mystr* p_str);
 static enum EVSFPrivopLoginResult handle_login(
-  struct vsf_session* p_sess, const struct mystr* p_user_str,
+  struct vsf_session* p_sess, struct mystr* p_user_str,
   const struct mystr* p_pass_str);
 
 int
@@ -249,7 +249,7 @@ vsf_privop_do_login(struct vsf_session* p_sess,
 }
 
 static enum EVSFPrivopLoginResult
-handle_login(struct vsf_session* p_sess, const struct mystr* p_user_str,
+handle_login(struct vsf_session* p_sess, struct mystr* p_user_str,
              const struct mystr* p_pass_str)
 {
   /* Do not assume PAM can cope with dodgy input, even though it
@@ -350,7 +350,7 @@ handle_anonymous_login(struct vsf_session* p_sess,
 
 static enum EVSFPrivopLoginResult
 handle_local_login(struct vsf_session* p_sess,
-                   const struct mystr* p_user_str,
+                   struct mystr* p_user_str,
                    const struct mystr* p_pass_str)
 {
   if (!vsf_sysdep_check_auth(p_user_str, p_pass_str, &p_sess->remote_ip_str))
