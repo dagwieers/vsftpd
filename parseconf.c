@@ -217,14 +217,15 @@ vsf_parseconf_load_file(const char* p_filename, int errs_fatal)
   {
     struct vsf_sysutil_statbuf* p_statbuf = 0;
     retval = vsf_sysutil_stat(p_filename, &p_statbuf);
-    /* Security: check current user owns the config file. This is a sanity
-     * check for the admin, and is NOT designed to be a check safe from
+    /* Security: check current user owns the config file. These are sanity
+     * checks for the admin, and are NOT designed to be checks safe from
      * race conditions.
      */
     if (vsf_sysutil_retval_is_error(retval) ||
-        vsf_sysutil_statbuf_get_uid(p_statbuf) != vsf_sysutil_getuid())
+        vsf_sysutil_statbuf_get_uid(p_statbuf) != vsf_sysutil_getuid() ||
+        !vsf_sysutil_statbuf_is_regfile(p_statbuf))
     {
-      die("config file not owned by correct user");
+      die("config file not owned by correct user, or not a file");
     }
     vsf_sysutil_free(p_statbuf);
   }

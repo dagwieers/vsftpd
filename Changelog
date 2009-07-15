@@ -1150,7 +1150,7 @@ process for sockets. Moderate code disturbance - hope for no breakage :-/
 can benefit from the no-network isolation of the unprivileged process (where
 available).
 (vsftpd-2.2.0pre1)
-- Call pam_get_item(PAM_GETUSER) after authentication in case a PAM module
+- Call pam_get_item(PAM_USER) after authentication in case a PAM module
 remapped the username. Based on a patch from John McNair <john.mcnair@ihg.com>.
 - Apply a couple of IPv6 fixes from Corinna Schultz <corinna.schultz@gmail.com>,
 particularly when MS operating systems are talking on link local addresses.
@@ -1162,3 +1162,9 @@ respect ordering with respect config files, e.g.
 vsftpd -olisten=NO /etc/vsftpd.conf -olocal_enable=NO
 Inspiration from Solar / Openwall.
 (vsftpd-2.2.0pre2)
+- Revert listen to be "NO" by default and also set max_per_ip / max_clients
+to 2000 / 50 as a default. Thanks to Solar.
+- Sanity check for admin: check config files are regular files.
+- Error out if opening the per-user config file gives an error other than
+ENOENT. Thanks Solar (who is on fire today ;-)
+(vsftpd-2.2.0pre3)

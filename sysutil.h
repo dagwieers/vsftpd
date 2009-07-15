@@ -17,7 +17,8 @@ enum EVSFSysUtilError
   kVSFSysUtilErrINTR,
   kVSFSysUtilErrINVAL,
   kVSFSysUtilErrOPNOTSUPP,
-  kVSFSysUtilErrACCES
+  kVSFSysUtilErrACCES,
+  kVSFSysUtilErrNOENT
 };
 enum EVSFSysUtilError vsf_sysutil_get_error(void);
 

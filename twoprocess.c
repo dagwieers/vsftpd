@@ -483,6 +483,10 @@ handle_per_user_config(const struct mystr* p_user_str)
     /* Security - file ownership check now in vsf_parseconf_load_file() */
     vsf_parseconf_load_file(str_getbuf(&filename_str), 1);
   }
+  else if (vsf_sysutil_get_error() != kVSFSysUtilErrNOENT)
+  {
+    die("error opening per-user config file");
+  }
   str_free(&filename_str);
   vsf_sysutil_free(p_statbuf);
 }

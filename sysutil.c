@@ -1599,6 +1599,9 @@ vsf_sysutil_get_error(void)
     case EACCES:
       retval = kVSFSysUtilErrACCES;
       break;
+    case ENOENT:
+      retval = kVSFSysUtilErrNOENT;
+      break;
   }
   return retval;
 }
