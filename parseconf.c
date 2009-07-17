@@ -206,7 +206,7 @@ vsf_parseconf_load_file(const char* p_filename, int errs_fatal)
   {
     if (errs_fatal)
     {
-      die2("cannot open config file: ", p_filename);
+      die2("cannot read config file: ", p_filename);
     }
     else
     {

@@ -202,7 +202,7 @@ main(int argc, const char* argv[])
                               tunable_banned_email_file, VSFTP_CONF_FILE_MAX);
     if (vsf_sysutil_retval_is_error(retval))
     {
-      die2("cannot open anon e-mail list file:", tunable_banned_email_file);
+      die2("cannot read anon e-mail list file:", tunable_banned_email_file);
     }
   }
   if (tunable_banner_file)
@@ -211,7 +211,7 @@ main(int argc, const char* argv[])
                               VSFTP_CONF_FILE_MAX);
     if (vsf_sysutil_retval_is_error(retval))
     {
-      die2("cannot open banner file:", tunable_banner_file);
+      die2("cannot read banner file:", tunable_banner_file);
     }
   }
   if (tunable_secure_email_list_enable)
@@ -221,7 +221,7 @@ main(int argc, const char* argv[])
                               VSFTP_CONF_FILE_MAX);
     if (vsf_sysutil_retval_is_error(retval))
     {
-      die2("cannot open email passwords file:", tunable_email_password_file);
+      die2("cannot read email passwords file:", tunable_email_password_file);
     }
   }
   if (tunable_run_as_launching_user)

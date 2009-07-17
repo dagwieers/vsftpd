@@ -128,7 +128,7 @@ vsf_two_process_start(struct vsf_session* p_sess)
                               VSFTP_CONF_FILE_MAX);
     if (vsf_sysutil_retval_is_error(retval))
     {
-      die2("cannot open user list file:", tunable_userlist_file);
+      die2("cannot read user list file:", tunable_userlist_file);
     }
   }
   drop_all_privs();
@@ -330,7 +330,7 @@ process_login_req(struct vsf_session* p_sess)
                                     VSFTP_CONF_FILE_MAX);
           if (vsf_sysutil_retval_is_error(retval))
           {
-            die2("could not open chroot() list file:",
+            die2("could not read chroot() list file:",
                  tunable_chroot_list_file);
           }
           if (str_contains_line(&chroot_list_file, &p_sess->user_str))

@@ -1168,3 +1168,7 @@ to 2000 / 50 as a default. Thanks to Solar.
 - Error out if opening the per-user config file gives an error other than
 ENOENT. Thanks Solar (who is on fire today ;-)
 (vsftpd-2.2.0pre3)
+- Apply some typo fixes from Solar.
+- Error out on read() errors when reading config files.
+(vsftpd-2.2.0pre4)
+
