@@ -117,8 +117,9 @@ vsf_sysutil_common_sighandler(int signum)
 {
   if (signum < 0 || signum >= NSIG)
   {
-    // bug() is not async safe but this check really is a "cannot happen"
-    // debug aid.
+    /* bug() is not async safe but this check really is a "cannot happen"
+     * debug aid.
+     */
     bug("signal out of range in vsf_sysutil_common_sighandler");
   }
   if (s_sig_details[signum].sync_sig_handler)
@@ -448,7 +449,7 @@ vsf_sysutil_write_loop(const int fd, const void* p_buf, unsigned int size)
     }
     if ((unsigned int) retval > size)
     {
-      die("retval too big in vsf_sysutil_read_loop");
+      die("retval too big in vsf_sysutil_write_loop");
     }
     num_written += retval;
     size -= (unsigned int) retval;

@@ -1171,4 +1171,14 @@ ENOENT. Thanks Solar (who is on fire today ;-)
 - Apply some typo fixes from Solar.
 - Error out on read() errors when reading config files.
 (vsftpd-2.2.0pre4)
+- Add tunable_isolate_network to parseconf.c, thanks Stefan Pfetzing
+<dreamind@dreamind.de>.
+- Don't try and use CLONE_NEWPID etc. if we get EPERM -- may happen even to
+root if using linux-vserver. Also thanks to Stefan Pfetzing
+<dreamind@dreamind.de>.
+- Couple of typo tweaks from Cristi Terpea <cristi.terpea@fortech.ro>.
+- Change // style comments to /* style.
+- Fix pointer aliasing issue in new PAM_USER item support, thanks to Solar.
 
+At this point: v2.2.0 released!
+===============================

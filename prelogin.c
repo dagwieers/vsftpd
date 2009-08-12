@@ -154,7 +154,7 @@ parse_username_password(struct vsf_session* p_sess)
     else if (str_isempty(&p_sess->ftp_cmd_str) &&
              str_isempty(&p_sess->ftp_arg_str))
     {
-      // Deliberately ignore to avoid NAT device bugs. ProFTPd does the same.
+      /* Deliberately ignore to avoid NAT device bugs. ProFTPd does the same. */
     }
     else
     {

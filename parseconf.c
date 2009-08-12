@@ -102,6 +102,7 @@ parseconf_bool_array[] =
   { "sandbox", &tunable_sandbox },
   { "require_ssl_reuse", &tunable_require_ssl_reuse },
   { "isolate", &tunable_isolate },
+  { "isolate_network", &tunable_isolate_network },
   { 0, 0 }
 };
 
