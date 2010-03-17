@@ -45,6 +45,8 @@ main(int argc, const char* argv[])
     1, 0, INIT_MYSTR, INIT_MYSTR,
     /* Protocol state */
     0, 1, INIT_MYSTR, 0, 0,
+    /* HTTP hacks */
+    0, INIT_MYSTR,
     /* Session state */
     0,
     /* Userids */
@@ -281,6 +283,14 @@ do_sanity_checks(void)
   if (!tunable_local_enable && !tunable_anonymous_enable)
   {
     die("vsftpd: both local and anonymous access disabled!");
+  }
+  if (!tunable_ftp_enable && !tunable_http_enable)
+  {
+    die("vsftpd: both FTP and HTTP disabled!");
+  }
+  if (tunable_http_enable && !tunable_one_process_model)
+  {
+    die("vsftpd: HTTP needs 'one_process_model' for now");
   }
 }
 
