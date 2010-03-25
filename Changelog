@@ -1220,4 +1220,9 @@ it might satisfy is if you need to serve simple static unathenticated content
 with large levels of paranoia.
 - Fix port_promiscuous breakage. Report from Soeren <soeren84@fastmail.net>.
 (v2.3.0pre1)
-
+- Minor FAQ update.
+- Use a larger address space limit if using text_userdb_names=YES
+- Always use CLONE_NEWNET if possible when in HTTP mode.
+- Change REST + STOR so that it's possible to overwrite part of file without
+truncating it.
+(v2.3.0pre2)

@@ -1078,11 +1078,11 @@ handle_upload_common(struct vsf_session* p_sess, int is_append, int is_unique)
   if (!is_append && offset != 0)
   {
     /* XXX - warning, allows seek past end of file! Check for seek > size? */
-    /* XXX - also, currently broken as the O_APPEND flag will always write
-     * at the end of file. No known complaints yet; can easily fix if one
-     * comes in.
-     */
     vsf_sysutil_lseek_to(new_file_fd, offset);
+  }
+  else if (is_append)
+  {
+    vsf_sysutil_lseek_end(new_file_fd);
   }
   if (is_unique)
   {

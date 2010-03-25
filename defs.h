@@ -17,7 +17,7 @@
 #define VSFTP_ROOT_UID          0
 /* Must be greater than both VSFTP_MAX_COMMAND_LINE and VSFTP_DIR_BUFSIZE */
 #define VSFTP_PRIVSOCK_MAXSTR   VSFTP_DATA_BUFSIZE
-#define VSFTP_AS_LIMIT          100 * 1024 * 1024
+#define VSFTP_AS_LIMIT          100UL * 1024 * 1024
 
 #endif /* VSF_DEFS_H */
 
