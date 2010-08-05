@@ -1226,3 +1226,11 @@ with large levels of paranoia.
 - Change REST + STOR so that it's possible to overwrite part of file without
 truncating it.
 (v2.3.0pre2)
+- Boot the session if we see a USER where encryption was required. May prevent
+the transmission of plaintext passwords by buggy clients. Idea from
+Marcin Hlybin <marcin@rootnode.net>.
+- Fix failure to transmit a large ASCII file over SSL, if it contains \n -> \r\n
+fixups.
+
+At this point: v2.3.0 released!
+===============================
