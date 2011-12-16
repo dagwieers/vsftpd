@@ -349,6 +349,8 @@ process_login_req(struct vsf_session* p_sess)
         common_do_login(p_sess, &p_sess->user_str, do_chroot, 0);
       }
       break;
+    case kVSFLoginNull:
+      /* Fall through */
     default:
       bug("weird state in process_login_request");
       break;
@@ -436,13 +438,6 @@ common_do_login(struct vsf_session* p_sess, const struct mystr* p_user_str,
     str_free(&chroot_str);
     str_free(&chdir_str);
     str_free(&userdir_str);
-    /* Guard against the config error of having the anonymous ftp tree owned
-     * by the user we are running as
-     */
-    if (was_anon && vsf_sysutil_write_access("/"))
-    {
-      die("vsftpd: refusing to run with writable anonymous root");
-    }
     p_sess->is_anonymous = anon;
     process_post_login(p_sess);
     bug("should not get here: common_do_login");

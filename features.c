@@ -18,8 +18,14 @@ handle_feat(struct vsf_session* p_sess)
   vsf_cmdio_write_hyphen(p_sess, FTP_FEAT, "Features:");
   if (tunable_ssl_enable)
   {
-    vsf_cmdio_write_raw(p_sess, " AUTH SSL\r\n");
-    vsf_cmdio_write_raw(p_sess, " AUTH TLS\r\n");
+    if (tunable_sslv2 || tunable_sslv3)
+    {
+      vsf_cmdio_write_raw(p_sess, " AUTH SSL\r\n");
+    }
+    if (tunable_tlsv1)
+    {
+      vsf_cmdio_write_raw(p_sess, " AUTH TLS\r\n");
+    }
   }
   if (tunable_port_enable)
   {
