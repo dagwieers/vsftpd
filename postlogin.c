@@ -100,7 +100,11 @@ process_post_login(struct vsf_session* p_sess)
     bug("should not be reached");
   }
 
-  if (tunable_async_abor_enable)
+  /* Don't support async ABOR if we have an SSL channel. The spec says SHOULD
+   * NOT, and I think there are synchronization issues between command and
+   * data reads.
+   */
+  if (tunable_async_abor_enable && !p_sess->control_use_ssl)
   {
     vsf_sysutil_install_sighandler(kVSFSysUtilSigURG, handle_sigurg, p_sess, 0);
     vsf_sysutil_activate_sigurg(VSFTP_COMMAND_FD);
@@ -180,7 +184,7 @@ process_post_login(struct vsf_session* p_sess)
     }
     else if (str_equal_text(&p_sess->ftp_cmd_str, "QUIT"))
     {
-      vsf_cmdio_write_exit(p_sess, FTP_GOODBYE, "Goodbye.");
+      vsf_cmdio_write_exit(p_sess, FTP_GOODBYE, "Goodbye.", 0);
     }
     else if (str_equal_text(&p_sess->ftp_cmd_str, "PWD") ||
              str_equal_text(&p_sess->ftp_cmd_str, "XPWD"))
@@ -442,6 +446,11 @@ process_post_login(struct vsf_session* p_sess)
     if (vsf_log_entry_pending(p_sess))
     {
       vsf_log_do_log(p_sess, 0);
+    }
+    if (p_sess->data_timeout)
+    {
+      vsf_cmdio_write_exit(p_sess, FTP_DATA_TIMEOUT,
+                           "Data timeout. Reconnect. Sorry.", 1);
     }
   }
 }
@@ -755,7 +764,11 @@ handle_retr(struct vsf_session* p_sess, int is_http)
   }
   else if (trans_ret.retval == -2)
   {
-    vsf_cmdio_write(p_sess, FTP_BADSENDNET, "Failure writing network stream.");
+    if (!p_sess->data_timeout)
+    {
+      vsf_cmdio_write(p_sess, FTP_BADSENDNET,
+                      "Failure writing network stream.");
+    }
   }
   else
   {
@@ -893,18 +906,22 @@ handle_dir_common(struct vsf_session* p_sess, int full_details, int stat_cmd)
   {
     vsf_cmdio_write(p_sess, FTP_STATFILE_OK, "End of status");
   }
+  else if (retval != 0)
+  {
+    if (!p_sess->data_timeout)
+    {
+      vsf_cmdio_write(p_sess, FTP_BADSENDNET,
+                      "Failure writing network stream.");
+    }
+  }
   else if (p_dir == 0 || !dir_allow_read)
   {
     vsf_cmdio_write(p_sess, FTP_TRANSFEROK,
                     "Transfer done (but failed to open directory).");
   }
-  else if (retval == 0)
-  {
-    vsf_cmdio_write(p_sess, FTP_TRANSFEROK, "Directory send OK.");
-  }
   else
   {
-    vsf_cmdio_write(p_sess, FTP_BADSENDNET, "Failure writing network stream.");
+    vsf_cmdio_write(p_sess, FTP_TRANSFEROK, "Directory send OK.");
   }
   check_abor(p_sess);
 dir_close_out:
@@ -1124,9 +1141,13 @@ handle_upload_common(struct vsf_session* p_sess, int is_append, int is_unique)
   {
     vsf_cmdio_write(p_sess, FTP_BADSENDFILE, "Failure writing to local file.");
   }
-  else if (trans_ret.retval == -2 || p_sess->abor_received)
+  else if (trans_ret.retval == -2)
   {
-    vsf_cmdio_write(p_sess, FTP_BADSENDNET, "Failure reading network stream.");
+    if (!p_sess->data_timeout)
+    {
+      vsf_cmdio_write(p_sess, FTP_BADSENDNET,
+                      "Failure reading network stream.");
+    }
   }
   else
   {

@@ -25,13 +25,14 @@
 #include "sysutil.h"
 #include "ptracesandbox.h"
 #include "ftppolicy.h"
+#include "seccompsandbox.h"
 
 static void one_process_start(void* p_arg);
 
 void
 vsf_one_process_start(struct vsf_session* p_sess)
 {
-  if (tunable_sandbox)
+  if (tunable_ptrace_sandbox)
   {
     struct pt_sandbox* p_sandbox = ptrace_sandbox_alloc();
     if (p_sandbox == 0)
@@ -97,10 +98,13 @@ one_process_start(void* p_arg)
     str_free(&user_name);
     str_free(&chdir_str);
   }
-  if (tunable_sandbox)
+  if (tunable_ptrace_sandbox)
   {
     ptrace_sandbox_attach_point();
   }
+  seccomp_sandbox_init();
+  seccomp_sandbox_setup_postlogin(p_sess);
+  seccomp_sandbox_lockdown();
   init_connection(p_sess);
 }
 

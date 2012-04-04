@@ -27,6 +27,7 @@
 #include "sysutil.h"
 #include "sysdeputil.h"
 #include "sslslave.h"
+#include "seccompsandbox.h"
 
 static void drop_all_privs(void);
 static void handle_sigchld(void* duff);
@@ -51,16 +52,15 @@ handle_sigchld(void* duff)
   /* Child died, so we'll do the same! Report it as an error unless the child
    * exited normally with zero exit code
    */
-  if (vsf_sysutil_retval_is_error(vsf_sysutil_wait_get_retval(&wait_retval)) ||
-      !vsf_sysutil_wait_exited_normally(&wait_retval) ||
-      vsf_sysutil_wait_get_exitcode(&wait_retval) != 0)
-  { 
+  if (vsf_sysutil_retval_is_error(vsf_sysutil_wait_get_retval(&wait_retval)))
+  {
+    die("waiting for child");
+  }
+  else if (!vsf_sysutil_wait_exited_normally(&wait_retval))
+  {
     die("child died");
   }
-  else
-  {
-    vsf_sysutil_exit(0);
-  }
+  vsf_sysutil_exit(0);
 }
 
 static void
@@ -132,6 +132,9 @@ vsf_two_process_start(struct vsf_session* p_sess)
     }
   }
   drop_all_privs();
+  seccomp_sandbox_init();
+  seccomp_sandbox_setup_prelogin(p_sess);
+  seccomp_sandbox_lockdown();
   init_connection(p_sess);
   /* NOTREACHED */
 }
@@ -426,6 +429,10 @@ common_do_login(struct vsf_session* p_sess, const struct mystr* p_user_str,
     {
       secutil_option |= VSF_SECUTIL_OPTION_CHANGE_EUID;
     }
+    if (!was_anon && tunable_allow_writeable_chroot)
+    {
+      secutil_option |= VSF_SECUTIL_OPTION_ALLOW_WRITEABLE_ROOT;
+    }
     calculate_chdir_dir(was_anon, &userdir_str, &chroot_str, &chdir_str,
                         p_user_str, p_orig_user_str);
     vsf_secutil_change_credentials(p_user_str, &userdir_str, &chroot_str,
@@ -439,6 +446,9 @@ common_do_login(struct vsf_session* p_sess, const struct mystr* p_user_str,
     str_free(&chdir_str);
     str_free(&userdir_str);
     p_sess->is_anonymous = anon;
+    seccomp_sandbox_init();
+    seccomp_sandbox_setup_postlogin(p_sess);
+    seccomp_sandbox_lockdown();
     process_post_login(p_sess);
     bug("should not get here: common_do_login");
   }
@@ -448,6 +458,7 @@ common_do_login(struct vsf_session* p_sess, const struct mystr* p_user_str,
   {
     ssl_comm_channel_set_producer_context(p_sess);
   }
+  /* The seccomp sandbox lockdown for the priv parent is done inside here */
   vsf_priv_parent_postlogin(p_sess);
   bug("should not get here in common_do_login");
 }

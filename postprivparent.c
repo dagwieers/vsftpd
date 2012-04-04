@@ -21,6 +21,7 @@
 #include "secutil.h"
 #include "sysstr.h"
 #include "sysdeputil.h"
+#include "seccompsandbox.h"
 
 static void minimize_privilege(struct vsf_session* p_sess);
 static void process_post_login_req(struct vsf_session* p_sess);
@@ -110,6 +111,9 @@ minimize_privilege(struct vsf_session* p_sess)
     str_free(&user_str);
     str_free(&dir_str);
   }
+  seccomp_sandbox_init();
+  seccomp_sandbox_setup_postlogin_broker();
+  seccomp_sandbox_lockdown();
 }
 
 static void

@@ -42,6 +42,10 @@ vsf_privop_get_ftp_port_sock(struct vsf_session* p_sess,
   int i;
   int s = vsf_sysutil_get_ipsock(p_sess->p_local_addr);
   int port = 0;
+  if (p_sess->pasv_listen_fd != -1)
+  {
+    die("listed fd is active?");
+  }
   if (vsf_sysutil_is_port_reserved(remote_port))
   {
     die("Illegal port request");
@@ -117,20 +121,15 @@ vsf_privop_pasv_listen(struct vsf_session* p_sess)
 {
   static struct vsf_sysutil_sockaddr* s_p_sockaddr;
   int bind_retries = 10;
-  unsigned short the_port = 0;
+  unsigned short the_port;
   /* IPPORT_RESERVED */
   unsigned short min_port = 1024;
   unsigned short max_port = 65535;
   int is_ipv6 = vsf_sysutil_sockaddr_is_ipv6(p_sess->p_local_addr);
-  if (is_ipv6)
+  if (p_sess->pasv_listen_fd != -1)
   {
-    p_sess->pasv_listen_fd = vsf_sysutil_get_ipv6_sock();
+    die("listed fd already active");
   }
-  else
-  {
-    p_sess->pasv_listen_fd = vsf_sysutil_get_ipv4_sock();
-  }
-  vsf_sysutil_activate_reuseaddr(p_sess->pasv_listen_fd);
 
   if (tunable_pasv_min_port > min_port && tunable_pasv_min_port <= max_port)
   {
@@ -152,6 +151,15 @@ vsf_privop_pasv_listen(struct vsf_session* p_sess)
     scaled_port += ((double) the_port / (double) 65536) *
                    ((double) max_port - min_port + 1);
     the_port = (unsigned short) scaled_port;
+    if (is_ipv6)
+    {
+      p_sess->pasv_listen_fd = vsf_sysutil_get_ipv6_sock();
+    }
+    else
+    {
+      p_sess->pasv_listen_fd = vsf_sysutil_get_ipv4_sock();
+    }
+    vsf_sysutil_activate_reuseaddr(p_sess->pasv_listen_fd);
     vsf_sysutil_sockaddr_clone(&s_p_sockaddr, p_sess->p_local_addr);
     vsf_sysutil_sockaddr_set_port(s_p_sockaddr, the_port);
     retval = vsf_sysutil_bind(p_sess->pasv_listen_fd, s_p_sockaddr);
@@ -167,6 +175,8 @@ vsf_privop_pasv_listen(struct vsf_session* p_sess)
     if (vsf_sysutil_get_error() == kVSFSysUtilErrADDRINUSE ||
         vsf_sysutil_get_error() == kVSFSysUtilErrACCES)
     {
+      vsf_sysutil_close(p_sess->pasv_listen_fd);
+      p_sess->pasv_listen_fd = -1;
       continue;
     }
     die("vsf_sysutil_bind / listen");
@@ -183,6 +193,10 @@ vsf_privop_accept_pasv(struct vsf_session* p_sess)
 {
   struct vsf_sysutil_sockaddr* p_accept_addr = 0;
   int remote_fd;
+  if (p_sess->pasv_listen_fd == -1)
+  {
+    die("listed fd not active");
+  }
   vsf_sysutil_sockaddr_alloc(&p_accept_addr);
   remote_fd = vsf_sysutil_accept_timeout(p_sess->pasv_listen_fd, p_accept_addr,
                                          tunable_accept_timeout);
