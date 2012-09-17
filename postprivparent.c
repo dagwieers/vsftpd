@@ -96,8 +96,14 @@ minimize_privilege(struct vsf_session* p_sess)
     unsigned int caps = 0;
     struct mystr user_str = INIT_MYSTR;
     struct mystr dir_str = INIT_MYSTR;
-    str_alloc_text(&user_str, tunable_nopriv_user);
-    str_alloc_text(&dir_str, tunable_secure_chroot_dir);
+    if (tunable_nopriv_user)
+    {
+      str_alloc_text(&user_str, tunable_nopriv_user);
+    }
+    if (tunable_secure_chroot_dir)
+    {
+      str_alloc_text(&dir_str, tunable_secure_chroot_dir);
+    }
     if (tunable_chown_uploads)
     {
       caps |= kCapabilityCAP_CHOWN;

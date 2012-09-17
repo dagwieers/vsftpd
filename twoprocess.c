@@ -124,8 +124,12 @@ vsf_two_process_start(struct vsf_session* p_sess)
   }
   if (tunable_local_enable && tunable_userlist_enable)
   {
-    int retval = str_fileread(&p_sess->userlist_str, tunable_userlist_file,
-                              VSFTP_CONF_FILE_MAX);
+    int retval = -1;
+    if (tunable_userlist_file)
+    {
+      retval = str_fileread(&p_sess->userlist_str, tunable_userlist_file,
+                            VSFTP_CONF_FILE_MAX);
+    }
     if (vsf_sysutil_retval_is_error(retval))
     {
       die2("cannot read user list file:", tunable_userlist_file);
@@ -144,7 +148,7 @@ drop_all_privs(void)
 {
   struct mystr user_str = INIT_MYSTR;
   struct mystr dir_str = INIT_MYSTR;
-  int option = VSF_SECUTIL_OPTION_CHROOT | VSF_SECUTIL_OPTION_NO_PROCS;
+  unsigned int option = VSF_SECUTIL_OPTION_CHROOT | VSF_SECUTIL_OPTION_NO_PROCS;
   if (!tunable_ssl_enable)
   {
     /* Unfortunately, can only enable this if we can be sure of not using SSL.
@@ -152,8 +156,14 @@ drop_all_privs(void)
      */
     option |= VSF_SECUTIL_OPTION_NO_FDS;
   }
-  str_alloc_text(&user_str, tunable_nopriv_user);
-  str_alloc_text(&dir_str, tunable_secure_chroot_dir);
+  if (tunable_nopriv_user)
+  {
+    str_alloc_text(&user_str, tunable_nopriv_user);
+  }
+  if (tunable_secure_chroot_dir)
+  {
+    str_alloc_text(&dir_str, tunable_secure_chroot_dir);
+  }
   /* Be kind: give good error message if the secure dir is missing */
   {
     struct vsf_sysutil_statbuf* p_statbuf = 0;
@@ -315,7 +325,11 @@ process_login_req(struct vsf_session* p_sess)
       return;
       break;
     case kVSFLoginAnon:
-      str_alloc_text(&p_sess->user_str, tunable_ftp_username);
+      str_free(&p_sess->user_str);
+      if (tunable_ftp_username)
+      {
+        str_alloc_text(&p_sess->user_str, tunable_ftp_username);
+      }
       common_do_login(p_sess, &p_sess->user_str, 1, 1);
       break;
     case kVSFLoginReal:
@@ -328,9 +342,12 @@ process_login_req(struct vsf_session* p_sess)
         if (tunable_chroot_list_enable)
         {
           struct mystr chroot_list_file = INIT_MYSTR;
-          int retval = str_fileread(&chroot_list_file,
-                                    tunable_chroot_list_file,
-                                    VSFTP_CONF_FILE_MAX);
+          int retval = -1;
+          if (tunable_chroot_list_file)
+          {
+            retval = str_fileread(&chroot_list_file, tunable_chroot_list_file,
+                                  VSFTP_CONF_FILE_MAX);
+          }
           if (vsf_sysutil_retval_is_error(retval))
           {
             die2("could not read chroot() list file:",
@@ -413,7 +430,10 @@ common_do_login(struct vsf_session* p_sess, const struct mystr* p_user_str,
     {
       p_sess->is_guest = 1;
       /* Remap to the guest user */
-      str_alloc_text(&guest_user_str, tunable_guest_username);
+      if (tunable_guest_username)
+      {
+        str_alloc_text(&guest_user_str, tunable_guest_username);
+      }
       p_user_str = &guest_user_str;
       if (!tunable_virtual_use_local_privs)
       {

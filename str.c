@@ -289,7 +289,7 @@ str_upper(struct mystr* p_str)
   unsigned int i;
   for (i=0; i < p_str->len; i++)
   {
-    p_str->p_buf[i] = vsf_sysutil_toupper(p_str->p_buf[i]);
+    p_str->p_buf[i] = (char) vsf_sysutil_toupper(p_str->p_buf[i]);
   }
 }
 

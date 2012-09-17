@@ -344,7 +344,8 @@ vsf_parseconf_load_setting(const char* p_setting, int errs_fatal)
         }
         else
         {
-          *(p_uint_setting->p_variable) = str_atoi(&s_value_str);
+          /* TODO: we could reject negatives instead of converting them? */
+          *(p_uint_setting->p_variable) = (unsigned int) str_atoi(&s_value_str);
         }
         return;
       }

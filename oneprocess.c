@@ -76,7 +76,10 @@ one_process_start(void* p_arg)
   {
     struct mystr user_name = INIT_MYSTR;
     struct mystr chdir_str = INIT_MYSTR;
-    str_alloc_text(&user_name, tunable_ftp_username);
+    if (tunable_ftp_username)
+    {
+      str_alloc_text(&user_name, tunable_ftp_username);
+    }
     if (tunable_anon_root)
     {
       str_alloc_text(&chdir_str, tunable_anon_root);

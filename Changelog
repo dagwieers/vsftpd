@@ -1323,3 +1323,17 @@ protocol synchronization issues.
 
 At this point: v3.0.0 released!
 ===============================
+
+- Fix some seccomp related build errors on certain CentOS and Debian versions.
+- Seccomp filter sandbox: missing munmap() -- oops. Did you know that qsort()
+opens and maps /proc/meminfo but only for larger item counts?
+- Seccomp filter sandbox: deny socket() gracefully for text_userdb_names.
+- Fix various NULL crashes with nonsensical config settings. Noted by Tianyin Xu
+<tixu@cs.ucsd.edu>.
+- Force cast to unsigned char in is* char functions.
+- Fix harmless integer issues in strlist.c.
+- Started on a (possibly ill-advised?) crusade to compile cleanly with
+Wconversion. Decided to suspend the effort half-way through.
+
+At this point: v3.0.1 released!
+===============================

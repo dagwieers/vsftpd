@@ -41,7 +41,7 @@ vsf_privop_get_ftp_port_sock(struct vsf_session* p_sess,
   int retval;
   int i;
   int s = vsf_sysutil_get_ipsock(p_sess->p_local_addr);
-  int port = 0;
+  unsigned short port = 0;
   if (p_sess->pasv_listen_fd != -1)
   {
     die("listed fd is active?");
@@ -52,7 +52,7 @@ vsf_privop_get_ftp_port_sock(struct vsf_session* p_sess,
   }
   if (tunable_connect_from_port_20)
   {
-    port = tunable_ftp_data_port;
+    port = (unsigned short) tunable_ftp_data_port;
   }
   vsf_sysutil_activate_reuseaddr(s);
   /* A report of failure here on Solaris, presumably buggy address reuse
@@ -133,11 +133,11 @@ vsf_privop_pasv_listen(struct vsf_session* p_sess)
 
   if (tunable_pasv_min_port > min_port && tunable_pasv_min_port <= max_port)
   {
-    min_port = tunable_pasv_min_port;
+    min_port = (unsigned short) tunable_pasv_min_port;
   }
   if (tunable_pasv_max_port >= min_port && tunable_pasv_max_port < max_port)
   {
-    max_port = tunable_pasv_max_port;
+    max_port = (unsigned short) tunable_pasv_max_port;
   }
 
   while (--bind_retries)
@@ -145,8 +145,8 @@ vsf_privop_pasv_listen(struct vsf_session* p_sess)
     int retval;
     double scaled_port;
     the_port = vsf_sysutil_get_random_byte();
-    the_port <<= 8;
-    the_port |= vsf_sysutil_get_random_byte();
+    the_port = (unsigned short) (the_port << 8);
+    the_port = (unsigned short) (the_port | vsf_sysutil_get_random_byte());
     scaled_port = (double) min_port;
     scaled_port += ((double) the_port / (double) 65536) *
                    ((double) max_port - min_port + 1);
@@ -367,7 +367,10 @@ handle_anonymous_login(struct vsf_session* p_sess,
   str_replace_char(&p_sess->anon_pass_str, '\n', '?');
   {
     struct mystr ftp_username_str = INIT_MYSTR;
-    str_alloc_text(&ftp_username_str, tunable_ftp_username);
+    if (tunable_ftp_username)
+    {
+      str_alloc_text(&ftp_username_str, tunable_ftp_username);
+    }
     setup_username_globals(p_sess, &ftp_username_str);
     str_free(&ftp_username_str);
   }

@@ -26,7 +26,14 @@ die2(const char* p_text1, const char* p_text2)
 {
   struct mystr die_str = INIT_MYSTR;
   str_alloc_text(&die_str, p_text1);
-  str_append_text(&die_str, p_text2);
+  if (p_text2)
+  {
+    str_append_text(&die_str, p_text2);
+  }
+  else
+  {
+    str_append_text(&die_str, "(null)");
+  }
   die(str_getbuf(&die_str));
 }
 

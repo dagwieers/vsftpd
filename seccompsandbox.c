@@ -33,6 +33,10 @@
 
 /* #define DEBUG_SIGSYS 1 */
 
+#ifndef PR_SET_SECCOMP
+  #define PR_SET_SECCOMP 22
+#endif
+
 #ifndef PR_SET_NO_NEW_PRIVS
   #define PR_SET_NO_NEW_PRIVS 38
 #endif
@@ -43,6 +47,14 @@
 
 #ifndef O_LARGEFILE
   #define O_LARGEFILE 00100000
+#endif
+
+#ifndef O_DIRECTORY
+  #define O_DIRECTORY 00200000
+#endif
+
+#ifndef O_CLOEXEC
+  #define O_CLOEXEC 002000000
 #endif
 
 #define kMaxSyscalls 100
@@ -67,6 +79,7 @@ static size_t s_1_arg_validations;
 static size_t s_2_arg_validations;
 static size_t s_3_arg_validations;
 static int s_syscalls[kMaxSyscalls];
+static int s_errnos[kMaxSyscalls];
 static int s_args_1[kMaxSyscalls];
 static int s_vals_1[kMaxSyscalls];
 static int s_args_2[kMaxSyscalls];
@@ -85,6 +98,26 @@ allow_nr(int nr)
   {
     bug("negative syscall");
   }
+  s_errnos[s_syscall_index] = 0;
+  s_syscalls[s_syscall_index++] = nr;
+}
+
+static void
+reject_nr(int nr, int errcode)
+{
+  if (s_syscall_index >= kMaxSyscalls)
+  {
+    bug("out of syscall space");
+  }
+  if (nr < 0)
+  {
+    bug("negative syscall");
+  }
+  if (errcode < 0 || errcode > 255)
+  {
+    bug("bad errcode");
+  }
+  s_errnos[s_syscall_index] = errcode;
   s_syscalls[s_syscall_index++] = nr;
 }
 
@@ -105,6 +138,7 @@ allow_nr_1_arg_match(int nr, int arg, int val)
   }
   s_args_1[s_syscall_index] = arg;
   s_vals_1[s_syscall_index] = val;
+  s_errnos[s_syscall_index] = 0;
   s_syscalls[s_syscall_index++] = nr;
   s_1_arg_validations++;
 }
@@ -126,6 +160,7 @@ allow_nr_1_arg_mask(int nr, int arg, int val)
   }
   s_args_1[s_syscall_index] = 100 + arg;
   s_vals_1[s_syscall_index] = val;
+  s_errnos[s_syscall_index] = 0;
   s_syscalls[s_syscall_index++] = nr;
   s_1_arg_validations++;
 }
@@ -153,6 +188,7 @@ allow_nr_2_arg_match(int nr, int arg1, int val1, int arg2, int val2)
   s_vals_1[s_syscall_index] = val1;
   s_args_2[s_syscall_index] = arg2;
   s_vals_2[s_syscall_index] = val2;
+  s_errnos[s_syscall_index] = 0;
   s_syscalls[s_syscall_index++] = nr;
   s_2_arg_validations++;
 }
@@ -180,6 +216,7 @@ allow_nr_2_arg_mask_match(int nr, int arg1, int val1, int arg2, int val2)
   s_vals_1[s_syscall_index] = val1;
   s_args_2[s_syscall_index] = arg2;
   s_vals_2[s_syscall_index] = val2;
+  s_errnos[s_syscall_index] = 0;
   s_syscalls[s_syscall_index++] = nr;
   s_2_arg_validations++;
 }
@@ -214,6 +251,7 @@ allow_nr_3_arg_match(int nr, int arg1, int val1, int arg2, int val2, int arg3,
   s_vals_2[s_syscall_index] = val2;
   s_args_3[s_syscall_index] = arg3;
   s_vals_3[s_syscall_index] = val3;
+  s_errnos[s_syscall_index] = 0;
   s_syscalls[s_syscall_index++] = nr;
   s_3_arg_validations++;
 }
@@ -256,6 +294,7 @@ seccomp_sandbox_setup_base()
                        3, PROT_READ|PROT_WRITE,
                        4, MAP_PRIVATE|MAP_ANON);
   allow_nr_1_arg_mask(__NR_mprotect, 3, PROT_READ);
+  allow_nr(__NR_munmap);
   allow_nr(__NR_brk);
 
   /* Misc simple low-risk calls. */
@@ -402,8 +441,8 @@ seccomp_sandbox_setup_postlogin(const struct vsf_session* p_sess)
 
   if (tunable_text_userdb_names)
   {
+    reject_nr(__NR_socket, EACCES);
     allow_nr_2_arg_match(__NR_mmap, 3, PROT_READ, 4, MAP_SHARED);
-    allow_nr(__NR_munmap);
   }
 
   if (tunable_write_enable)
@@ -565,8 +604,16 @@ seccomp_sandbox_lockdown()
     p_filter->code = BPF_RET+BPF_K;
     p_filter->jt = 0;
     p_filter->jf = 0;
-    /* SECCOMP_RET_ALLOW */
-    p_filter->k = 0x7fff0000;
+    if (!s_errnos[i])
+    {
+      /* SECCOMP_RET_ALLOW */
+      p_filter->k = 0x7fff0000;
+    }
+    else
+    {
+      /* SECCOMP_RET_ERRNO */
+      p_filter->k = 0x00050000 + s_errnos[i];
+    }
     p_filter++;
     if (s_args_1[i])
     {

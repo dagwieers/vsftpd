@@ -909,13 +909,13 @@ vsf_sysutil_octal_to_uint(const char* p_str)
 int
 vsf_sysutil_toupper(int the_char)
 {
-  return toupper(the_char);
+  return toupper((unsigned char) the_char);
 }
 
 int
 vsf_sysutil_isspace(int the_char)
 {
-  return isspace(the_char);
+  return isspace((unsigned char) the_char);
 }
 
 int
@@ -943,13 +943,13 @@ vsf_sysutil_isprint(int the_char)
 int
 vsf_sysutil_isalnum(int the_char)
 {
-  return isalnum(the_char);
+  return isalnum((unsigned char) the_char);
 }
 
 int
 vsf_sysutil_isdigit(int the_char)
 {
-  return isdigit(the_char);
+  return isdigit((unsigned char) the_char);
 }
 
 char*
@@ -2790,7 +2790,7 @@ vsf_sysutil_getuid(void)
 }
 
 void
-vsf_sysutil_set_address_space_limit(long bytes)
+vsf_sysutil_set_address_space_limit(unsigned long bytes)
 {
   /* Unfortunately, OpenBSD is missing RLIMIT_AS. */
 #ifdef RLIMIT_AS
