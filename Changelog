@@ -1337,3 +1337,9 @@ Wconversion. Decided to suspend the effort half-way through.
 
 At this point: v3.0.1 released!
 ===============================
+
+- One more seccomp policy fix: mremap (denied).
+- Support STOU with no filename, uses a STOU. prefix.
+
+At this point: v3.0.2 released!
+===============================

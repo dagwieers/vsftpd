@@ -296,6 +296,8 @@ seccomp_sandbox_setup_base()
   allow_nr_1_arg_mask(__NR_mprotect, 3, PROT_READ);
   allow_nr(__NR_munmap);
   allow_nr(__NR_brk);
+  /* glibc falls back gracefully if mremap() fails during realloc(). */
+  reject_nr(__NR_mremap, ENOSYS);
 
   /* Misc simple low-risk calls. */
   allow_nr(__NR_rt_sigreturn); /* Used to handle SIGPIPE. */
