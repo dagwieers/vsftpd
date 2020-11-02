@@ -1643,7 +1643,7 @@ handle_mdtm(struct vsf_session* p_sess)
     else
     {
       retval = vsf_sysutil_setmodtime(
-        str_getbuf(&p_sess->ftp_arg_str), modtime, tunable_use_localtime);
+        str_getbuf(&p_sess->ftp_arg_str), modtime, tunable_use_localtime && tunable_use_localtime_mdtm);
       if (retval != 0)
       {
         vsf_cmdio_write(p_sess, FTP_FILEFAIL,
@@ -1668,7 +1668,7 @@ handle_mdtm(struct vsf_session* p_sess)
       static struct mystr s_mdtm_res_str;
       str_alloc_text(&s_mdtm_res_str,
                      vsf_sysutil_statbuf_get_numeric_date(
-                       s_p_statbuf, tunable_use_localtime));
+                       s_p_statbuf, tunable_use_localtime && tunable_use_localtime_mdtm));
       vsf_cmdio_write_str(p_sess, FTP_MDTMOK, &s_mdtm_res_str);
     }
   }

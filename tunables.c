@@ -38,6 +38,7 @@ int tunable_guest_enable;
 int tunable_userlist_enable;
 int tunable_userlist_deny;
 int tunable_use_localtime;
+int tunable_use_localtime_mdtm;
 int tunable_check_shell;
 int tunable_hide_ids;
 int tunable_listen;
@@ -178,6 +179,7 @@ tunables_load_defaults()
   tunable_userlist_enable = 0;
   tunable_userlist_deny = 1;
   tunable_use_localtime = 0;
+  tunable_use_localtime_mdtm = 0;
   tunable_check_shell = 1;
   tunable_hide_ids = 0;
   tunable_listen = 1;
