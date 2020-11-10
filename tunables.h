@@ -39,6 +39,7 @@ extern int tunable_guest_enable;              /* Remap guest users */
 extern int tunable_userlist_enable;           /* Explicit user allow or deny */
 extern int tunable_userlist_deny;             /* Is user list allow or deny? */
 extern int tunable_use_localtime;             /* Use local time or GMT? */
+extern int tunable_use_localtime_mdtm;        /* Use local time also for MDTM command? (will cause RFC3659 violation) */
 extern int tunable_check_shell;               /* Use /etc/shells for non-PAM */
 extern int tunable_hide_ids;                  /* Show "ftp" in ls listings */
 extern int tunable_listen;                    /* Standalone (no inetd) mode? */

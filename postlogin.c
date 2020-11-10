@@ -439,6 +439,15 @@ process_post_login(struct vsf_session* p_sess)
     {
       /* Deliberately ignore to avoid NAT device bugs. ProFTPd does the same. */
     }
+    else if (str_equal_text(&p_sess->ftp_cmd_str, "GET") ||
+             str_equal_text(&p_sess->ftp_cmd_str, "POST") ||
+             str_equal_text(&p_sess->ftp_cmd_str, "HEAD") ||
+             str_equal_text(&p_sess->ftp_cmd_str, "OPTIONS") ||
+             str_equal_text(&p_sess->ftp_cmd_str, "CONNECT"))
+    {
+      vsf_cmdio_write_exit(p_sess, FTP_BADCMD,
+                           "HTTP protocol commands not allowed.", 1);
+    }
     else
     {
       vsf_cmdio_write(p_sess, FTP_BADCMD, "Unknown command.");
@@ -466,7 +475,7 @@ handle_pwd(struct vsf_session* p_sess)
   /* Enclose pathname in quotes */
   str_alloc_text(&s_pwd_res_str, "\"");
   str_append_str(&s_pwd_res_str, &s_cwd_buf_mangle_str);
-  str_append_text(&s_pwd_res_str, "\"");
+  str_append_text(&s_pwd_res_str, "\" is the current directory");
   vsf_cmdio_write_str(p_sess, FTP_PWDOK, &s_pwd_res_str);
 }
 
@@ -594,7 +603,7 @@ handle_pasv(struct vsf_session* p_sess, int is_epsv)
   {
     str_alloc_text(&s_pasv_res_str, "Entering Extended Passive Mode (|||");
     str_append_ulong(&s_pasv_res_str, (unsigned long) the_port);
-    str_append_text(&s_pasv_res_str, "|).");
+    str_append_text(&s_pasv_res_str, "|)");
     vsf_cmdio_write_str(p_sess, FTP_EPSVOK, &s_pasv_res_str);
     return;
   }
@@ -1634,7 +1643,7 @@ handle_mdtm(struct vsf_session* p_sess)
     else
     {
       retval = vsf_sysutil_setmodtime(
-        str_getbuf(&p_sess->ftp_arg_str), modtime, tunable_use_localtime);
+        str_getbuf(&p_sess->ftp_arg_str), modtime, tunable_use_localtime && tunable_use_localtime_mdtm);
       if (retval != 0)
       {
         vsf_cmdio_write(p_sess, FTP_FILEFAIL,
@@ -1659,7 +1668,7 @@ handle_mdtm(struct vsf_session* p_sess)
       static struct mystr s_mdtm_res_str;
       str_alloc_text(&s_mdtm_res_str,
                      vsf_sysutil_statbuf_get_numeric_date(
-                       s_p_statbuf, tunable_use_localtime));
+                       s_p_statbuf, tunable_use_localtime && tunable_use_localtime_mdtm));
       vsf_cmdio_write_str(p_sess, FTP_MDTMOK, &s_mdtm_res_str);
     }
   }

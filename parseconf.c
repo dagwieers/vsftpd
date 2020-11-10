@@ -57,6 +57,7 @@ parseconf_bool_array[] =
   { "userlist_enable", &tunable_userlist_enable },
   { "userlist_deny", &tunable_userlist_deny },
   { "use_localtime", &tunable_use_localtime },
+  { "use_localtime_mdtm", &tunable_use_localtime_mdtm },
   { "check_shell", &tunable_check_shell },
   { "hide_ids", &tunable_hide_ids },
   { "listen", &tunable_listen },

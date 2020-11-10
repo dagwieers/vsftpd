@@ -38,6 +38,7 @@ int tunable_guest_enable;
 int tunable_userlist_enable;
 int tunable_userlist_deny;
 int tunable_use_localtime;
+int tunable_use_localtime_mdtm;
 int tunable_check_shell;
 int tunable_hide_ids;
 int tunable_listen;
@@ -178,6 +179,7 @@ tunables_load_defaults()
   tunable_userlist_enable = 0;
   tunable_userlist_deny = 1;
   tunable_use_localtime = 0;
+  tunable_use_localtime_mdtm = 0;
   tunable_check_shell = 1;
   tunable_hide_ids = 0;
   tunable_listen = 1;
@@ -215,7 +217,7 @@ tunables_load_defaults()
   tunable_debug_ssl = 0;
   tunable_require_cert = 0;
   tunable_validate_cert = 0;
-  tunable_strict_ssl_read_eof = 0;
+  tunable_strict_ssl_read_eof = 1;
   tunable_strict_ssl_write_shutdown = 0;
   tunable_ssl_request_cert = 1;
   tunable_delete_failed_uploads = 0;
@@ -284,7 +286,7 @@ tunables_load_defaults()
   install_str_setting("/usr/share/ssl/certs/vsftpd.pem",
                       &tunable_rsa_cert_file);
   install_str_setting(0, &tunable_dsa_cert_file);
-  install_str_setting("AES128-SHA:DES-CBC3-SHA", &tunable_ssl_ciphers);
+  install_str_setting("ECDHE-RSA-AES256-GCM-SHA384", &tunable_ssl_ciphers);
   install_str_setting(0, &tunable_rsa_private_key_file);
   install_str_setting(0, &tunable_dsa_private_key_file);
   install_str_setting(0, &tunable_ca_certs_file);
